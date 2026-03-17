@@ -477,9 +477,9 @@
     gap: 15px;
 }
 
-.secCard > div {
+.secContent {
     flex: 1;
-    text-align: left !important;
+    text-align: left;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -545,9 +545,9 @@
     flex-shrink: 0;
 }
 
-.notifInfo {
+.notifContent {
     flex: 1;
-    text-align: left !important;
+    text-align: left;
     display: flex;
     flex-direction: column;
     justify-content: center;

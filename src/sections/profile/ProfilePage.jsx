@@ -445,7 +445,7 @@ export default function ProfilePage() {
 
                                     <div className={styles.secCard}>
                                         <div className={styles.secIcon}>🔑</div>
-                                        <div style={{ flex: 1, textAlign: 'left' }}>
+                                        <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Password</div>
                                             <div className={styles.secDesc}>Terakhir diubah: belum pernah</div>
                                         </div>
@@ -456,7 +456,7 @@ export default function ProfilePage() {
 
                                     <div className={styles.secCard}>
                                         <div className={styles.secIcon}>🛡️</div>
-                                        <div style={{ flex: 1, textAlign: 'left' }}>
+                                        <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Autentikasi Dua Faktor (2FA)</div>
                                             <div className={styles.secDesc}>Tambahkan lapisan keamanan ekstra</div>
                                         </div>
@@ -465,7 +465,7 @@ export default function ProfilePage() {
 
                                     <div className={styles.secCard}>
                                         <div className={styles.secIcon}>👻</div>
-                                        <div style={{ flex: 1, textAlign: 'left' }}>
+                                        <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Phantom Wallet</div>
                                             <div className={styles.secDesc}>
                                                 {walletAddr
@@ -481,7 +481,7 @@ export default function ProfilePage() {
 
                                     <div className={styles.secCard}>
                                         <div className={styles.secIcon}>📋</div>
-                                        <div style={{ flex: 1, textAlign: 'left' }}>
+                                        <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Sesi Aktif</div>
                                             <div className={styles.secDesc}>
                                                 Browser ini — {typeof window !== 'undefined' ? (navigator.userAgent.match(/Chrome|Firefox|Safari|Edge|Opera/)?.[0] || 'Unknown') : 'Server'}
@@ -509,7 +509,7 @@ export default function ProfilePage() {
                                     ].map(item => (
                                         <div key={item.key} className={styles.notifRow}>
                                             <span className={styles.notifIcon}>{item.icon}</span>
-                                            <div className={styles.notifInfo}>
+                                            <div className={styles.notifContent}>
                                                 <div className={styles.notifTitle}>{item.title}</div>
                                                 <div className={styles.notifDesc}>{item.desc}</div>
                                             </div>
