@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import styles from './ProfilePage.module.css';
+import { Key, Shield, Wallet, MonitorSmartphone, User, Lock, Bell, Settings, ShoppingBag, CreditCard, TrendingUp, Link as LinkIcon, Mail, Moon, Sun, Camera, Upload, Trash2, Save, Loader2, Link2, Unplug, AlertTriangle, CheckCircle2, Calendar, Banknote, Sparkles, X, LogOut, Check, ChevronLeft } from 'lucide-react';
 
 const LANGUAGES = ['Indonesia', 'English', 'Bahasa Melayu', '日本語', '中文'];
 
@@ -30,7 +31,7 @@ function PasswordModal({ onClose, userId }) {
             });
             const data = await res.json();
             if (!data.success) { setErr(data.message || 'Gagal mengubah password'); }
-            else { setMsg('✅ Password berhasil diubah!'); setTimeout(onClose, 1500); }
+            else { setMsg('Password berhasil diubah!'); setTimeout(onClose, 1500); }
         } catch { setErr('Koneksi error, coba lagi'); }
         setLoading(false);
     }
@@ -39,7 +40,7 @@ function PasswordModal({ onClose, userId }) {
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
-                    <span>🔑 Ubah Password</span>
+                    <span style={{display:"flex",alignItems:"center",gap:6}}><Key size={18} /> Ubah Password</span>
                     <button onClick={onClose} className={styles.modalClose}>✕</button>
                 </div>
                 <form onSubmit={handleSubmit} className={styles.modalBody}>
@@ -56,10 +57,10 @@ function PasswordModal({ onClose, userId }) {
                             />
                         </div>
                     ))}
-                    {err && <div className={styles.errorBox}>⚠️ {err}</div>}
-                    {msg && <div className={styles.successBox}>{msg}</div>}
+                    {err && <div className={styles.errorBox} style={{display:"flex",alignItems:"center",gap:8}}><AlertTriangle size={16} /> {err}</div>}
+                    {msg && <div className={styles.successBox} style={{display:"flex",alignItems:"center",gap:8}}><CheckCircle2 size={16} /> {msg}</div>}
                     <button type="submit" disabled={loading} className={styles.btnPrimary} style={{ width: '100%' }}>
-                        {loading ? '⏳ Mengubah...' : '🔑 Ubah Password'}
+                        {loading ? loading ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Mengubah...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Key size={16} /> Ubah Password</span>}
                     </button>
                 </form>
             </div>
@@ -74,7 +75,7 @@ function PhantomModal({ onClose, user, onUpdate }) {
 
     async function connectPhantom() {
         if (typeof window === 'undefined' || !window.solana?.isPhantom) {
-            setMsg('⚠️ Phantom Wallet tidak terdeteksi. Install ekstensi Phantom dulu!');
+            setMsg('Phantom Wallet tidak terdeteksi. Install ekstensi Phantom dulu!');
             return;
         }
         setConnecting(true); setMsg('');
@@ -88,10 +89,10 @@ function PhantomModal({ onClose, user, onUpdate }) {
                 body: JSON.stringify({ userId: user.id, wallet: address }),
             });
             onUpdate(address);
-            setMsg(`✅ Wallet terhubung: ${address.slice(0, 8)}...`);
+            setMsg(`Wallet terhubung: ${address.slice(0, 8)}...`);
             setTimeout(onClose, 2000);
         } catch (e) {
-            setMsg('❌ Gagal menghubungkan wallet: ' + e.message);
+            setMsg('Gagal menghubungkan wallet: ' + e.message);
         }
         setConnecting(false);
     }
@@ -105,21 +106,21 @@ function PhantomModal({ onClose, user, onUpdate }) {
                 body: JSON.stringify({ userId: user.id, wallet: '' }),
             });
             onUpdate('');
-            setMsg('✅ Wallet berhasil diputus');
+            setMsg('Wallet berhasil diputus');
             setTimeout(onClose, 1500);
-        } catch { setMsg('❌ Gagal memutus wallet'); }
+        } catch { setMsg('Gagal memutus wallet'); }
     }
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
-                    <span>👻 Kelola Phantom Wallet</span>
+                    <span style={{display:"flex",alignItems:"center",gap:6}}><Wallet size={18} /> Kelola Phantom Wallet</span>
                     <button onClick={onClose} className={styles.modalClose}>✕</button>
                 </div>
                 <div className={styles.modalBody}>
                     <div className={styles.phantomCard}>
-                        <div style={{ fontSize: 48 }}>👻</div>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", color: "var(--color-text-muted)" }}><Wallet size={48} strokeWidth={1} /></div>
                         <div>
                             <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>Phantom Wallet</div>
                             {user?.wallet
@@ -128,14 +129,14 @@ function PhantomModal({ onClose, user, onUpdate }) {
                             }
                         </div>
                     </div>
-                    {msg && <div className={msg.includes('✅') ? styles.successBox : styles.errorBox}>{msg}</div>}
+                    {msg && <div className={msg.includes("Terhubung") || msg.includes("berhasil") ? styles.successBox : styles.errorBox} style={{display:"flex",alignItems:"center",gap:8}}>{msg.includes("Terhubung") || msg.includes("berhasil") ? <CheckCircle2 size={16}/> : <AlertTriangle size={16}/>} {msg}</div>}
                     <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                         <button onClick={connectPhantom} disabled={connecting} className={styles.btnPrimary} style={{ flex: 1 }}>
-                            {connecting ? '⏳ Menghubungkan...' : '🔗 Hubungkan Wallet'}
+                            {connecting ? connecting ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menghubungkan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Link2 size={16} /> Hubungkan Wallet</span>}
                         </button>
                         {user?.wallet && (
                             <button onClick={disconnectPhantom} className={styles.btnSecondary}>
-                                ✂️ Putuskan
+                                <span style={{display:"flex",alignItems:"center",gap:6}}><Unplug size={16}/> Putuskan</span>
                             </button>
                         )}
                     </div>
@@ -273,10 +274,10 @@ export default function ProfilePage() {
     const F = (k, val) => setForm(f => ({ ...f, [k]: val }));
 
     const TABS = [
-        { id: 'profile', label: 'Profil', icon: '👤' },
-        { id: 'security', label: 'Keamanan', icon: '🔐' },
-        { id: 'notifications', label: 'Notifikasi', icon: '🔔' },
-        { id: 'preferences', label: 'Preferensi', icon: '⚙️' },
+        { id: 'profile', label: 'Profil', icon: <User size={16} /> },
+        { id: 'security', label: 'Keamanan', icon: <Lock size={16} /> },
+        { id: 'notifications', label: 'Notifikasi', icon: <Bell size={16} /> },
+        { id: 'preferences', label: 'Preferensi', icon: <Settings size={16} /> },
     ];
 
     return (
@@ -300,7 +301,7 @@ export default function ProfilePage() {
                 {/* THEME TOGGLE di header */}
                 <button className={styles.themeToggleBtn} onClick={toggleTheme} title={`Switch ke ${isDark ? 'Light' : 'Dark'} Mode`}>
                     <span className={styles.themeToggleTrack} data-dark={isDark}>
-                        <span className={styles.themeToggleThumb}>{isDark ? '🌙' : '☀️'}</span>
+                        <span className={styles.themeToggleThumb}>{isDark ? isDark ? <Moon size={16} /> : <Sun size={16} />}</span>
                     </span>
                     <span className={styles.themeToggleLabel}>{isDark ? 'Dark Mode' : 'Light Mode'}</span>
                 </button>
@@ -317,7 +318,7 @@ export default function ProfilePage() {
                                     {form.name ? form.name.substring(0, 2).toUpperCase() : '?'}
                                 </div>
                             }
-                            <div className={styles.avatarOverlay}>📷 Ganti Foto</div>
+                            <div className={styles.avatarOverlay}><Camera size={14} style={{marginRight:4, verticalAlign:"middle"}}/> Ganti Foto</div>
                         </div>
                         <input id="photoInput" type="file" accept="image/*" className={styles.fileInput} onChange={handlePhotoChange} />
                         <div className={styles.avatarName}>{form.name || 'Nama Pengguna'}</div>
@@ -329,7 +330,7 @@ export default function ProfilePage() {
 
                     {walletAddr && (
                         <div className={styles.walletBadge}>
-                            <span>👻</span>
+                            <span><Wallet size={14} /></span>
                             <span className={styles.walletAddr}>{walletAddr.slice(0, 8)}...{walletAddr.slice(-4)}</span>
                         </div>
                     )}
@@ -352,7 +353,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div className={styles.memberSince}>
-                        🗓️ Member sejak {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2024'}
+                        <Calendar size={14} style={{verticalAlign:"middle", marginRight:4}}/> Member sejak {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2024'}
                     </div>
                 </div>
 
@@ -414,11 +415,11 @@ export default function ProfilePage() {
                                         </div>
                                         <div className={styles.photoActions}>
                                             <button type="button" className={styles.uploadBtn} onClick={() => document.getElementById('photoInput').click()}>
-                                                📁 Upload Foto
+                                                <span style={{display:"flex",alignItems:"center",gap:6}}><Upload size={16}/> Upload Foto</span>
                                             </button>
                                             {photoPreview && (
                                                 <button type="button" className={styles.removeBtn} onClick={() => setPhotoPreview(null)}>
-                                                    🗑️ Hapus
+                                                    <span style={{display:"flex",alignItems:"center",gap:6}}><Trash2 size={16}/> Hapus</span>
                                                 </button>
                                             )}
                                             <p className={styles.photoHint}>JPG, PNG, WebP maksimum 2MB. Rekomendasi: 400×400px</p>
@@ -426,12 +427,12 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
 
-                                {error && <div className={styles.errorBox}>⚠️ {error}</div>}
-                                {saved && <div className={styles.successBox}>✅ Profil berhasil disimpan!</div>}
+                                {error && <div className={styles.errorBox} style={{display:"flex",alignItems:"center",gap:8}}><AlertTriangle size={16} /> {error}</div>}
+                                {saved && <div className={styles.successBox} style={{display:"flex",alignItems:"center",gap:8}}><CheckCircle2 size={16} /> Profil berhasil disimpan!</div>}
                                 <div className={styles.formFooter}>
-                                    <button type="button" onClick={() => router.back()} className={styles.btnSecondary}>← Kembali</button>
+                                    <button type="button" onClick={() => router.back()} className={styles.btnSecondary}><span style={{display:"flex",alignItems:"center",gap:6}}><ChevronLeft size={16}/> Kembali</span></button>
                                     <button type="submit" disabled={saving} className={styles.btnPrimary}>
-                                        {saving ? '⏳ Menyimpan...' : '💾 Simpan Perubahan'}
+                                        {saving ? saving ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menyimpan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Save size={16} /> Simpan Perubahan</span>}
                                     </button>
                                 </div>
                             </form>
@@ -444,7 +445,7 @@ export default function ProfilePage() {
                                     <h3 className={styles.sectionTitle}>Keamanan Akun</h3>
 
                                     <div className={styles.secCard}>
-                                        <div className={styles.secIcon}>🔑</div>
+                                        <div className={styles.secIcon}><Key size={24} strokeWidth={1.5} /></div>
                                         <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Password</div>
                                             <div className={styles.secDesc}>Terakhir diubah: belum pernah</div>
@@ -455,7 +456,7 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className={styles.secCard}>
-                                        <div className={styles.secIcon}>🛡️</div>
+                                        <div className={styles.secIcon}><Shield size={24} strokeWidth={1.5} /></div>
                                         <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Autentikasi Dua Faktor (2FA)</div>
                                             <div className={styles.secDesc}>Tambahkan lapisan keamanan ekstra</div>
@@ -464,7 +465,7 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className={styles.secCard}>
-                                        <div className={styles.secIcon}>👻</div>
+                                        <div className={styles.secIcon}><Wallet size={24} strokeWidth={1.5} /></div>
                                         <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Phantom Wallet</div>
                                             <div className={styles.secDesc}>
@@ -480,7 +481,7 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className={styles.secCard}>
-                                        <div className={styles.secIcon}>📋</div>
+                                        <div className={styles.secIcon}><MonitorSmartphone size={24} strokeWidth={1.5} /></div>
                                         <div className={styles.secContent}>
                                             <div className={styles.secTitle}>Sesi Aktif</div>
                                             <div className={styles.secDesc}>
@@ -501,11 +502,11 @@ export default function ProfilePage() {
                                 <div className={styles.formSection}>
                                     <h3 className={styles.sectionTitle}>Preferensi Notifikasi</h3>
                                     {[
-                                        { icon: '🛍️', title: 'Produk Baru Ditambahkan', desc: 'Notifikasi saat koperasi/developer menambah produk kopi baru', key: 'notif_product' },
-                                        { icon: '💳', title: 'Status Pembayaran', desc: 'Konfirmasi pembayaran berhasil atau gagal', key: 'notif_payment' },
-                                        { icon: '📈', title: 'Perubahan Harga Pasar', desc: 'Update harga kopi terbaru setiap hari', key: 'notif_price' },
-                                        { icon: '🤝', title: 'Transaksi Blockchain', desc: 'Notifikasi transaksi on-chain pada Solana Devnet', key: 'notif_blockchain' },
-                                        { icon: '📧', title: 'Email Digest Mingguan', desc: 'Ringkasan aktivitas minggu ini via email', key: 'notif_email' },
+                                        { icon: <ShoppingBag size={20} />, title: 'Produk Baru Ditambahkan', desc: 'Notifikasi saat koperasi/developer menambah produk kopi baru', key: 'notif_product' },
+                                        { icon: <CreditCard size={20} />, title: 'Status Pembayaran', desc: 'Konfirmasi pembayaran berhasil atau gagal', key: 'notif_payment' },
+                                        { icon: <TrendingUp size={20} />, title: 'Perubahan Harga Pasar', desc: 'Update harga kopi terbaru setiap hari', key: 'notif_price' },
+                                        { icon: <LinkIcon size={20} />, title: 'Transaksi Blockchain', desc: 'Notifikasi transaksi on-chain pada Solana Devnet', key: 'notif_blockchain' },
+                                        { icon: <Mail size={20} />, title: 'Email Digest Mingguan', desc: 'Ringkasan aktivitas minggu ini via email', key: 'notif_email' },
                                     ].map(item => (
                                         <div key={item.key} className={styles.notifRow}>
                                             <span className={styles.notifIcon}>{item.icon}</span>
@@ -530,10 +531,10 @@ export default function ProfilePage() {
                                         className={styles.btnPrimary}
                                         onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 3000); }}
                                     >
-                                        💾 Simpan Preferensi Notifikasi
+                                        <span style={{display:"flex",alignItems:"center",gap:6,justifyContent:"center"}}><Save size={16}/> Simpan Preferensi Notifikasi</span>
                                     </button>
                                 </div>
-                                {saved && <div className={styles.successBox}>✅ Preferensi notifikasi disimpan!</div>}
+                                {saved && <div className={styles.successBox} style={{display:"flex",alignItems:"center",gap:8}}><CheckCircle2 size={16} /> Preferensi notifikasi disimpan!</div>}
                             </div>
                         )}
 
@@ -546,7 +547,7 @@ export default function ProfilePage() {
                                     {/* TEMA TOGGLE — fungsional sekarang */}
                                     <div className={styles.prefRow}>
                                         <div>
-                                            <div className={styles.prefLabel}>{isDark ? '🌙 Tema Gelap' : '☀️ Tema Terang'}</div>
+                                            <div className={styles.prefLabel}>{isDark ? <span style={{display:"flex",alignItems:"center",gap:6}}><Moon size={16}/> Tema Gelap</span> : <span style={{display:"flex",alignItems:"center",gap:6}}><Sun size={16}/> Tema Terang</span>}</div>
                                             <div className={styles.prefDesc}>
                                                 {isDark ? 'Mode gelap aktif — klik untuk mode terang' : 'Mode terang aktif — klik untuk mode gelap'}
                                             </div>
@@ -566,7 +567,7 @@ export default function ProfilePage() {
 
                                     <div className={styles.prefRow}>
                                         <div>
-                                            <div className={styles.prefLabel}>💱 Format Mata Uang IDR</div>
+                                            <div className={styles.prefLabel}><span style={{display:"flex",alignItems:"center",gap:6}}><Banknote size={16}/> Format Mata Uang IDR</span></div>
                                             <div className={styles.prefDesc}>Tampilkan harga dalam Rupiah (IDR)</div>
                                         </div>
                                         <label className={styles.toggle}>
@@ -577,7 +578,7 @@ export default function ProfilePage() {
 
                                     <div className={styles.prefRow}>
                                         <div>
-                                            <div className={styles.prefLabel}>✨ Animasi UI</div>
+                                            <div className={styles.prefLabel}><span style={{display:"flex",alignItems:"center",gap:6}}><Sparkles size={16}/> Animasi UI</span></div>
                                             <div className={styles.prefDesc}>Aktifkan transisi dan animasi halaman</div>
                                         </div>
                                         <label className={styles.toggle}>
@@ -587,10 +588,10 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
 
-                                {saved && <div className={styles.successBox}>✅ Preferensi disimpan!</div>}
+                                {saved && <div className={styles.successBox} style={{display:"flex",alignItems:"center",gap:8}}><CheckCircle2 size={16} /> Preferensi disimpan!</div>}
                                 <div className={styles.formFooter}>
                                     <button type="submit" disabled={saving} className={styles.btnPrimary}>
-                                        {saving ? '⏳ Menyimpan...' : '💾 Simpan Preferensi'}
+                                        {saving ? saving ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menyimpan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Save size={16} /> Simpan Preferensi</span>}
                                     </button>
                                 </div>
                             </form>
