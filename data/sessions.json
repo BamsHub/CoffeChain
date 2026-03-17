@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "token": "24312c5838724ba5a377f3274971a774mm5x84v9",
+      "userId": "user-002",
+      "role": "koperasi",
+      "createdAt": "2026-02-28T06:09:19.272Z",
+      "expiresAt": "2026-03-07T06:09:19.272Z"
+    },
+    {
+      "token": "3cf934ff47b9435d852fbbf6acb24fbamm5x8lpy",
+      "userId": "user-003",
+      "role": "farmer",
+      "createdAt": "2026-02-28T06:09:41.112Z",
+      "expiresAt": "2026-03-07T06:09:41.112Z"
+    }
+  ]
+}

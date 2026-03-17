@@ -1,0 +1,245 @@
+{
+  "items": [
+    {
+      "id": "prod-76bdb505",
+      "name": "Test Arabika Notification",
+      "origin": "Aceh",
+      "grade": "AA",
+      "variety": "Arabika",
+      "roast": "Medium Roast",
+      "weight": [
+        250,
+        500,
+        1000250
+      ],
+      "pricePerUnit": [
+        60000,
+        110000,
+        200000100000
+      ],
+      "description": "",
+      "image": "☕",
+      "tags": [
+        "Arabika",
+        "AA"
+      ],
+      "stock": 50,
+      "rating": 4.5,
+      "sold": 0
+    },
+    {
+      "id": "prod-001",
+      "name": "Arabika Gayo Premium",
+      "origin": "Gayo, Aceh",
+      "grade": "AA",
+      "variety": "Arabika",
+      "roast": "Medium Roast",
+      "weight": [
+        250,
+        500,
+        1000
+      ],
+      "pricePerUnit": [
+        75000,
+        140000,
+        265000
+      ],
+      "description": "Kopi Arabika Gayo dengan cita rasa fruity, floral, dan keasaman lembut. Ditanam di ketinggian 1.200–1.500 mdpl oleh petani Koperasi Gayo Murni.",
+      "image": "☕",
+      "tags": [
+        "Specialty",
+        "Organik",
+        "Fair Trade"
+      ],
+      "stock": 150,
+      "rating": 4.9,
+      "sold": 1243
+    },
+    {
+      "id": "prod-002",
+      "name": "Toraja Mandheling Select",
+      "origin": "Toraja, Sulawesi Selatan",
+      "grade": "A",
+      "variety": "Arabika",
+      "roast": "Dark Roast",
+      "weight": [
+        250,
+        500,
+        1000
+      ],
+      "pricePerUnit": [
+        68000,
+        128000,
+        240000
+      ],
+      "description": "Kopi Toraja ikonik dengan body tebal, rasa cokelat gelap, dan finish panjang yang khas. Diproses menggunakan metode wet-hulling (Giling Basah).",
+      "image": "🫘",
+      "tags": [
+        "Signature",
+        "Wet-Hulled"
+      ],
+      "stock": 87,
+      "rating": 4.8,
+      "sold": 967
+    },
+    {
+      "id": "prod-003",
+      "name": "Flores Bajawa Washed",
+      "origin": "Bajawa, Flores NTT",
+      "grade": "A",
+      "variety": "Arabika",
+      "roast": "Light Roast",
+      "weight": [
+        250,
+        500,
+        1000
+      ],
+      "pricePerUnit": [
+        62000,
+        118000,
+        220000
+      ],
+      "description": "Arabika Flores dengan karakter nutty, toffee, dan sentuhan buah tropis. Proses washed memberikan kejernihan rasa yang luar biasa.",
+      "image": "🌺",
+      "tags": [
+        "Washed",
+        "Floral"
+      ],
+      "stock": 63,
+      "rating": 4.7,
+      "sold": 581
+    },
+    {
+      "id": "prod-004",
+      "name": "Robusta Lampung Super",
+      "origin": "Lampung",
+      "grade": "A",
+      "variety": "Robusta",
+      "roast": "Full City Roast",
+      "weight": [
+        250,
+        500,
+        1000
+      ],
+      "pricePerUnit": [
+        45000,
+        85000,
+        160000
+      ],
+      "description": "Robusta Lampung berkualitas tinggi dengan body bold, aftertaste pahit khas, dan kadar kafein tinggi. Cocok untuk espresso dan kopi susu.",
+      "image": "⚡",
+      "tags": [
+        "High Caffeine",
+        "Bold"
+      ],
+      "stock": 225,
+      "rating": 4.6,
+      "sold": 2104
+    },
+    {
+      "id": "prod-005",
+      "name": "Papua Wamena Anaerobic",
+      "origin": "Wamena, Papua",
+      "grade": "AA",
+      "variety": "Arabika",
+      "roast": "Medium-Light Roast",
+      "weight": [
+        100,
+        250,
+        500
+      ],
+      "pricePerUnit": [
+        55000,
+        120000,
+        225000
+      ],
+      "description": "Kopi langka dari lembah Baliem, diproses dengan metode anaerobic fermentation. Profil rasa unik: wine, tropical fruit, dan jasmine.",
+      "image": "🏔️",
+      "tags": [
+        "Rare",
+        "Anaerobic",
+        "Specialty"
+      ],
+      "stock": 28,
+      "rating": 5,
+      "sold": 312
+    },
+    {
+      "id": "prod-006",
+      "name": "Kintamani Bali Honey",
+      "origin": "Kintamani, Bali",
+      "grade": "A",
+      "variety": "Arabika",
+      "roast": "Medium Roast",
+      "weight": [
+        250,
+        500,
+        1000
+      ],
+      "pricePerUnit": [
+        65000,
+        122000,
+        230000
+      ],
+      "description": "Arabika Kintamani dengan proses honey yang menghasilkan sweetness alami, berry, caramel, dan sedikit rasa jeruk. Cocok untuk V60 dan Aeropress.",
+      "image": "🍯",
+      "tags": [
+        "Honey Process",
+        "Sweet"
+      ],
+      "stock": 94,
+      "rating": 4.8,
+      "sold": 743
+    },
+    {
+      "id": "prod-007",
+      "name": "Aceh Takengon Cold Brew Pack",
+      "origin": "Takengon, Aceh Tengah",
+      "grade": "A",
+      "variety": "Arabika",
+      "roast": "Medium Dark",
+      "weight": [
+        500,
+        1000
+      ],
+      "pricePerUnit": [
+        95000,
+        178000
+      ],
+      "description": "Blend khusus untuk cold brew — digiling kasar dan dikemas vakum. Menghasilkan cold brew dengan rasa smooth, dark chocolate, dan sedikit nutty.",
+      "image": "🧊",
+      "tags": [
+        "Cold Brew",
+        "Blend"
+      ],
+      "stock": 45,
+      "rating": 4.7,
+      "sold": 489
+    },
+    {
+      "id": "prod-008",
+      "name": "Liberika Semenanjung Malaysia",
+      "origin": "Oku Selatan, Sumsel",
+      "grade": "B",
+      "variety": "Liberika",
+      "roast": "Dark Roast",
+      "weight": [
+        250,
+        500
+      ],
+      "pricePerUnit": [
+        38000,
+        70000
+      ],
+      "description": "Kopi Liberika langka dengan body unik, aroma smoky, dan rasa yang bold dengan sentuhan fruity. Hanya tumbuh di wilayah tertentu di Sumatera.",
+      "image": "🌿",
+      "tags": [
+        "Rare",
+        "Liberika"
+      ],
+      "stock": 19,
+      "rating": 4.4,
+      "sold": 156
+    }
+  ]
+}

@@ -1,0 +1,626 @@
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeInUp 0.4s ease;
+}
+
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.pageTitle {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.5px;
+}
+
+.pageSubtitle {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+}
+
+.updateTime {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.liveChip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(76, 175, 80, 0.15);
+    color: var(--color-success);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.liveChip span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-success);
+    animation: pulse 1.5s infinite;
+}
+
+.priceGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.priceCard {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.priceCard:hover {
+    transform: translateY(-2px);
+}
+
+.up {
+    border-left: 3px solid var(--color-success);
+}
+
+.down {
+    border-left: 3px solid var(--color-error);
+}
+
+.priceTop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.emoji {
+    font-size: 24px;
+}
+
+.coffeeName {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.coffeeGrade {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.changeChip {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+
+.posChip {
+    background: rgba(76, 175, 80, 0.15);
+    color: var(--color-success);
+}
+
+.negChip {
+    background: rgba(244, 67, 54, 0.15);
+    color: var(--color-error);
+}
+
+.coffeePrice {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.5px;
+}
+
+.perKg {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--color-text-muted);
+}
+
+.coffeeVol {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.chartCard,
+.tradeCard {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.chartHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.chartTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.chartSub {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+.legendRow {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.legendUp {
+    color: var(--color-success);
+}
+
+.legendDown {
+    color: var(--color-error);
+}
+
+.tradeForm {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 14px;
+    align-items: flex-end;
+    margin-top: 16px;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.formGroup label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.input,
+.select {
+    background: var(--color-bg-card2);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+}
+
+.input:focus,
+.select:focus {
+    border-color: var(--color-primary-light);
+}
+
+.tradeBtns {
+    display: flex;
+    gap: 8px;
+}
+
+.btnBuy,
+.btnSell {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.btnBuy {
+    background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+    color: white;
+}
+
+.btnSell {
+    background: linear-gradient(135deg, var(--color-accent), #c47d1a);
+    color: white;
+}
+
+@media (max-width: 900px) {
+    .tradeForm {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ── Header Right layout ── */
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.addProductBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(74, 124, 40, 0.15);
+    border: 1px solid rgba(74, 124, 40, 0.3);
+    border-radius: 8px;
+    color: var(--color-primary-light);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.addProductBtn:hover {
+    background: rgba(74, 124, 40, 0.25);
+}
+
+/* ── History Card ── */
+.historyCard {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.historyHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.historyCount {
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(74, 124, 40, 0.1);
+    border: 1px solid rgba(74, 124, 40, 0.2);
+    color: var(--color-primary-light);
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.histLoading {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.histSkeleton {
+    height: 56px;
+    border-radius: 8px;
+    background: var(--color-bg-card2);
+    animation: skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton {
+
+    0%,
+    100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.histEmpty {
+    text-align: center;
+    padding: 32px;
+    color: var(--color-text-muted);
+    font-size: 14px;
+}
+
+.histList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(74, 124, 40, 0.2) transparent;
+}
+
+.histItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--color-bg-card2);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: var(--transition);
+}
+
+.histItem:hover {
+    border-color: rgba(74, 124, 40, 0.3);
+}
+
+.histNum {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    min-width: 20px;
+    text-align: center;
+}
+
+.histEmoji {
+    font-size: 26px;
+}
+
+.histInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.histProduct {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.histWeight {
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--color-text-secondary);
+}
+
+.histMeta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.histBuyer {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.histDot {
+    opacity: 0.4;
+}
+
+.histMethod {
+    color: var(--color-text-secondary);
+}
+
+.histTime {
+    color: var(--color-text-muted);
+}
+
+.histRight {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.histPrice {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-accent);
+    letter-spacing: -0.3px;
+}
+
+.histOrderId {
+    font-size: 10px;
+    font-family: monospace;
+    color: var(--color-text-muted);
+}
+
+.paiBadge {
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(76, 175, 80, 0.12);
+    border: 1px solid rgba(76, 175, 80, 0.25);
+    color: var(--color-success);
+    padding: 2px 7px;
+    border-radius: 20px;
+}
+
+/* ── Add Product Modal ── */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.addModal {
+    background: var(--color-bg-surface, #0a1a0b);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+    animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    scrollbar-width: thin;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.addModalHdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.addModalHdr h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.addModalHdr button {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-muted);
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.addForm {
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mField {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.mField label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.mInput,
+.mSelect,
+.mTextarea {
+    background: var(--color-bg-card2, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text);
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.mInput:focus,
+.mSelect:focus,
+.mTextarea:focus {
+    border-color: var(--color-primary-light);
+}
+
+.mTextarea {
+    resize: vertical;
+    min-height: 72px;
+}
+
+.mRow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.mErr {
+    font-size: 12px;
+    color: #EF5350;
+    background: rgba(244, 67, 54, 0.08);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 0;
+}
+
+.mBtns {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 4px;
+}
+
+.mCancel {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.mSave {
+    background: linear-gradient(135deg, rgba(74, 124, 40, 0.8), rgba(56, 142, 60, 0.7));
+    border: 1px solid rgba(74, 124, 40, 0.4);
+    border-radius: 8px;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 9px 20px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.2s;
+}
+
+.mSave:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

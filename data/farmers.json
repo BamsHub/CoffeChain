@@ -1,0 +1,140 @@
+{
+    "items": [
+        {
+            "id": "f-001",
+            "name": "Koperasi Gayo Murni",
+            "region": "Gayo, Aceh",
+            "type": "Koperasi",
+            "members": 124,
+            "volume": 24500,
+            "earnings": 1680000000,
+            "status": "Verified",
+            "rating": 4.9,
+            "joined": "2022-03-15",
+            "wallet": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+            "certifications": [
+                "Rainforest Alliance",
+                "UTZ",
+                "Organik"
+            ],
+            "notes": "Koperasi terbesar di Gayo"
+        },
+        {
+            "id": "f-002",
+            "name": "Pak Slamet Riyadi",
+            "region": "Gayo, Aceh",
+            "type": "Individu",
+            "members": 1,
+            "volume": 18200,
+            "earnings": 1246700000,
+            "status": "Verified",
+            "rating": 4.8,
+            "joined": "2022-05-20",
+            "wallet": "3F8a2C9D1b4E7F2A",
+            "certifications": [
+                "UTZ"
+            ],
+            "notes": "Petani senior 20 tahun pengalaman"
+        },
+        {
+            "id": "f-003",
+            "name": "Toraja Coffee Estate",
+            "region": "Toraja, Sulsel",
+            "type": "Koperasi",
+            "members": 87,
+            "volume": 15700,
+            "earnings": 1074900000,
+            "status": "Verified",
+            "rating": 4.7,
+            "joined": "2023-01-10",
+            "wallet": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM6",
+            "certifications": [
+                "Rainforest Alliance"
+            ],
+            "notes": ""
+        },
+        {
+            "id": "f-004",
+            "name": "CV Flores Arabika",
+            "region": "Flores, NTT",
+            "type": "Perusahaan",
+            "members": 35,
+            "volume": 12300,
+            "earnings": 843000000,
+            "status": "Verified",
+            "rating": 4.8,
+            "joined": "2023-06-05",
+            "wallet": "9B3pZvk8NvdJvRqLsGtXb7mCW4DfYkU1H6N5M2P0a",
+            "certifications": [
+                "Organik",
+                "Fair Trade"
+            ],
+            "notes": "Spesialis Arabika Flores"
+        },
+        {
+            "id": "f-005",
+            "name": "Pak Bambang Santoso",
+            "region": "Bandung, Jabar",
+            "type": "Individu",
+            "members": 1,
+            "volume": 9800,
+            "earnings": 671000000,
+            "status": "Verified",
+            "rating": 4.6,
+            "joined": "2023-08-22",
+            "wallet": "2aBc0D3eF4G5h6I7J8K9L0M1N2O3P4Q",
+            "certifications": [],
+            "notes": ""
+        },
+        {
+            "id": "f-006",
+            "name": "Bu Ratna Dewi",
+            "region": "Toraja, Sulsel",
+            "type": "Individu",
+            "members": 1,
+            "volume": 7200,
+            "earnings": 493000000,
+            "status": "Pending",
+            "rating": 4.5,
+            "joined": "2024-01-14",
+            "wallet": "4cDe1F2G3H4i5J6k7L8M9N0o1P2q3R",
+            "certifications": [],
+            "notes": "Menunggu verifikasi"
+        },
+        {
+            "id": "f-007",
+            "name": "Koperasi Mandheling Jaya",
+            "region": "Mandheling, Sumut",
+            "type": "Koperasi",
+            "members": 92,
+            "volume": 6900,
+            "earnings": 472000000,
+            "status": "Verified",
+            "rating": 4.7,
+            "joined": "2023-11-03",
+            "wallet": "8Ef5G6H7i8J9k0L1M2N3o4P5Q6R7s8T",
+            "certifications": [
+                "UTZ",
+                "Rainforest Alliance"
+            ],
+            "notes": ""
+        },
+        {
+            "id": "f-008",
+            "name": "Pak Yunus Wamena",
+            "region": "Wamena, Papua",
+            "type": "Individu",
+            "members": 1,
+            "volume": 5400,
+            "earnings": 370000000,
+            "status": "Verified",
+            "rating": 4.9,
+            "joined": "2024-02-18",
+            "wallet": "9Fg6H7I8J9K0L1m2N3O4p5Q6R7S8t9U",
+            "certifications": [
+                "Organik"
+            ],
+            "notes": "Kopi specialty Papua"
+        }
+    ]
+}

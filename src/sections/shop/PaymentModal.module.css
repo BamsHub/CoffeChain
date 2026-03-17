@@ -1,0 +1,846 @@
+/* Overlay */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 16px;
+    animation: overlayIn 0.2s ease;
+}
+
+@keyframes overlayIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Modal */
+.modal {
+    background: #08140a;
+    border: 1px solid rgba(74, 124, 40, 0.3);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 60px rgba(74, 124, 40, 0.15), 0 30px 80px rgba(0, 0, 0, 0.8);
+    animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(74, 124, 40, 0.3) transparent;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Header */
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px 20px 0;
+}
+
+.modalTitle {
+    font-size: 18px;
+    font-weight: 800;
+    color: white;
+    margin: 0;
+}
+
+.modalSub {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    margin: 4px 0 0;
+}
+
+.code {
+    font-family: monospace;
+    background: rgba(74, 124, 40, 0.15);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #7ED44A;
+}
+
+.closeBtn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.4);
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.closeBtn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+}
+
+/* Timer */
+.timerSection {
+    margin: 14px 20px 0;
+    padding: 14px;
+    background: rgba(74, 124, 40, 0.06);
+    border: 1px solid rgba(74, 124, 40, 0.15);
+    border-radius: 12px;
+    text-align: center;
+}
+
+.timerLabel {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.timerDisplay {
+    font-size: 38px;
+    font-weight: 900;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 4px;
+    transition: color 0.5s;
+}
+
+.timerBar {
+    height: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    margin: 8px 0 5px;
+    overflow: hidden;
+}
+
+.timerFill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s linear, background 0.5s;
+}
+
+.timerNote {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    margin: 0;
+}
+
+/* Order Summary */
+.orderSummary {
+    margin: 12px 20px 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.summaryRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.summaryRowTotal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.summaryRowSol {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.summaryRowSol strong {
+    color: #A855F7;
+}
+
+/* Tabs */
+.payTabs {
+    display: flex;
+    gap: 8px;
+    margin: 14px 20px 0;
+}
+
+.payTab {
+    flex: 1;
+    text-align: center;
+    padding: 9px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.payTab:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.payTabActive {
+    background: rgba(168, 85, 247, 0.12);
+    border-color: rgba(168, 85, 247, 0.35);
+    color: #C084FC;
+}
+
+/* ── PHANTOM SECTION ── */
+.phantomSection {
+    padding: 14px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.phantomCard {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(168, 85, 247, 0.08);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.phantomLogo {
+    font-size: 32px;
+}
+
+.phantomInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.phantomConnected {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4CAF50;
+}
+
+.phantomNotConn {
+    font-size: 12px;
+    font-weight: 600;
+    color: #F5A623;
+}
+
+.phantomAddr {
+    font-family: monospace;
+    font-size: 12px;
+    color: #C084FC;
+    background: rgba(168, 85, 247, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.installLink {
+    font-size: 11px;
+    color: #A855F7;
+    text-decoration: none;
+}
+
+.installLink:hover {
+    text-decoration: underline;
+}
+
+.txDetail {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.txRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.txRow span:first-child {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.txCode {
+    font-family: monospace;
+    font-size: 11px;
+    color: #C084FC;
+    background: rgba(168, 85, 247, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.devnetBadge {
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    color: #00D4FF;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.errorBox {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: rgba(244, 67, 54, 0.08);
+    border: 1px solid rgba(244, 67, 54, 0.25);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #EF5350;
+    animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-4px);
+    }
+
+    75% {
+        transform: translateX(4px);
+    }
+}
+
+.awaitBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    background: rgba(168, 85, 247, 0.06);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 12px;
+    text-align: center;
+}
+
+.awaitBox p {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    font-weight: 600;
+}
+
+.awaitSub {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4) !important;
+    font-weight: 400 !important;
+}
+
+.phantomPulse {
+    font-size: 36px;
+    animation: phantomBounce 1.2s ease-in-out infinite;
+}
+
+@keyframes phantomBounce {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+.phantomPayBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.8), rgba(126, 55, 210, 0.7));
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.25);
+    font-family: inherit;
+}
+
+.phantomPayBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px rgba(168, 85, 247, 0.35);
+}
+
+.phantomBtnDisabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.phantomNote {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    line-height: 1.5;
+    margin: 0;
+    text-align: center;
+}
+
+.faucetLink {
+    color: #A855F7;
+}
+
+/* ── QRIS / SOLANA PAY ── */
+.qrisSection {
+    padding: 14px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.qrLabel {
+    text-align: center;
+}
+
+.solanaPay {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #A855F7, #7ED44A);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+}
+
+.qrNote2 {
+    display: block;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-top: 3px;
+}
+
+.qrWrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    padding: 14px;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(168, 85, 247, 0.2);
+}
+
+.qrImg {
+    display: block;
+    border-radius: 6px;
+    image-rendering: pixelated;
+}
+
+.qrBrand {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6B21A8;
+}
+
+.qrLoading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 13px;
+}
+
+.qrisInfo {
+    width: 100%;
+    background: rgba(168, 85, 247, 0.06);
+    border: 1px solid rgba(168, 85, 247, 0.18);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.qrisRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.qrisRow span:first-child {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.qrisScanSteps {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.scanTitle {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 8px;
+}
+
+.qrisScanSteps ol {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.qrisScanSteps li {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.5;
+}
+
+/* Confirm Button */
+.confirmBtn {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.85), rgba(56, 142, 60, 0.75));
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    border-radius: 12px;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(76, 175, 80, 0.2);
+    font-family: inherit;
+}
+
+.confirmBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px rgba(76, 175, 80, 0.3);
+}
+
+/* Loading / center */
+.centerBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 14px;
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(74, 124, 40, 0.2);
+    border-top-color: #7ED44A;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.spinnerSm {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loadingText {
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
+.loadingSubText {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    margin: 0;
+}
+
+/* Success */
+.successBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px;
+    gap: 12px;
+}
+
+.successAnim {
+    font-size: 60px;
+    animation: successBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes successBounce {
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+.successTitle {
+    font-size: 22px;
+    font-weight: 900;
+    color: white;
+    margin: 0;
+}
+
+.successSub {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+}
+
+.successDetails {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.successDetails>div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.successDetails>div span:first-child {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.paidBadge {
+    background: rgba(76, 175, 80, 0.15);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    color: #4CAF50;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.redirectNote {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(74, 124, 40, 0.06);
+    border: 1px solid rgba(74, 124, 40, 0.15);
+    border-radius: 10px;
+    padding: 12px 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ── Solana Explorer Button ── */
+.explorerBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(20, 50, 120, 0.85), rgba(100, 50, 180, 0.6));
+    border: 1px solid rgba(130, 80, 255, 0.4);
+    color: #C4B5FF;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(100, 50, 200, 0.2);
+    box-sizing: border-box;
+}
+
+.explorerBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px rgba(100, 50, 200, 0.35);
+    color: white;
+}
+
+/* ── TX Link inline (di dalam successDetails) ── */
+.txLink {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: #C084FC;
+    transition: opacity 0.2s;
+}
+
+.txLink:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}
+
+.explorerBadge {
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(130, 80, 255, 0.15);
+    border: 1px solid rgba(130, 80, 255, 0.3);
+    color: #A78BFA;
+    padding: 2px 6px;
+    border-radius: 20px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+
+.redirectSpinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(74, 124, 40, 0.2);
+    border-top-color: #7ED44A;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+/* Expired */
+.expiredBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 12px;
+    text-align: center;
+}
+
+.expiredIcon {
+    font-size: 54px;
+    animation: shake 0.5s ease;
+}
+
+.expiredTitle {
+    font-size: 20px;
+    font-weight: 800;
+    color: #EF5350;
+    margin: 0;
+}
+
+.expiredSub {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    margin: 0;
+}
+
+.btnRetry {
+    background: rgba(74, 124, 40, 0.15);
+    border: 1px solid rgba(74, 124, 40, 0.3);
+    border-radius: 10px;
+    color: #7ED44A;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btnRetry:hover {
+    background: rgba(74, 124, 40, 0.25);
+}
+
+/* ── Auto-detect indicator ── */
+.autoDetectBox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(74, 124, 40, 0.06);
+    border: 1px solid rgba(74, 124, 40, 0.15);
+    border-radius: 10px;
+    padding: 12px 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.autoDetectDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #7ED44A;
+    flex-shrink: 0;
+    animation: detectPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes detectPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(74, 124, 40, 0.4);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(1.2);
+        box-shadow: 0 0 0 5px rgba(74, 124, 40, 0);
+    }
+}

@@ -1,0 +1,570 @@
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeInUp 0.4s ease;
+}
+
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.pageTitle {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--color-text);
+    letter-spacing: -0.5px;
+}
+
+.pageSubtitle {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+}
+
+/* Market Selector */
+.marketSection {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.marketSectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px 8px;
+}
+
+.marketSectionTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.marketSectionSub {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.marketScroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 0 16px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(74, 124, 40, 0.2) transparent;
+}
+
+.marketChip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: all 0.2s;
+    min-width: fit-content;
+}
+
+.marketChip:hover {
+    border-color: rgba(74, 124, 40, 0.4);
+    background: rgba(74, 124, 40, 0.06);
+}
+
+.marketChipActive {
+    background: rgba(74, 124, 40, 0.12);
+    border-color: rgba(74, 124, 40, 0.5) !important;
+}
+
+.marketChipIcon {
+    font-size: 20px;
+}
+
+.marketChipName {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text);
+    text-align: left;
+}
+
+.marketChipSub {
+    font-size: 10px;
+    color: var(--color-text-muted);
+}
+
+.marketDetail {
+    border-top: 1px solid var(--color-border);
+    border-left: 3px solid;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+
+    to {
+        opacity: 1;
+        max-height: 200px;
+    }
+}
+
+.marketDetailHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+}
+
+.marketDetailName {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+}
+
+.marketDetailRegion {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 2px;
+}
+
+.marketDetailBody {
+    padding: 10px 16px 14px;
+}
+
+.marketDetailDesc {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin: 0 0 8px;
+}
+
+.marketFarmers {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.marketFarmersLabel {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+}
+
+.marketFarmersList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.farmerTag {
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+
+
+/* Filter Bar */
+.filterBar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.searchBox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 9px 12px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.searchInput {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+.searchInput::placeholder {
+    color: var(--color-text-muted);
+}
+
+.filterChips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.chip {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.chip:hover {
+    border-color: var(--color-primary-light);
+    color: var(--color-text);
+}
+
+.chipActive {
+    background: rgba(74, 124, 40, 0.15);
+    border-color: var(--color-primary-light);
+    color: var(--color-primary-light) !important;
+}
+
+.sortSelect {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    padding: 8px 12px;
+    outline: none;
+    cursor: pointer;
+}
+
+/* Stats Bar */
+.statsBar {
+    display: flex;
+    gap: 12px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 14px 20px;
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    padding: 0 12px;
+    border-right: 1px solid var(--color-border);
+}
+
+.statItem:last-child {
+    border-right: none;
+}
+
+.statNum {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-text);
+    letter-spacing: -0.5px;
+}
+
+.statLbl {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+/* Grid */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.loadingGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.skeleton {
+    height: 360px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.empty {
+    text-align: center;
+    padding: 60px;
+    color: var(--color-text-muted);
+    font-size: 16px;
+}
+
+/* Card */
+.card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: var(--transition);
+    animation: fadeInUp 0.4s ease both;
+    position: relative;
+}
+
+.card:hover {
+    border-color: rgba(74, 124, 40, 0.4);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.cardBadges {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    z-index: 2;
+}
+
+.tag {
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(74, 124, 40, 0.2);
+    border: 1px solid rgba(74, 124, 40, 0.3);
+    color: #7ED44A;
+    padding: 2px 7px;
+    border-radius: 20px;
+}
+
+.tagLow {
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(255, 152, 0, 0.15);
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    color: var(--color-warning);
+    padding: 2px 7px;
+    border-radius: 20px;
+}
+
+.productEmoji {
+    font-size: 52px;
+    text-align: center;
+    padding: 28px 20px 12px;
+    background: linear-gradient(180deg, rgba(74, 124, 40, 0.06), transparent);
+}
+
+.cardBody {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.productOrigin {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.productName {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.3;
+}
+
+.productMeta {
+    display: flex;
+    gap: 8px;
+}
+
+.grade,
+.roast {
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--color-bg-card2);
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    padding: 2px 8px;
+    color: var(--color-text-secondary);
+}
+
+.ratingRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.stars {
+    color: #F5A623;
+    letter-spacing: 1px;
+}
+
+.ratingNum {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.soldNum {
+    color: var(--color-text-muted);
+    font-size: 11px;
+}
+
+.weightRow {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.weightBtn {
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--color-bg-card2);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-secondary);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.weightActive {
+    background: rgba(74, 124, 40, 0.2);
+    border-color: var(--color-primary-light);
+    color: var(--color-primary-light);
+}
+
+.priceRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.priceLabel {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.price {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-accent);
+    letter-spacing: -0.5px;
+}
+
+.stockInfo {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.stockOk {
+    color: var(--color-success);
+}
+
+.stockLow {
+    color: var(--color-warning);
+}
+
+.buyRow {
+    display: flex;
+    gap: 8px;
+}
+
+.btnTransfer {
+    flex: 1;
+    background: rgba(74, 124, 40, 0.15);
+    border: 1px solid rgba(74, 124, 40, 0.3);
+    border-radius: 8px;
+    color: var(--color-primary-light);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 9px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btnTransfer:hover {
+    background: rgba(74, 124, 40, 0.25);
+}
+
+.btnQris {
+    flex: 1;
+    background: rgba(245, 166, 35, 0.1);
+    border: 1px solid rgba(245, 166, 35, 0.25);
+    border-radius: 8px;
+    color: var(--color-accent);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 9px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btnQris:hover {
+    background: rgba(245, 166, 35, 0.2);
+}
+
+.expandedDesc {
+    padding: 12px 16px;
+    border-top: 1px solid var(--color-border);
+    background: rgba(74, 124, 40, 0.04);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.blockchainNote {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--color-primary-light);
+    background: rgba(74, 124, 40, 0.08);
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .statsBar {
+        flex-wrap: wrap;
+    }
+
+    .statItem {
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+    }
+}

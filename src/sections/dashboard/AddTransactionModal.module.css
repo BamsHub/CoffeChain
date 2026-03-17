@@ -1,0 +1,323 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeInUp 0.2s ease;
+}
+
+.modal {
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 580px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modalTitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.modalSub {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+}
+
+.closeBtn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.stepCircle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.stepActive .stepCircle {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary-light);
+    color: white;
+}
+
+.stepActive {
+    color: var(--color-text);
+}
+
+.stepDone .stepCircle {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: white;
+}
+
+.formBody {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.input,
+.select {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: var(--transition);
+}
+
+.input:focus,
+.select:focus {
+    border-color: var(--color-primary-light);
+    background: rgba(74, 124, 40, 0.05);
+}
+
+.totalBox {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(74, 124, 40, 0.15), rgba(245, 166, 35, 0.05));
+    border: 1px solid rgba(74, 124, 40, 0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+}
+
+.totalLabel {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.totalValue {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--color-accent);
+    letter-spacing: -0.5px;
+}
+
+.modalFooter {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 4px;
+}
+
+.btnCancel {
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btnSubmit {
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+    color: white;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirmCard {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.confirmRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(74, 124, 40, 0.08);
+}
+
+.confirmRow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.confirmRow span:first-child {
+    color: var(--color-text-muted);
+}
+
+.confirmRow strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.totalRow strong {
+    color: var(--color-accent);
+    font-size: 16px;
+}
+
+.code {
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--color-crypto);
+    word-break: break-all;
+}
+
+.sigCode {
+    font-size: 10px;
+}
+
+.chainNote {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    background: rgba(74, 124, 40, 0.06);
+    border: 1px solid rgba(74, 124, 40, 0.15);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.processingBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 32px;
+}
+
+.processingSpinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(74, 124, 40, 0.2);
+    border-top-color: var(--color-primary-light);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.processingText {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.processingSubText {
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+.successBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.successIcon {
+    font-size: 48px;
+}
+
+.successMsg {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-success);
+}
+
+.successDetails {
+    width: 100%;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pendingBadge {
+    background: rgba(255, 152, 0, 0.15);
+    color: var(--color-warning);
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
