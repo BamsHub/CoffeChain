@@ -111,7 +111,7 @@ export default function LoginPage() {
                 <div className={styles.divider}><span>SECURE LOGIN</span></div>
 
                 <div className={styles.demoSection}>
-                    <p className={styles.demoLabel}>🔑 Demo Akun – Klik untuk auto-isi:</p>
+                    <p className={styles.demoLabel}> Demo Akun – Klik untuk auto-isi:</p>
                     <div className={styles.demoCards}>
                         {DEMO_ACCOUNTS.map(acc => {
                             const roleInfo = ROLE_LABELS[acc.role];
@@ -164,7 +164,7 @@ export default function LoginPage() {
 
                     {needsVerification && (
                         <div className={styles.verifyBox}>
-                            <p className={styles.verifyTitle}>📧 Email belum diverifikasi</p>
+                            <p className={styles.verifyTitle}> Email belum diverifikasi</p>
                             <p className={styles.verifyText}>Cek inbox <strong>{resendEmail}</strong> dan klik link verifikasi. Cek folder Spam jika tidak ada.</p>
                             {resendMsg ? (
                                 <p className={styles.resendMsg}>{resendMsg}</p>

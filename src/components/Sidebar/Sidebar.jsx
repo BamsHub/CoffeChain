@@ -56,11 +56,11 @@ export default function Sidebar({ collapsed, onToggle }) {
             <div className={styles.logo}>
                 <div className={styles.logoIcon}>
                     <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                        <circle cx="16" cy="16" r="14" fill="#4A7C28" opacity="0.15" />
-                        <path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" stroke="#4A7C28" strokeWidth="1.5" />
-                        <path d="M12 16c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" />
-                        <circle cx="16" cy="16" r="2" fill="#F5A623" />
-                        <path d="M16 10v2M16 20v2M10 16h2M20 16h2" stroke="#4A7C28" strokeWidth="1.5" strokeLinecap="round" />
+                        <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.15" />
+                        <path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" stroke="currentColor" strokeWidth="1.5" />
+                        <path d="M12 16c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <circle cx="16" cy="16" r="2" fill="currentColor" />
+                        <path d="M16 10v2M16 20v2M10 16h2M20 16h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                 </div>
                 {!collapsed && (
@@ -74,7 +74,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             {/* Role Badge */}
             {!collapsed && user && (
                 <div className={styles.roleBadge} style={{ background: roleInfo.bg, borderColor: roleInfo.color + '44' }}>
-                    <span>{roleInfo.emoji}</span>
+                    <span style={{fontWeight:700,fontSize:13,lineHeight:1}}>{user.name.substring(0,2).toUpperCase()}</span>
                     <div>
                         <div className={styles.roleUser}>{user.name}</div>
                         <div className={styles.roleLabel} style={{ color: roleInfo.color }}>{roleInfo.label}</div>

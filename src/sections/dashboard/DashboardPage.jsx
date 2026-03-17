@@ -70,10 +70,10 @@ export default function DashboardPage({ walletPublicKey }) {
     }
 
     const statsData = [
-        { title: 'Total Transaksi', value: stats.total.toLocaleString(), change: '+18.4%', positive: true, sub: 'Blockchain transactions', icon: '🔄', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
-        { title: 'Kopi Terbeli', value: orderStats.totalKg >= 1000 ? `${(orderStats.totalKg / 1000).toFixed(1)} Kg` : `${orderStats.totalKg} g`, change: `${orderStats.count} order`, positive: true, sub: 'Total dari database', icon: '☕', color: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
-        { title: 'Petani Aktif', value: stats.farmers.toLocaleString(), change: '+241', positive: true, sub: 'Terdaftar di blockchain', icon: '👩‍🌾', color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
-        { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', icon: '💰', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
+        { title: 'Total Transaksi', value: stats.total.toLocaleString(), change: '+18.4%', positive: true, sub: 'Blockchain transactions', icon: <svg width='20' height='20' fill='none' viewBox='0 0 24 24'><path d='M23 4v6h-6M1 20v-6h6' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/><path d='M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/></svg>, color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
+        { title: 'Kopi Terbeli', value: orderStats.totalKg >= 1000 ? `${(orderStats.totalKg / 1000).toFixed(1)} Kg` : `${orderStats.totalKg} g`, change: `${orderStats.count} order`, positive: true, sub: 'Total dari database', icon: <svg width='20' height='20' fill='none' viewBox='0 0 24 24'><path d='M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/></svg>, color: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
+        { title: 'Petani Aktif', value: stats.farmers.toLocaleString(), change: '+241', positive: true, sub: 'Terdaftar di blockchain', icon: <svg width='20' height='20' fill='none' viewBox='0 0 24 24'><path d='M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/><circle cx='9' cy='7' r='4' stroke='currentColor' strokeWidth='2'/><path d='M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/></svg>, color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
+        { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', icon: <svg width='20' height='20' fill='none' viewBox='0 0 24 24'><path d='M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/></svg>, color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
     ];
 
     const txChartOptions = {
@@ -107,7 +107,7 @@ export default function DashboardPage({ walletPublicKey }) {
                 <div>
                     <h1 className={styles.pageTitle}>Dashboard</h1>
                     <p className={styles.pageSubtitle}>
-                        {walletPublicKey ? `👻 Phantom: ${walletPublicKey.slice(0, 8)}...${walletPublicKey.slice(-6)} • ` : ''}
+                        {walletPublicKey ? `Phantom: ${walletPublicKey.slice(0, 8)}...${walletPublicKey.slice(-6)} • ` : ''}
                         Selamat datang! Ringkasan aktivitas blockchain hari ini.
                     </p>
                 </div>
@@ -129,7 +129,7 @@ export default function DashboardPage({ walletPublicKey }) {
                     <div key={i} className={styles.statCard} style={{ animationDelay: `${i * 0.08}s` }}>
                         <div className={styles.statTop}>
                             <div className={styles.statIcon} style={{ background: stat.bg }}>
-                                <span style={{ fontSize: 20 }}>{stat.icon}</span>
+                                <span style={{display:'flex',alignItems:'center',justifyContent:'center',color:'var(--color-text-muted)'}}>{stat.icon}</span>
                             </div>
                             <span className={`${styles.statChange} ${stat.positive ? styles.positive : styles.negative}`}>
                                 {stat.positive ? '↑' : '↓'} {stat.change}
@@ -206,7 +206,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                         <td className={styles.txAmount}>Rp {(tx.amount / 1000000).toFixed(2)} Jt</td>
                                         <td><span className={`${styles.badge} ${styles['badge' + tx.status]}`}>{tx.status}</span></td>
                                         <td className={styles.txTime}>{new Date(tx.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
-                                        <td><button className={styles.deleteBtn} onClick={() => handleDeleteTx(tx.id)} title="Hapus">✕</button></td>
+                                        <td><button className={styles.deleteBtn} onClick={() => handleDeleteTx(tx.id)} title="Hapus"><svg width='12' height='12' fill='none' viewBox='0 0 24 24'><path d='M18 6L6 18M6 6l12 12' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/></svg></button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -219,7 +219,7 @@ export default function DashboardPage({ walletPublicKey }) {
             {recentOrders.length > 0 && (
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
-                        <div><h3 className={styles.cardTitle}>🛍️ Riwayat Pembelian Produk Kopi</h3><p className={styles.cardSubtitle}>Data real dari database — {orderStats.count} transaksi lunas · {orderStats.totalKg}g terbeli · Rp {orderStats.totalRevenue.toLocaleString('id-ID')} revenue</p></div>
+                        <div><h3 className={styles.cardTitle}>Riwayat Pembelian Produk Kopi</h3><p className={styles.cardSubtitle}>Data real dari database — {orderStats.count} transaksi lunas · {orderStats.totalKg}g terbeli · Rp {orderStats.totalRevenue.toLocaleString('id-ID')} revenue</p></div>
                         <a href="/market" className={styles.seeAll}>Lihat di Pasar →</a>
                     </div>
                     <div className={styles.tableWrapper}>
@@ -233,9 +233,9 @@ export default function DashboardPage({ walletPublicKey }) {
                                         <td className={styles.txFarmer}>{o.productName}</td>
                                         <td className={styles.txLocation}>{o.userName}</td>
                                         <td className={styles.txWeight}>{o.weight}g</td>
-                                        <td><span style={{ fontSize: 11, fontWeight: 600, color: o.paymentMethod === 'qris' ? '#A855F7' : '#4CAF50' }}>{o.paymentMethod === 'qris' ? '📱 QRIS' : '👻 Phantom'}</span></td>
+                                        <td><span style={{ fontSize: 11, fontWeight: 600, color: o.paymentMethod === 'qris' ? '#A855F7' : '#4CAF50' }}>{o.paymentMethod === 'qris' ? 'QRIS' : 'Phantom'}</span></td>
                                         <td className={styles.txAmount}>Rp {(o.totalPrice || 0).toLocaleString('id-ID')}</td>
-                                        <td><span className={`${styles.badge} ${styles.badgecompleted}`}>✅ LUNAS</span></td>
+                                        <td><span className={`${styles.badge} ${styles.badgecompleted}`}>LUNAS</span></td>
                                         <td className={styles.txTime}>{o.paidAt ? new Date(o.paidAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                                     </tr>
                                 ))}

@@ -86,7 +86,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
         return `${Math.floor(diff / 86400)} hari lalu`;
     }
 
-    const typeIcon = { product_added: '🛍️', payment: '💳', price: '📈', info: '📢', success: '✅', warning: '⚠️' };
+    const typeIcon = { product_added: '🛒', payment: '💲', price: '↑', info: 'ℹ', success: '✓', warning: '!' };
 
     return (
         <header className={styles.header} style={{ left: sidebarCollapsed ? '68px' : '260px' }}>
@@ -125,7 +125,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                     {showNotifMenu && (
                         <div className={styles.notifDropdown}>
                             <div className={styles.notifHeader}>
-                                <span className={styles.notifTitle}>🔔 Notifikasi</span>
+                                <span className={styles.notifTitle}><svg style={{verticalAlign:'middle',marginRight:6}} width='16' height='16' fill='none' viewBox='0 0 24 24'><path d='M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0' stroke='currentColor' strokeWidth='2' strokeLinecap='round'/></svg> Notifikasi</span>
                                 {unreadCount > 0 && (
                                     <button className={styles.markAllBtn} onClick={markAllRead}>Tandai semua dibaca</button>
                                 )}
@@ -133,7 +133,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                             <div className={styles.notifList}>
                                 {notifications.length === 0 ? (
                                     <div className={styles.notifEmpty}>
-                                        <div style={{ fontSize: 32 }}>🔕</div>
+                                        <div style={{display:"flex",justifyContent:"center",marginBottom:8}}><svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M13.73 21a2 2 0 01-3.46 0M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M1 1l22 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></div>
                                         <span>Belum ada notifikasi</span>
                                     </div>
                                 ) : (
@@ -167,7 +167,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                         >
                             {user?.photoBase64
                                 ? <img src={user.photoBase64} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                                : (walletPublicKey ? '👻' : (user?.avatar || 'BK'))
+                                : (walletPublicKey ? 'P' : (user?.avatar || 'BK'))
                             }
                         </div>
                         <div className={styles.profileInfo}>
@@ -177,7 +177,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                                     : (user?.name?.split(' ')[0] || 'Guest')}
                             </span>
                             <span className={styles.profileRole} style={roleInfo ? { color: roleInfo.color } : {}}>
-                                {roleInfo ? `${roleInfo.emoji} ${roleInfo.label}` : 'Guest'}
+                                {roleInfo ? roleInfo.label : 'Guest'}
                             </span>
                         </div>
                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
@@ -198,7 +198,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                                     <div className={styles.menuName}>{user.name}</div>
                                     <div className={styles.menuEmail}>{user.email}</div>
                                     <span className={styles.menuRoleBadge} style={{ background: roleInfo?.bg, color: roleInfo?.color }}>
-                                        {roleInfo?.emoji} {roleInfo?.label}
+                                        {roleInfo?.label}
                                     </span>
                                 </div>
                             </div>

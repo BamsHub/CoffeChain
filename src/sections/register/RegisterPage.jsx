@@ -88,7 +88,7 @@ export default function RegisterPage() {
                 <div className={styles.bgGlow1} />
                 <div className={styles.bgGlow2} />
                 <div className={styles.card}>
-                    <div className={styles.successIcon}>📧</div>
+                    <div className={styles.successIcon}></div>
                     <h2 className={styles.successTitle}>Cek Email Anda!</h2>
                     <p className={styles.successText}>
                         Email verifikasi telah dikirim ke{' '}
