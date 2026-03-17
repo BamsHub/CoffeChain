@@ -17,6 +17,15 @@
     }
 }
 
+@keyframes spinAnim {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spinAnim 0.8s linear infinite;
+}
+
 .pageHeader {
     display: flex;
     justify-content: space-between;

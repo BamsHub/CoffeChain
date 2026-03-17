@@ -60,7 +60,7 @@ function PasswordModal({ onClose, userId }) {
                     {err && <div className={styles.errorBox} style={{display:"flex",alignItems:"center",gap:8}}><AlertTriangle size={16} /> {err}</div>}
                     {msg && <div className={styles.successBox} style={{display:"flex",alignItems:"center",gap:8}}><CheckCircle2 size={16} /> {msg}</div>}
                     <button type="submit" disabled={loading} className={styles.btnPrimary} style={{ width: '100%' }}>
-                        {loading ? loading ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Mengubah...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Key size={16} /> Ubah Password</span>}
+                        {loading ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Mengubah...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Key size={16} /> Ubah Password</span>}
                     </button>
                 </form>
             </div>
@@ -132,7 +132,7 @@ function PhantomModal({ onClose, user, onUpdate }) {
                     {msg && <div className={msg.includes("Terhubung") || msg.includes("berhasil") ? styles.successBox : styles.errorBox} style={{display:"flex",alignItems:"center",gap:8}}>{msg.includes("Terhubung") || msg.includes("berhasil") ? <CheckCircle2 size={16}/> : <AlertTriangle size={16}/>} {msg}</div>}
                     <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                         <button onClick={connectPhantom} disabled={connecting} className={styles.btnPrimary} style={{ flex: 1 }}>
-                            {connecting ? connecting ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menghubungkan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Link2 size={16} /> Hubungkan Wallet</span>}
+                            {connecting ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menghubungkan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Link2 size={16} /> Hubungkan Wallet</span>}
                         </button>
                         {user?.wallet && (
                             <button onClick={disconnectPhantom} className={styles.btnSecondary}>
@@ -301,7 +301,7 @@ export default function ProfilePage() {
                 {/* THEME TOGGLE di header */}
                 <button className={styles.themeToggleBtn} onClick={toggleTheme} title={`Switch ke ${isDark ? 'Light' : 'Dark'} Mode`}>
                     <span className={styles.themeToggleTrack} data-dark={isDark}>
-                        <span className={styles.themeToggleThumb}>{isDark ? isDark ? <Moon size={16} /> : <Sun size={16} />}</span>
+                        <span className={styles.themeToggleThumb}>{isDark ? <Moon size={16} /> : <Sun size={16} />}</span>
                     </span>
                     <span className={styles.themeToggleLabel}>{isDark ? 'Dark Mode' : 'Light Mode'}</span>
                 </button>
@@ -432,7 +432,7 @@ export default function ProfilePage() {
                                 <div className={styles.formFooter}>
                                     <button type="button" onClick={() => router.back()} className={styles.btnSecondary}><span style={{display:"flex",alignItems:"center",gap:6}}><ChevronLeft size={16}/> Kembali</span></button>
                                     <button type="submit" disabled={saving} className={styles.btnPrimary}>
-                                        {saving ? saving ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menyimpan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Save size={16} /> Simpan Perubahan</span>}
+                                        {saving ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menyimpan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Save size={16} /> Simpan Perubahan</span>}
                                     </button>
                                 </div>
                             </form>
@@ -591,7 +591,7 @@ export default function ProfilePage() {
                                 {saved && <div className={styles.successBox} style={{display:"flex",alignItems:"center",gap:8}}><CheckCircle2 size={16} /> Preferensi disimpan!</div>}
                                 <div className={styles.formFooter}>
                                     <button type="submit" disabled={saving} className={styles.btnPrimary}>
-                                        {saving ? saving ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menyimpan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Save size={16} /> Simpan Preferensi</span>}
+                                        {saving ? <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Loader2 size={16} className={styles.spin} /> Menyimpan...</span> : <span style={{display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}><Save size={16} /> Simpan Preferensi</span>}
                                     </button>
                                 </div>
                             </form>
