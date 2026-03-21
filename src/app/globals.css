@@ -41,8 +41,8 @@
   --color-secondary: #7A5235;
   --color-accent: #C47A0A;
 
-  /* Borders subtle */
-  --color-border: rgba(80, 60, 30, 0.12);
+  /* Borders lebih jelas bernuansa hijau */
+  --color-border: rgba(58, 107, 24, 0.35);
 
   /* Text — dark brown/charcoal bukan hitam pekat */
   --color-text: #2C1F10;
@@ -61,7 +61,7 @@
 
   /* Inputs */
   --color-input-bg: #FDFAF6;
-  --color-input-border: rgba(80, 60, 30, 0.18);
+  --color-input-border: rgba(58, 107, 24, 0.4);
   --color-shadow: rgba(80, 60, 30, 0.12);
 
   --sidebar-width: 260px;

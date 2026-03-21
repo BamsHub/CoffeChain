@@ -515,6 +515,15 @@
     gap: 6px;
 }
 
+.photoUploadBox {
+    border: 2px dashed var(--color-primary-light);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+}
+
 .iconBtn {
     width: 36px;
     height: 36px;

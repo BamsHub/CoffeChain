@@ -246,7 +246,7 @@ export default function MarketsPage() {
                                         )}
                                         <div style={{display:'flex',gap:6,justifyContent:'center'}}>
                                             <label className={styles.photoUploadBtn} style={{padding:'4px 10px', fontSize:11}}>
-                                                Upload Foto
+                                                Deploy Upload
                                                 <input type="file" accept="image/*" style={{display:'none'}}
                                                     onChange={e => {
                                                         const file = e.target.files?.[0];
