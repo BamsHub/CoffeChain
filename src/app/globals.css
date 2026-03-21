@@ -14,8 +14,8 @@
   --color-text-muted: #5E7A5A;
   --color-success: #4CAF50;
   --color-warning: #FF9800;
-  --color-error: #f44336;
   --color-crypto: #00D4FF;
+  --color-phantom: #c084fc;
   --color-logo-text: #E8F5E0;
   --color-logo-sub: #7ED44A;
   --color-input-bg: #1C261C;
@@ -54,6 +54,7 @@
   --color-warning: #C46000;
   --color-error: #B02020;
   --color-crypto: #0A356A; /* Biru yang lebih tua agar tidak nyaru */
+  --color-phantom: #581c87; /* Ungu gelap agar sangat fokus dan kontras */
 
   /* Logo */
   --color-logo-text: #2C1F10;
