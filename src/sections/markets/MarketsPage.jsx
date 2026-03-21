@@ -17,7 +17,7 @@ export default function MarketsPage() {
     const [showAdd, setShowAdd] = useState(false);
     const [editing, setEditing] = useState(null); // market being edited
     const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState({ name: '', region: '', description: '', icon: '☕', type: 'Arabika', farmerIds: [], coverColor: '#2D5016' });
+    const [form, setForm] = useState({ name: '', region: '', description: '', icon: '', type: 'Arabika', farmerIds: [], coverColor: '#2D5016' });
 
     const isdev = user?.role === 'developer';
     const canManage = user?.role === 'developer' || user?.role === 'koperasi';
@@ -38,8 +38,8 @@ export default function MarketsPage() {
         setLoading(false);
     }
 
-    function openAdd() { setForm({ name: '', region: '', description: '', type: 'Arabika', farmerIds: [], coverColor: '#2D5016' }); setEditing(null); setShowAdd(true); }
-    function openEdit(mkt) { setForm({ name: mkt.name, region: mkt.region, description: mkt.description || '', type: mkt.type || 'Arabika', farmerIds: mkt.farmerIds || [], coverColor: mkt.coverColor || '#2D5016' }); setEditing(mkt.id); setShowAdd(true); }
+    function openAdd() { setForm({ name: '', region: '', description: '', icon: '', type: 'Arabika', farmerIds: [], coverColor: '#2D5016' }); setEditing(null); setShowAdd(true); }
+    function openEdit(mkt) { setForm({ name: mkt.name, region: mkt.region, description: mkt.description || '', icon: mkt.icon || '', type: mkt.type || 'Arabika', farmerIds: mkt.farmerIds || [], coverColor: mkt.coverColor || '#2D5016' }); setEditing(mkt.id); setShowAdd(true); }
 
     async function handleSave(e) {
         e.preventDefault();
@@ -97,7 +97,11 @@ export default function MarketsPage() {
             {!loading && topMarket && topMarket.orderCount > 0 && (
                 <div className={styles.topBanner} style={{ borderColor: topMarket.coverColor }}>
                     <div className={styles.topIcon}>
-                        <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,fontWeight:700,color:'#fff'}}>{topMarket.name.substring(0,2).toUpperCase()}</div>
+                        {topMarket.icon && topMarket.icon.startsWith('data:') ? (
+                            <img src={topMarket.icon} alt={topMarket.name} style={{width:64,height:64,borderRadius:'50%',objectFit:'cover'}} />
+                        ) : (
+                            <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,fontWeight:700,color:'#fff'}}>{topMarket.name.substring(0,2).toUpperCase()}</div>
+                        )}
                     </div>
                     <div className={styles.topInfo}>
                         <div className={styles.topLabel}>🏆 Market Paling Laris</div>
@@ -128,7 +132,11 @@ export default function MarketsPage() {
                             {/* Header */}
                             <div className={styles.cardHeader} style={{ background: mkt.coverColor || '#2D5016' }}>
                                 <div className={styles.cardIcon}>
-                                    <div style={{width:48,height:48,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'#fff'}}>{mkt.name.substring(0,2).toUpperCase()}</div>
+                                    {mkt.icon && mkt.icon.startsWith('data:') ? (
+                                        <img src={mkt.icon} alt={mkt.name} style={{width:48,height:48,borderRadius:'50%',objectFit:'cover',border:'2px solid rgba(255,255,255,0.3)'}} />
+                                    ) : (
+                                        <div style={{width:48,height:48,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'#fff'}}>{mkt.name.substring(0,2).toUpperCase()}</div>
+                                    )}
                                 </div>
                                 <div className={styles.cardStatus}>
                                     <span className={mkt.status === 'active' ? styles.statusActive : styles.statusInactive}>
@@ -229,9 +237,31 @@ export default function MarketsPage() {
                                     </select>
                                 </div>
                                 <div className={styles.field}>
-                                    <label>Avatar Market</label>
-                                    <div className={styles.iconPicker}>
-                                        <div style={{width:48,height:48,borderRadius:'50%',background:form.coverColor,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'#fff'}}>{form.name ? form.name.substring(0,2).toUpperCase() : '??'}</div>
+                                    <label>Avatar Market (opsional, maks 2MB)</label>
+                                    <div className={styles.photoUploadBox} style={{padding:8}}>
+                                        {form.icon && form.icon.startsWith('data:') ? (
+                                            <img src={form.icon} alt="preview" className={styles.photoPreviewImg} style={{width:48,height:48,borderRadius:'50%'}} />
+                                        ) : (
+                                            <div style={{width:48,height:48,borderRadius:'50%',background:form.coverColor||'#ccc',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'#fff'}}>{form.name ? form.name.substring(0,2).toUpperCase() : '??'}</div>
+                                        )}
+                                        <div style={{display:'flex',gap:6,justifyContent:'center'}}>
+                                            <label className={styles.photoUploadBtn} style={{padding:'4px 10px', fontSize:11}}>
+                                                Upload Foto
+                                                <input type="file" accept="image/*" style={{display:'none'}}
+                                                    onChange={e => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        if (file.size > 2 * 1024 * 1024) { alert('Foto max 2MB'); return; }
+                                                        const reader = new FileReader();
+                                                        reader.onload = ev => F('icon', ev.target.result);
+                                                        reader.readAsDataURL(file);
+                                                    }}
+                                                />
+                                            </label>
+                                            {form.icon && form.icon.startsWith('data:') && (
+                                                <button type="button" className={styles.photoRemoveBtn} style={{padding:'4px 10px', fontSize:11}} onClick={() => F('icon', '')}>Hapus</button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
