@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { readDb, updateItem } from '@/lib/db';
 import { verifyPassword, createSession } from '@/lib/auth';
 

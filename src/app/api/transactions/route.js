@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { readDb, addItem, deleteItem } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 

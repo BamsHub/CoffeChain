@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { readDb, writeDb } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
 import { v4 as uuidv4 } from 'uuid';

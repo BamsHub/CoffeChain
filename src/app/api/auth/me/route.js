@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { readDb } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
