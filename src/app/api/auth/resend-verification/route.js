@@ -1,7 +1,6 @@
 import { readDb, writeDb } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
 import { v4 as uuidv4 } from 'uuid';
-import { randomBytes } from 'crypto';
 
 export async function POST(request) {
     try {
@@ -38,8 +37,10 @@ export async function POST(request) {
             }
         }
 
-        // Buat token baru
-        const verifyToken = randomBytes(32).toString('hex');
+        // Buat token baru menggunakan Web Crypto API
+        const array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        const verifyToken = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
         tokenDb.items = tokenDb.items.filter(t => t.email !== email.toLowerCase());
         tokenDb.items.push({
             id: uuidv4(),
