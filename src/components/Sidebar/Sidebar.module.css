@@ -235,22 +235,22 @@
 /* Dev-only nav items */
 .devItem {
     cursor: default;
-    background: rgba(0, 212, 255, 0.04);
-    border: 1px dashed rgba(0, 212, 255, 0.2) !important;
-    color: rgba(0, 212, 255, 0.6);
+    background: color-mix(in srgb, var(--color-crypto) 8%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--color-crypto) 30%, transparent) !important;
+    color: var(--color-crypto);
 }
 
 .devItem:hover {
-    background: rgba(0, 212, 255, 0.08) !important;
+    background: color-mix(in srgb, var(--color-crypto) 15%, transparent) !important;
 }
 
 .devBadge {
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 1px;
-    background: rgba(0, 212, 255, 0.1);
-    border: 1px solid rgba(0, 212, 255, 0.3);
-    color: #00D4FF;
+    background: color-mix(in srgb, var(--color-crypto) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-crypto) 40%, transparent);
+    color: var(--color-crypto);
     padding: 2px 6px;
     border-radius: 4px;
     margin-left: auto;

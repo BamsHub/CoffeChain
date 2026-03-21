@@ -80,7 +80,7 @@ function AddProductModal({ onClose, onSave }) {
                             <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
                                 <label className={styles.photoUploadBtn}>
                                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                                    Upload Foto
+                                    Deploy Upload
                                     <input type="file" accept="image/*" style={{display:'none'}}
                                         onChange={e => {
                                             const file = e.target.files?.[0];

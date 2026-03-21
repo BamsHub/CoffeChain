@@ -14,8 +14,8 @@
   --color-text-muted: #5E7A5A;
   --color-success: #4CAF50;
   --color-warning: #FF9800;
-  --color-error: #f44336;
   --color-crypto: #00D4FF;
+  --color-phantom: #c084fc;
   --color-logo-text: #E8F5E0;
   --color-logo-sub: #7ED44A;
   --color-input-bg: #1C261C;
@@ -41,19 +41,20 @@
   --color-secondary: #7A5235;
   --color-accent: #C47A0A;
 
-  /* Borders subtle */
-  --color-border: rgba(80, 60, 30, 0.12);
+  /* Borders lebih jelas bernuansa hijau */
+  --color-border: rgba(58, 107, 24, 0.35);
 
-  /* Text — dark brown/charcoal bukan hitam pekat */
-  --color-text: #2C1F10;
-  --color-text-secondary: #5A4020;
-  --color-text-muted: #8C7050;
+  /* Text — Lebih gelap agar sangat jelas terbaca */
+  --color-text: #1A1208;
+  --color-text-secondary: #3D2915;
+  --color-text-muted: #664E36;
 
   /* Status */
   --color-success: #2A6B2A;
   --color-warning: #C46000;
   --color-error: #B02020;
-  --color-crypto: #1565C0;
+  --color-crypto: #0A356A; /* Biru yang lebih tua agar tidak nyaru */
+  --color-phantom: #581c87; /* Ungu gelap agar sangat fokus dan kontras */
 
   /* Logo */
   --color-logo-text: #2C1F10;
@@ -61,7 +62,7 @@
 
   /* Inputs */
   --color-input-bg: #FDFAF6;
-  --color-input-border: rgba(80, 60, 30, 0.18);
+  --color-input-border: rgba(58, 107, 24, 0.4);
   --color-shadow: rgba(80, 60, 30, 0.12);
 
   --sidebar-width: 260px;

@@ -85,9 +85,9 @@ export function useAuth() {
 
 // Role info untuk display
 export const ROLE_LABELS = {
-    farmer: { label: 'Petani', emoji: '', color: '#4CAF50', bg: 'rgba(76,175,80,0.15)' },
-    koperasi: { label: 'Koperasi', emoji: '', color: '#F5A623', bg: 'rgba(245,166,35,0.15)' },
-    developer: { label: 'Developer', emoji: '', color: '#00D4FF', bg: 'rgba(0,212,255,0.15)' },
+    farmer: { label: 'Petani', emoji: '', color: 'var(--color-success)', bg: 'color-mix(in srgb, var(--color-success) 15%, transparent)' },
+    koperasi: { label: 'Koperasi', emoji: '', color: 'var(--color-accent)', bg: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' },
+    developer: { label: 'Developer', emoji: '', color: 'var(--color-crypto)', bg: 'color-mix(in srgb, var(--color-crypto) 15%, transparent)' },
 };
 
 // Nav items per role

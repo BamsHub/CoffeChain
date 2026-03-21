@@ -3,7 +3,8 @@
     top: 0;
     right: 0;
     height: var(--header-height);
-    background: rgba(10, 15, 10, 0.85);
+    background: var(--color-bg-surface);
+    opacity: 0.97;
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--color-border);
     display: flex;
@@ -295,7 +296,7 @@
     top: calc(100% + 12px);
     right: -8px;
     width: 340px;
-    background: rgba(10, 18, 10, 0.97);
+    background: var(--color-bg-surface);
     border: 1px solid var(--color-border);
     border-radius: 14px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
