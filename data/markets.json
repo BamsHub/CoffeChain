@@ -1,132 +1,132 @@
 {
-    "items": [
-        {
-            "id": "mkt-001",
-            "name": "Pasar Kopi Aceh",
-            "slug": "aceh",
-            "region": "Aceh",
-            "description": "Pusat perdagangan kopi Arabika Gayo terbesar di Sumatera. Dikelola oleh koperasi lokal bersertifikasi Rainforest Alliance.",
-            "icon": "🌿",
-            "coverColor": "#2D5016",
-            "type": "Arabika",
-            "status": "active",
-            "farmerIds": [
-                "f-001",
-                "f-002"
-            ],
-            "farmerCount": 2,
-            "totalVolume": 42700,
-            "avgRating": 4.85,
-            "totalRevenue": 0,
-            "orderCount": 0,
-            "createdAt": "2024-01-15T00:00:00.000Z",
-            "createdBy": "developer"
-        },
-        {
-            "id": "mkt-002",
-            "name": "Pasar Kopi Sulawesi",
-            "slug": "sulawesi",
-            "region": "Sulawesi",
-            "description": "Pasar kopi Toraja dan Mandheling premium. Kopi dengan profil rasa buah dan tubuh sedang.",
-            "icon": "🏔️",
-            "coverColor": "#1A3A5C",
-            "type": "Arabika",
-            "status": "active",
-            "farmerIds": [
-                "f-003",
-                "f-006"
-            ],
-            "farmerCount": 2,
-            "totalVolume": 22900,
-            "avgRating": 4.6,
-            "totalRevenue": 0,
-            "orderCount": 0,
-            "createdAt": "2024-02-10T00:00:00.000Z",
-            "createdBy": "developer"
-        },
-        {
-            "id": "mkt-003",
-            "name": "Pasar Kopi Flores",
-            "slug": "flores",
-            "region": "NTT",
-            "description": "Kopi Arabika Bajawa dan Flores Washed. Karakter unik: asam cerah dengan aroma floral.",
-            "icon": "🌺",
-            "coverColor": "#5C1A3A",
-            "type": "Arabika",
-            "status": "active",
-            "farmerIds": [
-                "f-004"
-            ],
-            "farmerCount": 1,
-            "totalVolume": 12300,
-            "avgRating": 4.8,
-            "totalRevenue": 0,
-            "orderCount": 0,
-            "createdAt": "2024-03-05T00:00:00.000Z",
-            "createdBy": "developer"
-        },
-        {
-            "id": "mkt-004",
-            "name": "Pasar Kopi Jawa",
-            "slug": "jawa",
-            "region": "Jawa Barat",
-            "description": "Kopi Robusta dan Arabika dari Jawa Barat. Rasa full-bodied cocok untuk espresso.",
-            "icon": "☕",
-            "coverColor": "#3A2A1A",
-            "type": "Robusta",
-            "status": "active",
-            "farmerIds": [
-                "f-005"
-            ],
-            "farmerCount": 1,
-            "totalVolume": 9800,
-            "avgRating": 4.6,
-            "totalRevenue": 0,
-            "orderCount": 0,
-            "createdAt": "2024-04-01T00:00:00.000Z",
-            "createdBy": "developer"
-        },
-        {
-            "id": "mkt-005",
-            "name": "Pasar Kopi Sumatera Utara",
-            "slug": "sumut",
-            "region": "Sumatera Utara",
-            "description": "Kopi Mandheling dan Lintong legendaris. Kekayaan budaya kopi Batak Toba.",
-            "icon": "⛰️",
-            "coverColor": "#1C3A1C",
-            "type": "Arabika",
-            "status": "active",
-            "farmerIds": [
-                "f-007"
-            ],
-            "farmerCount": 1,
-            "totalVolume": 6900,
-            "avgRating": 4.7,
-            "totalRevenue": 0,
-            "orderCount": 0,
-            "createdAt": "2024-05-20T00:00:00.000Z",
-            "createdBy": "developer"
-        },
-        {
-            "id": "mkt-006",
-            "name": "Pasar Kopi Papua",
-            "slug": "papua",
-            "region": "Papua",
-            "description": "Kopi specialty Wamena organik bersertifikat. Ditanam di ketinggian 1800m dpl.",
-            "icon": "🦜",
-            "coverColor": "#2A1A5C",
-            "type": "Arabika",
-            "status": "active",
-            "farmerIds": [
-                "f-008"
-            ],
-            "farmerCount": 1,
-            "totalVolume": 5400,
-            "avgRating": 4.9,
-            "totalRevenue": 0,
-            "orderCount": 0,
-            "createdAt": "2024-06-01T00:00:00.000Z",
-            "createdBy": "developer"
-        }
-    ]
+  "items": [
+    {
+      "id": "mkt-001",
+      "name": "Pasar Kopi Aceh",
+      "slug": "aceh",
+      "region": "Aceh",
+      "description": "Pusat perdagangan kopi Arabika Gayo terbesar di Sumatera. Dikelola oleh koperasi lokal bersertifikasi Rainforest Alliance.",
+      "icon": "🌿",
+      "coverColor": "#2D5016",
+      "type": "Arabika",
+      "status": "active",
+      "farmerIds": [
+        "f-001",
+        "f-002"
+      ],
+      "farmerCount": 2,
+      "totalVolume": 42700,
+      "avgRating": 4.85,
+      "totalRevenue": 0,
+      "orderCount": 0,
+      "createdAt": "2024-01-15T00:00:00.000Z",
+      "createdBy": "developer"
+    },
+    {
+      "id": "mkt-002",
+      "name": "Pasar Kopi Sulawesi",
+      "slug": "sulawesi",
+      "region": "Sulawesi",
+      "description": "Pasar kopi Toraja dan Mandheling premium. Kopi dengan profil rasa buah dan tubuh sedang.",
+      "icon": "🏔️",
+      "coverColor": "#1A3A5C",
+      "type": "Arabika",
+      "status": "active",
+      "farmerIds": [
+        "f-003",
+        "f-006"
+      ],
+      "farmerCount": 2,
+      "totalVolume": 22900,
+      "avgRating": 4.6,
+      "totalRevenue": 0,
+      "orderCount": 0,
+      "createdAt": "2024-02-10T00:00:00.000Z",
+      "createdBy": "developer"
+    },
+    {
+      "id": "mkt-003",
+      "name": "Pasar Kopi Flores",
+      "slug": "flores",
+      "region": "NTT",
+      "description": "Kopi Arabika Bajawa dan Flores Washed. Karakter unik: asam cerah dengan aroma floral.",
+      "icon": "🌺",
+      "coverColor": "#5C1A3A",
+      "type": "Arabika",
+      "status": "active",
+      "farmerIds": [
+        "f-004"
+      ],
+      "farmerCount": 1,
+      "totalVolume": 12300,
+      "avgRating": 4.8,
+      "totalRevenue": 0,
+      "orderCount": 0,
+      "createdAt": "2024-03-05T00:00:00.000Z",
+      "createdBy": "developer"
+    },
+    {
+      "id": "mkt-004",
+      "name": "Pasar Kopi Jawa",
+      "slug": "jawa",
+      "region": "Jawa Barat",
+      "description": "Kopi Robusta dan Arabika dari Jawa Barat. Rasa full-bodied cocok untuk espresso.",
+      "icon": "☕",
+      "coverColor": "#3A2A1A",
+      "type": "Robusta",
+      "status": "active",
+      "farmerIds": [
+        "f-005"
+      ],
+      "farmerCount": 1,
+      "totalVolume": 9800,
+      "avgRating": 4.6,
+      "totalRevenue": 0,
+      "orderCount": 0,
+      "createdAt": "2024-04-01T00:00:00.000Z",
+      "createdBy": "developer"
+    },
+    {
+      "id": "mkt-005",
+      "name": "Pasar Kopi Sumatera Utara",
+      "slug": "sumut",
+      "region": "Sumatera Utara",
+      "description": "Kopi Mandheling dan Lintong legendaris. Kekayaan budaya kopi Batak Toba.",
+      "icon": "⛰️",
+      "coverColor": "#1C3A1C",
+      "type": "Arabika",
+      "status": "active",
+      "farmerIds": [
+        "f-007"
+      ],
+      "farmerCount": 1,
+      "totalVolume": 6900,
+      "avgRating": 4.7,
+      "totalRevenue": 0,
+      "orderCount": 0,
+      "createdAt": "2024-05-20T00:00:00.000Z",
+      "createdBy": "developer"
+    },
+    {
+      "id": "mkt-006",
+      "name": "Pasar Kopi Papua",
+      "slug": "papua",
+      "region": "Papua",
+      "description": "Kopi specialty Wamena organik bersertifikat. Ditanam di ketinggian 1800m dpl.",
+      "icon": "🦜",
+      "coverColor": "#2A1A5C",
+      "type": "Arabika",
+      "status": "active",
+      "farmerIds": [
+        "f-008"
+      ],
+      "farmerCount": 1,
+      "totalVolume": 5400,
+      "avgRating": 4.9,
+      "totalRevenue": 0,
+      "orderCount": 0,
+      "createdAt": "2024-06-01T00:00:00.000Z",
+      "createdBy": "developer"
+    }
+  ]
 }

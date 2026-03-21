@@ -44,16 +44,16 @@
   /* Borders lebih jelas bernuansa hijau */
   --color-border: rgba(58, 107, 24, 0.35);
 
-  /* Text — dark brown/charcoal bukan hitam pekat */
-  --color-text: #2C1F10;
-  --color-text-secondary: #5A4020;
-  --color-text-muted: #8C7050;
+  /* Text — Lebih gelap agar sangat jelas terbaca */
+  --color-text: #1A1208;
+  --color-text-secondary: #3D2915;
+  --color-text-muted: #664E36;
 
   /* Status */
   --color-success: #2A6B2A;
   --color-warning: #C46000;
   --color-error: #B02020;
-  --color-crypto: #1565C0;
+  --color-crypto: #0A356A; /* Biru yang lebih tua agar tidak nyaru */
 
   /* Logo */
   --color-logo-text: #2C1F10;
