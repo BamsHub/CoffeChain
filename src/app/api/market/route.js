@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { readDb, updateItem } from '@/lib/db';
 
 export async function GET() {

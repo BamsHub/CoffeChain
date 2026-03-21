@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { readDb, addItem, writeDb } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
