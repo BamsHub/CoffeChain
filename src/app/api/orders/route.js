@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { readDb, addItem } from '@/lib/db';
 import { sbSelect, sbInsert, sbUpdate, ordersToSnake, ordersToCamel } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
