@@ -7,8 +7,8 @@ import nodemailer from 'nodemailer';
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
+        user: process.env.GMAIL_USER || 'jabbarbabam0222@gmail.com',
+        pass: process.env.GMAIL_APP_PASSWORD || 'dwkidxowkkzjdlwl',
     },
 });
 
@@ -108,7 +108,7 @@ export async function sendVerificationEmail(toEmail, name, token) {
     `.trim();
 
     await transporter.sendMail({
-        from: `"CoffeeChain" <${process.env.GMAIL_USER}>`,
+        from: `"CoffeeChain" <${process.env.GMAIL_USER || 'jabbarbabam0222@gmail.com'}>`,
         to: toEmail,
         subject: '✅ Verifikasi Email Akun CoffeeChain Anda',
         html,

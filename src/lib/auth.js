@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { readDb, writeDb } from './db';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'coffeechain-super-secret-key-1234');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'coffeechain-super-secret-jwt-2024-blockchain-kopi-nusantara');
 
 /** Hash password dengan SHA-256 (Web Crypto API kompatibel dengan Cloudflare Edge) */
 export async function hashPassword(password) {
