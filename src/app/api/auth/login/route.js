@@ -32,7 +32,7 @@ export async function POST(request) {
         }
 
         // Cek password — untuk seed data, kita bandingkan langsung atau via hash
-        const isValid = verifyPassword(password, user.password) ||
+        const isValid = (await verifyPassword(password, user.password)) ||
             // Fallback untuk seed data plaintext (petani123, kop123, admin123)
             (password === 'admin123' && user.role === 'developer') ||
             (password === 'kop123' && user.role === 'koperasi') ||

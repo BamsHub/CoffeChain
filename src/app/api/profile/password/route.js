@@ -16,12 +16,12 @@ export async function PATCH(request) {
         if (idx === -1) return Response.json({ success: false, message: 'User tidak ditemukan' }, { status: 404 });
 
         const user = db.items[idx];
-        const oldHash = hashPassword(oldPassword);
+        const oldHash = await hashPassword(oldPassword);
         if (user.password !== oldHash) {
             return Response.json({ success: false, message: 'Password lama salah' }, { status: 400 });
         }
 
-        db.items[idx].password = hashPassword(newPassword);
+        db.items[idx].password = await hashPassword(newPassword);
         await writeDb('users', db);
 
         return Response.json({ success: true, message: 'Password berhasil diubah' });

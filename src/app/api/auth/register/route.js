@@ -2,7 +2,6 @@ import { readDb, addItem, writeDb } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
 import { v4 as uuidv4 } from 'uuid';
-import { randomBytes } from 'crypto';
 
 export async function POST(request) {
     try {
@@ -33,7 +32,7 @@ export async function POST(request) {
             id: userId,
             name: name.trim(),
             email: email.toLowerCase().trim(),
-            password: hashPassword(password),
+            password: await hashPassword(password),
             role: 'farmer',
             region: region?.trim() || '',
             wallet: '',
@@ -47,7 +46,9 @@ export async function POST(request) {
         await addItem('users', newUser);
 
         // Buat token verifikasi (berlaku 24 jam)
-        const verifyToken = randomBytes(32).toString('hex');
+        const array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        const verifyToken = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
         const tokenDb = await readDb('verification_tokens');
         // Hapus token lama untuk email yang sama
         tokenDb.items = tokenDb.items.filter(t => t.email !== email.toLowerCase());

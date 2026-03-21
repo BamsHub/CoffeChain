@@ -1,17 +1,19 @@
-import { createHash } from 'crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { readDb, writeDb } from './db';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'coffeechain-super-secret-key-1234');
 
-/** Hash password dengan SHA-256 */
-export function hashPassword(password) {
-    return createHash('sha256').update(password).digest('hex');
+/** Hash password dengan SHA-256 (Web Crypto API kompatibel dengan Cloudflare Edge) */
+export async function hashPassword(password) {
+    const data = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** Verifikasi password */
-export function verifyPassword(plain, hashed) {
-    return hashPassword(plain) === hashed;
+export async function verifyPassword(plain, hashed) {
+    return (await hashPassword(plain)) === hashed;
 }
 
 /** Generate token JWT baru (stateless) */
