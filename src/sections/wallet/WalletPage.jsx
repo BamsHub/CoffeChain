@@ -77,7 +77,7 @@ export default function WalletPage() {
                 </div>
                 {!wallet.connected ? (
                     <button className={styles.connectPhantomBtn} onClick={handleConnect} disabled={loading}>
-                        <span className={styles.phantomEmoji}>👻</span>
+                        <span className={styles.phantomEmoji}><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></span>
                         {loading ? 'Menghubungkan...' : 'Hubungkan Phantom Wallet'}
                     </button>
                 ) : (
@@ -88,7 +88,7 @@ export default function WalletPage() {
             {/* Not Connected */}
             {!wallet.connected && (
                 <div className={styles.notConnected}>
-                    <div className={styles.phantomLogo}>👻</div>
+                    <div className={styles.phantomLogo}><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></div>
                     <h2 className={styles.ncTitle}>Phantom Wallet Belum Terhubung</h2>
                     <p className={styles.ncDesc}>Hubungkan Phantom wallet Solana untuk mengakses saldo, mengirim transaksi, dan melihat riwayat aktivitas blockchain kopi kamu.</p>
                     <div className={styles.ncFeatures}>
@@ -104,7 +104,7 @@ export default function WalletPage() {
                         </div>
                     )}
                     <button className={styles.connectPhantomBtn} onClick={handleConnect} disabled={loading}>
-                        <span>👻</span> {loading ? 'Menghubungkan...' : 'Hubungkan Phantom'}
+                        <span><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></span> {loading ? 'Menghubungkan...' : 'Hubungkan Phantom'}
                     </button>
                 </div>
             )}
@@ -123,7 +123,7 @@ export default function WalletPage() {
                                 <div className={styles.balanceUsd}>≈ ${(wallet.balance * solPrice).toFixed(2)} USD</div>
                             </div>
                             <div className={styles.walletIconBox}>
-                                <div style={{ fontSize: 36 }}>👻</div>
+                                <div style={{ fontSize: 36 }}><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></div>
                                 <div className={styles.phantomLabel}>Phantom</div>
                                 <div className={styles.netLabel}>Devnet</div>
                             </div>

@@ -38,8 +38,8 @@ export default function MarketsPage() {
         setLoading(false);
     }
 
-    function openAdd() { setForm({ name: '', region: '', description: '', icon: '☕', type: 'Arabika', farmerIds: [], coverColor: '#2D5016' }); setEditing(null); setShowAdd(true); }
-    function openEdit(mkt) { setForm({ name: mkt.name, region: mkt.region, description: mkt.description || '', icon: mkt.icon || '☕', type: mkt.type || 'Arabika', farmerIds: mkt.farmerIds || [], coverColor: mkt.coverColor || '#2D5016' }); setEditing(mkt.id); setShowAdd(true); }
+    function openAdd() { setForm({ name: '', region: '', description: '', type: 'Arabika', farmerIds: [], coverColor: '#2D5016' }); setEditing(null); setShowAdd(true); }
+    function openEdit(mkt) { setForm({ name: mkt.name, region: mkt.region, description: mkt.description || '', type: mkt.type || 'Arabika', farmerIds: mkt.farmerIds || [], coverColor: mkt.coverColor || '#2D5016' }); setEditing(mkt.id); setShowAdd(true); }
 
     async function handleSave(e) {
         e.preventDefault();
@@ -96,7 +96,9 @@ export default function MarketsPage() {
             {/* Top market banner */}
             {!loading && topMarket && topMarket.orderCount > 0 && (
                 <div className={styles.topBanner} style={{ borderColor: topMarket.coverColor }}>
-                    <div className={styles.topIcon}>{topMarket.icon}</div>
+                    <div className={styles.topIcon}>
+                        <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,fontWeight:700,color:'#fff'}}>{topMarket.name.substring(0,2).toUpperCase()}</div>
+                    </div>
                     <div className={styles.topInfo}>
                         <div className={styles.topLabel}>🏆 Market Paling Laris</div>
                         <div className={styles.topName}>{topMarket.name}</div>
@@ -125,7 +127,9 @@ export default function MarketsPage() {
 
                             {/* Header */}
                             <div className={styles.cardHeader} style={{ background: mkt.coverColor || '#2D5016' }}>
-                                <div className={styles.cardIcon}>{mkt.icon || '☕'}</div>
+                                <div className={styles.cardIcon}>
+                                    <div style={{width:48,height:48,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'#fff'}}>{mkt.name.substring(0,2).toUpperCase()}</div>
+                                </div>
                                 <div className={styles.cardStatus}>
                                     <span className={mkt.status === 'active' ? styles.statusActive : styles.statusInactive}>
                                         {mkt.status === 'active' ? '● Aktif' : '○ Nonaktif'}
@@ -225,11 +229,9 @@ export default function MarketsPage() {
                                     </select>
                                 </div>
                                 <div className={styles.field}>
-                                    <label>Icon</label>
+                                    <label>Avatar Market</label>
                                     <div className={styles.iconPicker}>
-                                        {ICONS.map(ic => (
-                                            <button type="button" key={ic} className={`${styles.iconBtn} ${form.icon === ic ? styles.iconBtnActive : ''}`} onClick={() => F('icon', ic)}>{ic}</button>
-                                        ))}
+                                        <div style={{width:48,height:48,borderRadius:'50%',background:form.coverColor,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'#fff'}}>{form.name ? form.name.substring(0,2).toUpperCase() : '??'}</div>
                                     </div>
                                 </div>
                             </div>

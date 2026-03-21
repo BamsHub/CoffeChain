@@ -94,7 +94,9 @@ export default function ShopPage({ user }) {
                         className={`${styles.marketChip} ${!selectedMarket ? styles.marketChipActive : ''}`}
                         onClick={() => setSelectedMarket(null)}
                     >
-                        <span className={styles.marketChipIcon}>🌏</span>
+                        <span className={styles.marketChipIcon}>
+                            <div style={{width:24,height:24,borderRadius:'50%',background:'rgba(255,255,255,0.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'currentColor'}}>ALL</div>
+                        </span>
                         <div>
                             <div className={styles.marketChipName}>Semua Pasar</div>
                             <div className={styles.marketChipSub}>{products.length} produk</div>
@@ -107,7 +109,9 @@ export default function ShopPage({ user }) {
                             onClick={() => setSelectedMarket(mkt.id)}
                             style={selectedMarket === mkt.id ? { borderColor: mkt.coverColor || 'var(--color-primary-light)' } : {}}
                         >
-                            <span className={styles.marketChipIcon}>{mkt.icon}</span>
+                            <span className={styles.marketChipIcon}>
+                                <div style={{width:24,height:24,borderRadius:'50%',background:mkt.coverColor||'rgba(255,255,255,0.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff'}}>{mkt.name.substring(0,2).toUpperCase()}</div>
+                            </span>
                             <div>
                                 <div className={styles.marketChipName}>{mkt.name}</div>
                                 <div className={styles.marketChipSub}>{mkt.farmerCount} petani · {mkt.region}</div>
@@ -120,7 +124,7 @@ export default function ShopPage({ user }) {
                 {activeMarket && (
                     <div className={styles.marketDetail} style={{ borderColor: activeMarket.coverColor }}>
                         <div className={styles.marketDetailHeader} style={{ background: activeMarket.coverColor }}>
-                            <span style={{ fontSize: 28 }}>{activeMarket.icon}</span>
+                            <div style={{width:56,height:56,borderRadius:'50%',background:'rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,fontWeight:700,color:'#fff',lineHeight:1,border:'2px solid rgba(255,255,255,0.3)'}}>{activeMarket.name.substring(0,2).toUpperCase()}</div>
                             <div>
                                 <div className={styles.marketDetailName}>{activeMarket.name}</div>
                                 <div className={styles.marketDetailRegion}>📍 {activeMarket.region} · {activeMarket.type}</div>
@@ -200,7 +204,13 @@ export default function ShopPage({ user }) {
                                     ))}
                                     {lowStock && <span className={styles.tagLow}>⚠️ Stok Terbatas</span>}
                                 </div>
-                                <div className={styles.productEmoji}>{product.image}</div>
+                                <div className={styles.productEmoji}>
+                                    {product.image && product.image.startsWith('data:') ? (
+                                        <img src={product.image} alt={product.name} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                                    ) : (
+                                        <div style={{width:'100%',height:'100%',background:'var(--color-bg-card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,fontWeight:700,color:'var(--color-text-muted)'}}>{product.name.substring(0,2).toUpperCase()}</div>
+                                    )}
+                                </div>
                                 <div className={styles.cardBody}>
                                     <div className={styles.productOrigin}>📍 {product.origin}</div>
                                     <h3 className={styles.productName}>{product.name}</h3>
@@ -237,10 +247,12 @@ export default function ShopPage({ user }) {
                                     </div>
                                     <div className={styles.buyRow}>
                                         <button className={styles.btnTransfer} onClick={e => { e.stopPropagation(); handleBuy(product, 'transfer'); }}>
-                                            🏦 Transfer
+                                            <svg style={{verticalAlign:'text-bottom',marginRight:6}} width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                            Phantom
                                         </button>
                                         <button className={styles.btnQris} onClick={e => { e.stopPropagation(); handleBuy(product, 'qris'); }}>
-                                            📱 QRIS
+                                            <svg style={{verticalAlign:'text-bottom',marginRight:6}} width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M8 8h.01M16 8h.01M8 16h.01M16 16h.01M12 12h.01M12 8h.01M8 12h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+                                            QRIS
                                         </button>
                                     </div>
                                 </div>

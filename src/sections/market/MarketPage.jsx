@@ -21,7 +21,7 @@ const ROLE_CAN_MANAGE = ['developer', 'koperasi'];
 
 // Modal tambah produk
 function AddProductModal({ onClose, onSave }) {
-    const [form, setForm] = useState({ name: '', origin: '', grade: 'A', variety: 'Arabika', roast: 'Medium Roast', weightStr: '250,500,1000', priceStr: '60000,110000,200000', description: '', stock: 50, image: '☕' });
+    const [form, setForm] = useState({ name: '', origin: '', grade: 'A', variety: 'Arabika', roast: 'Medium Roast', weightStr: '250,500,1000', priceStr: '60000,110000,200000', description: '', stock: 50, image: '' });
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState('');
 
@@ -55,8 +55,49 @@ function AddProductModal({ onClose, onSave }) {
     return (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
             <div className={styles.addModal}>
-                <div className={styles.addModalHdr}><h3>➕ Tambah Produk Kopi</h3><button onClick={onClose}>✕</button></div>
+                <div className={styles.addModalHdr}>
+                    <h3 style={{display:'flex',alignItems:'center',gap:8}}>
+                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                        Tambah Produk Kopi
+                    </h3>
+                    <button onClick={onClose}>
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                    </button>
+                </div>
                 <form onSubmit={handleSubmit} className={styles.addForm}>
+                    {/* FOTO PRODUK UPLOAD */}
+                    <div className={styles.mField}>
+                        <label>Foto Produk <span style={{fontWeight:400,opacity:0.6}}>(maks 2MB — developer upload sendiri)</span></label>
+                        <div className={styles.photoUploadBox}>
+                            {form.image && form.image.startsWith('data:') ? (
+                                <img src={form.image} alt="preview" className={styles.photoPreviewImg} />
+                            ) : (
+                                <div className={styles.photoPlaceholder}>
+                                    <svg width="36" height="36" fill="none" viewBox="0 0 24 24" style={{opacity:0.35}}><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M21 15l-5-5L5 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                                    <span style={{fontSize:12,opacity:0.5,marginTop:6}}>Belum ada foto produk</span>
+                                </div>
+                            )}
+                            <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
+                                <label className={styles.photoUploadBtn}>
+                                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                    Upload Foto
+                                    <input type="file" accept="image/*" style={{display:'none'}}
+                                        onChange={e => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            if (file.size > 2 * 1024 * 1024) { setErr('Foto max 2MB'); return; }
+                                            const reader = new FileReader();
+                                            reader.onload = ev => F('image', ev.target.result);
+                                            reader.readAsDataURL(file);
+                                        }}
+                                    />
+                                </label>
+                                {form.image && form.image.startsWith('data:') && (
+                                    <button type="button" className={styles.photoRemoveBtn} onClick={() => F('image', '')}>Hapus Foto</button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     {inp('Nama Produk *', 'name', 'text', 'Arabika Gayo Premium')}
                     {inp('Asal Daerah *', 'origin', 'text', 'Gayo, Aceh')}
                     <div className={styles.mRow}>
@@ -80,12 +121,11 @@ function AddProductModal({ onClose, onSave }) {
                     {inp('Harga (Rp) — pisah koma, urutan sama *', 'priceStr', 'text', '60000,110000,200000')}
                     <div className={styles.mRow}>
                         {inp('Stok (kg)', 'stock', 'number', '50')}
-                        {inp('Emoji/Icon', 'image', 'text', '☕')}
                     </div>
                     <div className={styles.mField}><label>Deskripsi</label>
                         <textarea value={form.description} onChange={e => F('description', e.target.value)} className={styles.mTextarea} placeholder="Deskripsikan produk kopi ini..." />
                     </div>
-                    {err && <p className={styles.mErr}>⚠️ {err}</p>}
+                    {err && <p className={styles.mErr}>{err}</p>}
                     <div className={styles.mBtns}>
                         <button type="button" onClick={onClose} className={styles.mCancel}>Batal</button>
                         <button type="submit" disabled={loading} className={styles.mSave}>{loading ? 'Menyimpan...' : '💾 Simpan Produk'}</button>
@@ -151,8 +191,8 @@ export default function MarketPage({ user }) {
     }];
 
     // Gabung products dan orders untuk tampilkan riwayat dengan nama petani
-    function getProductEmoji(productId) {
-        return products.find(p => p.id === productId)?.image || '☕';
+    function getProductImage(productId) {
+        return products.find(p => p.id === productId)?.image || '';
     }
 
     return (
@@ -181,7 +221,9 @@ export default function MarketPage({ user }) {
                 {coffeeTypes.map((c, i) => (
                     <div key={i} className={`${styles.priceCard} ${c.change >= 0 ? styles.up : styles.down}`}>
                         <div className={styles.priceTop}>
-                            <span className={styles.emoji}>{c.emoji}</span>
+                            <div className={styles.emoji} style={{width:36,height:36,borderRadius:8,background:'var(--color-surface-2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                            </div>
                             <div>
                                 <div className={styles.coffeeName}>{c.name}</div>
                                 <div className={styles.coffeeGrade}>{c.grade} • {c.origin}</div>
@@ -215,7 +257,7 @@ export default function MarketPage({ user }) {
             <div className={styles.historyCard}>
                 <div className={styles.historyHeader}>
                     <div>
-                        <h3 className={styles.chartTitle}>🧾 Riwayat Pembelian Produk Kopi</h3>
+                        <h3 className={styles.chartTitle}>Riwayat Pembelian Produk Kopi</h3>
                         <p className={styles.chartSub}>Transaksi terbayar yang tercatat di sistem</p>
                     </div>
                     <span className={styles.historyCount}>{orders.length} Transaksi</span>
@@ -226,19 +268,21 @@ export default function MarketPage({ user }) {
                         {[1, 2, 3].map(i => <div key={i} className={styles.histSkeleton} />)}
                     </div>
                 ) : orders.length === 0 ? (
-                    <div className={styles.histEmpty}>📭 Belum ada transaksi yang selesai</div>
+                    <div className={styles.histEmpty}>Belum ada transaksi yang selesai</div>
                 ) : (
                     <div className={styles.histList}>
                         {orders.map((o, i) => (
                             <div key={o.id} className={styles.histItem}>
                                 <div className={styles.histNum}>#{i + 1}</div>
-                                <div className={styles.histEmoji}>{getProductEmoji(o.productId)}</div>
+                                <div className={styles.histEmoji}>
+                                    {(() => { const img = getProductImage(o.productId); return img && img.startsWith('data:') ? <img src={img} alt="" style={{width:36,height:36,borderRadius:8,objectFit:'cover'}} /> : <div style={{width:36,height:36,borderRadius:8,background:'var(--color-surface-2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:'var(--color-text-muted)'}}>{(o.productName||'?').substring(0,2).toUpperCase()}</div>; })()}
+                                </div>
                                 <div className={styles.histInfo}>
                                     <div className={styles.histProduct}>{o.productName} <span className={styles.histWeight}>{o.weight}g</span></div>
                                     <div className={styles.histMeta}>
-                                        <span className={styles.histBuyer}>👤 {o.userName}</span>
+                                        <span className={styles.histBuyer}>{o.userName}</span>
                                         <span className={styles.histDot}>•</span>
-                                        <span className={styles.histMethod}>{o.paymentMethod === 'transfer' ? '🏦 Phantom' : '📱 QRIS'}</span>
+                                        <span className={styles.histMethod}>{o.paymentMethod === 'transfer' ? 'Phantom' : 'QRIS'}</span>
                                         <span className={styles.histDot}>•</span>
                                         <span className={styles.histTime}>{new Date(o.paidAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
@@ -246,7 +290,7 @@ export default function MarketPage({ user }) {
                                 <div className={styles.histRight}>
                                     <div className={styles.histPrice}>Rp {(o.totalPrice || 0).toLocaleString('id-ID')}</div>
                                     <div className={styles.histOrderId}>{o.orderId}</div>
-                                    <span className={styles.paiBadge}>✅ LUNAS</span>
+                                    <span className={styles.paiBadge}>LUNAS</span>
                                 </div>
                             </div>
                         ))}
@@ -264,8 +308,8 @@ export default function MarketPage({ user }) {
                     <div className={styles.formGroup}><label>Berat (kg)</label><input type="number" placeholder="e.g. 100" className={styles.input} /></div>
                     <div className={styles.formGroup}><label>Harga Penawaran (Rp/kg)</label><input type="number" placeholder="e.g. 68500" className={styles.input} /></div>
                     <div className={styles.tradeBtns}>
-                        <button className={styles.btnBuy}>🛒 Beli</button>
-                        <button className={styles.btnSell}>💰 Jual</button>
+                        <button className={styles.btnBuy}>Beli</button>
+                        <button className={styles.btnSell}>Jual</button>
                     </div>
                 </div>
             </div>
