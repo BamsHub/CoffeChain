@@ -445,7 +445,10 @@ export default function LandingPage() {
                                         <div>
                                             <label style={{ fontSize: 13, color: 'rgba(232,245,224,0.6)', display: 'block', marginBottom: 6 }}>Ukuran Berat</label>
                                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                                {selectedProduct.weight.map((w, i) => (
+                                                {selectedProduct.weight
+                                                    .map((w, i) => ({ w, i, price: selectedProduct.pricePerUnit?.[i] ?? 0 }))
+                                                    .filter(({ w, price }) => w >= 50 && w <= 5000 && price <= 10_000_000)
+                                                    .map(({ w, i, price }) => (
                                                     <button key={w} type="button"
                                                         onClick={() => setOrderForm(f => ({ ...f, weight: w }))}
                                                         style={{
@@ -455,7 +458,7 @@ export default function LandingPage() {
                                                             color: orderForm.weight === w ? '#7ED44A' : 'rgba(232,245,224,0.6)',
                                                         }}>
                                                         {w}g<br />
-                                                        <span style={{ fontSize: 11, opacity: 0.7 }}>Rp {selectedProduct.pricePerUnit?.[i]?.toLocaleString('id-ID')}</span>
+                                                        <span style={{ fontSize: 11, opacity: 0.7 }}>Rp {price?.toLocaleString('id-ID')}</span>
                                                     </button>
                                                 ))}
                                             </div>
