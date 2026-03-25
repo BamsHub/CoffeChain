@@ -106,16 +106,24 @@ export default function Sidebar({ collapsed, onToggle }) {
                         );
                     })}
 
-                    {/* Admin section — hanya developer */}
-                    {role === 'developer' && !collapsed && (
+                    {/* Admin section — developer & koperasi */}
+                    {(role === 'developer' || role === 'koperasi') && (
                         <>
-                            <span className={styles.navLabel} style={{ marginTop: 12 }}>Admin Panel</span>
-                            <Link href="/markets" className={`${styles.navItem} ${pathname === '/markets' ? styles.active : ''}`}>
+                            {!collapsed && <span className={styles.navLabel} style={{ marginTop: 12 }}>Admin Panel</span>}
+                            {role === 'developer' && (
+                                <Link href="/markets" className={`${styles.navItem} ${pathname === '/markets' ? styles.active : ''}`} title={collapsed ? 'Kelola Pasar' : undefined}>
+                                    <span className={styles.navIcon}>
+                                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                                    </span>
+                                    {!collapsed && <span className={styles.navText}>Kelola Pasar</span>}
+                                    {!collapsed && <span className={styles.devBadge}>DEV</span>}
+                                </Link>
+                            )}
+                            <Link href="/integrations" className={`${styles.navItem} ${pathname === '/integrations' ? styles.active : ''}`} title={collapsed ? 'Integrasi API' : undefined}>
                                 <span className={styles.navIcon}>
-                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                 </span>
-                                <span className={styles.navText}>Kelola Pasar</span>
-                                <span className={styles.devBadge}>DEV</span>
+                                {!collapsed && <span className={styles.navText}>Integrasi API</span>}
                             </Link>
                         </>
                     )}
