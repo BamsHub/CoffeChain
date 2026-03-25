@@ -13,6 +13,7 @@ export default function LandingPage() {
     const [ordering, setOrdering] = useState(false);
     const [loading, setLoading] = useState(true);
     const [scrolled, setScrolled] = useState(false);
+    const [qrDataUrl, setQrDataUrl] = useState(null);
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 60);
@@ -67,6 +68,15 @@ export default function LandingPage() {
             const data = await res.json();
             if (data.success) {
                 setOrderResult(data.data);
+                // Generate QR code
+                try {
+                    const qrText = data.data.paymentMethod === 'transfer'
+                        ? `COFFECHAIN|${data.data.orderId}|VA:${data.data.virtualAccount}|Rp${data.data.totalPrice}`
+                        : `COFFEECHAIN|${data.data.orderId}|SOL|Rp${data.data.totalPrice}`;
+                    const QRCode = (await import('qrcode')).default;
+                    const url = await QRCode.toDataURL(qrText, { width: 220, margin: 2, color: { dark: '#7ED44A', light: '#0a120a' } });
+                    setQrDataUrl(url);
+                } catch { setQrDataUrl(null); }
             } else {
                 alert(data.message || 'Gagal membuat pesanan');
             }
@@ -80,6 +90,7 @@ export default function LandingPage() {
         setSelectedProduct(product);
         setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: 'transfer' });
         setOrderResult(null);
+        setQrDataUrl(null);
         setOrderModal(true);
     }
 
@@ -123,7 +134,7 @@ export default function LandingPage() {
                             color: '#fff', fontWeight: 700, fontSize: 13,
                             padding: '9px 20px', borderRadius: 8, letterSpacing: 0.3,
                         }}>
-                            🔐 Admin Login
+                            🔐 Masuk
                         </Link>
                     </div>
                 </div>
@@ -435,7 +446,7 @@ curl -X POST https://coffee-blockchain.pages.dev/api/public/order \\
                         © 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · On Solana
                     </div>
                     <div style={{ display: 'flex', gap: 24 }}>
-                        <Link href="/login" style={{ color: 'rgba(232,245,224,0.5)', fontSize: 13 }}>Admin Login</Link>
+                        <Link href="/login" style={{ color: 'rgba(232,245,224,0.5)', fontSize: 13 }}>Masuk</Link>
                         <a href="#api" style={{ color: 'rgba(232,245,224,0.5)', fontSize: 13 }}>API Docs</a>
                         <a href="#products" style={{ color: 'rgba(232,245,224,0.5)', fontSize: 13 }}>Produk</a>
                     </div>
@@ -469,7 +480,7 @@ curl -X POST https://coffee-blockchain.pages.dev/api/public/order \\
                                         ['Produk', orderResult.productName],
                                         ['Berat', `${orderResult.weight}g × ${orderResult.quantity}`],
                                         ['Total', `Rp ${orderResult.totalPrice.toLocaleString('id-ID')}`],
-                                        ['Pembayaran', orderResult.paymentMethod],
+                                        ['Pembayaran', orderResult.paymentMethod === 'qr' ? 'QR Code' : orderResult.paymentMethod === 'transfer' ? 'Transfer Bank' : 'Solana'],
                                         ...(orderResult.virtualAccount ? [['Virtual Account', orderResult.virtualAccount]] : []),
                                         ['Berlaku hingga', new Date(orderResult.expiresAt).toLocaleString('id-ID')],
                                     ].map(([k, v]) => (
@@ -479,7 +490,19 @@ curl -X POST https://coffee-blockchain.pages.dev/api/public/order \\
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={() => { setOrderModal(false); setOrderResult(null); }} style={{
+
+                                {/* QR Code */}
+                                {qrDataUrl && (
+                                    <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                                        <div style={{ fontSize: 13, color: 'rgba(232,245,224,0.5)', marginBottom: 12 }}>📱 Scan QR Code untuk Pembayaran</div>
+                                        <div style={{ display: 'inline-block', padding: 12, background: '#0a120a', borderRadius: 12, border: '1px solid rgba(126,212,74,0.3)' }}>
+                                            <img src={qrDataUrl} alt="QR Pembayaran" style={{ width: 200, height: 200, display: 'block' }} />
+                                        </div>
+                                        <div style={{ fontSize: 11, color: 'rgba(232,245,224,0.35)', marginTop: 8 }}>ID: {orderResult.orderId}</div>
+                                    </div>
+                                )}
+
+                                <button onClick={() => { setOrderModal(false); setOrderResult(null); setQrDataUrl(null); }} style={{
                                     background: 'linear-gradient(135deg,#4A7C28,#7ED44A)',
                                     color: '#fff', fontWeight: 700, fontSize: 14,
                                     padding: '12px 32px', borderRadius: 10, cursor: 'pointer', border: 'none', width: '100%',
@@ -550,8 +573,8 @@ curl -X POST https://coffee-blockchain.pages.dev/api/public/order \\
 
                                     <div>
                                         <label style={{ fontSize: 13, color: 'rgba(232,245,224,0.6)', display: 'block', marginBottom: 6 }}>Metode Pembayaran</label>
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            {[['transfer', '🏦 Transfer Bank'], ['solana', '⚡ Solana']].map(([v, l]) => (
+                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                            {[['transfer', '🏦 Transfer Bank'], ['qr', '📱 Bayar via QR'], ['solana', '⚡ Solana']].map(([v, l]) => (
                                                 <button key={v} type="button"
                                                     onClick={() => setOrderForm(f => ({ ...f, paymentMethod: v }))}
                                                     style={{
@@ -559,6 +582,7 @@ curl -X POST https://coffee-blockchain.pages.dev/api/public/order \\
                                                         background: orderForm.paymentMethod === v ? 'rgba(126,212,74,0.15)' : 'rgba(255,255,255,0.04)',
                                                         border: `1px solid ${orderForm.paymentMethod === v ? 'rgba(126,212,74,0.5)' : 'rgba(74,124,40,0.2)'}`,
                                                         color: orderForm.paymentMethod === v ? '#7ED44A' : 'rgba(232,245,224,0.6)',
+                                                        minWidth: 0,
                                                     }}>{l}</button>
                                             ))}
                                         </div>
