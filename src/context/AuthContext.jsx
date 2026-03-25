@@ -94,8 +94,8 @@ export const ROLE_LABELS = {
 export const ROLE_NAV = {
     // Farmer hanya bisa: Dashboard, Harga Pasar, Dompet, Beli Produk
     farmer: ['dashboard', 'market', 'wallet', 'shop'],
-    // Koperasi: akses semua + markets
-    koperasi: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'market', 'wallet', 'shop', 'markets'],
-    developer: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'market', 'wallet', 'shop', 'markets'],
+    // Koperasi: akses semua + markets + integrations
+    koperasi: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'market', 'wallet', 'shop', 'markets', 'integrations'],
+    developer: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'market', 'wallet', 'shop', 'markets', 'integrations'],
 };
 

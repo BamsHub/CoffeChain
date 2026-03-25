@@ -38,6 +38,10 @@ const ALL_NAV = [
         id: 'markets', label: 'Pasar Kopi', href: '/markets',
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
     },
+    {
+        id: 'integrations', label: 'Integrasi API', href: '/integrations',
+        icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+    },
 ];
 
 
