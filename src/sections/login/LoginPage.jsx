@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -188,6 +188,9 @@ export default function LoginPage() {
                     <p className={styles.registerText}>
                         Belum punya akun?{' '}
                         <Link href="/register" className={styles.registerLink}>Daftar sekarang</Link>
+                    </p>
+                    <p className={styles.registerText} style={{ marginTop: 8 }}>
+                        <Link href="/" className={styles.registerLink} style={{ opacity: 0.6, fontSize: 13 }}>← Kembali ke Beranda</Link>
                     </p>
                 </div>
 

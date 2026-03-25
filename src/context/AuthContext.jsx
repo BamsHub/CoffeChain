@@ -63,7 +63,7 @@ export function AuthProvider({ children }) {
             console.error("Gagal memutus Phantom:", e);
         }
 
-        router.push('/login');
+        router.push('/');
     }
 
     function getToken() {
