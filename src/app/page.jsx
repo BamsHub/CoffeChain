@@ -4,7 +4,6 @@ import Link from 'next/link';
 
 export default function LandingPage() {
     const [products, setProducts] = useState([]);
-    const [market, setMarket] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [orderModal, setOrderModal] = useState(false);
@@ -24,18 +23,15 @@ export default function LandingPage() {
     useEffect(() => {
         async function load() {
             try {
-                const [prodRes, mktRes, farmerRes, txRes] = await Promise.all([
+                const [prodRes, farmerRes, txRes] = await Promise.all([
                     fetch('/api/public/products?limit=8'),
-                    fetch('/api/public/market'),
                     fetch('/api/farmers'),
                     fetch('/api/transactions'),
                 ]);
                 const prodData = await prodRes.json();
-                const mktData = await mktRes.json();
                 const farmerData = await farmerRes.json();
                 const txData = await txRes.json();
                 if (prodData.success) setProducts(prodData.data);
-                if (mktData.success) setMarket(mktData.data.slice(0, 5));
                 setStats({
                     farmers: farmerData.success ? farmerData.data?.length : 0,
                     transactions: txData.success ? txData.data?.length : 0,
@@ -127,8 +123,7 @@ export default function LandingPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <a href="#products" style={{ color: 'rgba(232,245,224,0.7)', fontSize: 14, padding: '8px 16px', borderRadius: 8, transition: 'color 0.2s' }}>Produk</a>
-                        <a href="#market" style={{ color: 'rgba(232,245,224,0.7)', fontSize: 14, padding: '8px 16px', borderRadius: 8 }}>Harga Pasar</a>
-                        <a href="#api" style={{ color: 'rgba(232,245,224,0.7)', fontSize: 14, padding: '8px 16px', borderRadius: 8 }}>API</a>
+                        <a href="#how" style={{ color: 'rgba(232,245,224,0.7)', fontSize: 14, padding: '8px 16px', borderRadius: 8 }}>Cara Kerja</a>
                         <Link href="/login" style={{
                             background: 'linear-gradient(135deg,#4A7C28,#7ED44A)',
                             color: '#fff', fontWeight: 700, fontSize: 13,
@@ -199,39 +194,6 @@ export default function LandingPage() {
                                 <div style={{ fontSize: 36, fontWeight: 800, color: '#7ED44A', lineHeight: 1 }}>{value}</div>
                                 <div style={{ fontSize: 13, color: 'rgba(232,245,224,0.5)', marginTop: 4 }}>{label}</div>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* ── MARKET TICKER ── */}
-            <section id="market" style={{ padding: '60px 24px', borderTop: '1px solid rgba(74,124,40,0.15)' }}>
-                <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7ED44A', animation: 'pulse 1.5s infinite' }} />
-                        <span style={{ fontSize: 13, color: '#7ED44A', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>Harga Pasar Live</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-                        {market.length === 0 && !loading && (
-                            <div style={{ color: 'rgba(232,245,224,0.4)', fontSize: 14 }}>Data pasar tidak tersedia</div>
-                        )}
-                        {market.map(item => (
-                            <div key={item.id} style={{
-                                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(74,124,40,0.2)',
-                                borderRadius: 12, padding: '20px 20px', position: 'relative', overflow: 'hidden',
-                            }}>
-                                <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.5)', marginBottom: 4 }}>{item.name || item.id}</div>
-                                <div style={{ fontSize: 20, fontWeight: 700, color: '#E8F5E0', marginBottom: 2 }}>
-                                    Rp {(item.price || 0).toLocaleString('id-ID')}
-                                </div>
-                                <div style={{ fontSize: 12, color: (item.change ?? 0) >= 0 ? '#4CAF50' : '#f44336', fontWeight: 600 }}>
-                                    {(item.change ?? 0) >= 0 ? '▲' : '▼'} {Math.abs(item.change ?? 0)}%
-                                </div>
-                                <div style={{ position: 'absolute', top: 16, right: 16, fontSize: 22, opacity: 0.15 }}>☕</div>
-                            </div>
-                        ))}
-                        {loading && Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(74,124,40,0.1)', borderRadius: 12, padding: 20, height: 88 }} />
                         ))}
                     </div>
                 </div>
@@ -348,64 +310,6 @@ export default function LandingPage() {
                                 }}>{i + 1}</div>
                             </div>
                         ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* ── PUBLIC API SECTION ── */}
-            <section id="api" style={{ padding: '80px 24px', borderTop: '1px solid rgba(74,124,40,0.15)' }}>
-                <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-                    <h2 style={{ fontSize: 40, fontWeight: 800, color: '#E8F5E0', marginBottom: 12, letterSpacing: '-1px' }}>
-                        Integrasi API
-                    </h2>
-                    <p style={{ color: 'rgba(232,245,224,0.5)', marginBottom: 48, fontSize: 16, maxWidth: 560 }}>
-                        Sambungkan aplikasi Anda ke ekosistem CoffeeChain menggunakan REST API publik kami. Gratis, tanpa autentikasi.
-                    </p>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        {[
-                            { method: 'GET', path: '/api/public/products', desc: 'Ambil katalog produk kopi. Param: limit, search, grade' },
-                            { method: 'GET', path: '/api/public/market', desc: 'Ambil data harga pasar kopi real-time' },
-                            { method: 'POST', path: '/api/public/order', desc: 'Buat pesanan baru. Body: productId, buyerName, buyerEmail, weight, quantity, paymentMethod' },
-                            { method: 'GET', path: '/api/public/order/{orderId}', desc: 'Cek status pesanan berdasarkan orderId' },
-                        ].map(({ method, path, desc }) => (
-                            <div key={path} style={{
-                                background: 'rgba(0,0,0,0.3)',
-                                border: '1px solid rgba(74,124,40,0.2)', borderRadius: 12,
-                                padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
-                            }}>
-                                <span style={{
-                                    background: method === 'GET' ? 'rgba(0,212,255,0.1)' : 'rgba(245,166,35,0.1)',
-                                    color: method === 'GET' ? '#00D4FF' : '#F5A623',
-                                    border: `1px solid ${method === 'GET' ? 'rgba(0,212,255,0.3)' : 'rgba(245,166,35,0.3)'}`,
-                                    fontWeight: 700, fontSize: 11, padding: '4px 12px', borderRadius: 6,
-                                    letterSpacing: 1, minWidth: 52, textAlign: 'center',
-                                }}>{method}</span>
-                                <code style={{ flex: 1, color: '#7ED44A', fontSize: 14, fontFamily: 'monospace' }}>{path}</code>
-                                <span style={{ color: 'rgba(232,245,224,0.5)', fontSize: 13 }}>{desc}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div style={{
-                        marginTop: 32, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(74,124,40,0.2)',
-                        borderRadius: 12, padding: 24,
-                    }}>
-                        <div style={{ fontSize: 13, color: '#7ED44A', marginBottom: 12, fontWeight: 600 }}>📋 Contoh Request</div>
-                        <pre style={{ color: 'rgba(232,245,224,0.8)', fontSize: 13, fontFamily: 'monospace', overflowX: 'auto', lineHeight: 1.7 }}>{`# Ambil daftar produk
-curl https://coffee-blockchain.pages.dev/api/public/products
-
-# Buat pesanan
-curl -X POST https://coffee-blockchain.pages.dev/api/public/order \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "productId": "prod-abc123",
-    "buyerName": "Budi Santoso",
-    "buyerEmail": "budi@example.com",
-    "weight": 250,
-    "quantity": 2,
-    "paymentMethod": "transfer"
-  }'`}</pre>
                     </div>
                 </div>
             </section>
