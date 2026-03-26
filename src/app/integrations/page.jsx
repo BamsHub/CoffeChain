@@ -1,14 +1,12 @@
 import DashboardLayout from '@/components/DashboardLayout/DashboardLayout';
-import IntegrationsContent from '@/sections/integrations/IntegrationsContent';
+import ApiManagement from '@/sections/integrations/ApiManagement';
 
-export const metadata = {
-    title: 'Integrasi API — CoffeeChain',
-};
+export const metadata = { title: 'Manajemen API Integration — CoffeeChain' };
 
 export default function IntegrationsPage() {
     return (
         <DashboardLayout>
-            <IntegrationsContent />
+            <ApiManagement />
         </DashboardLayout>
     );
 }

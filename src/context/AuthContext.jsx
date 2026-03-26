@@ -92,9 +92,8 @@ export const ROLE_LABELS = {
 
 // Nav items per role
 export const ROLE_NAV = {
-    // Farmer hanya bisa: Dashboard, Harga Pasar, Dompet, Beli Produk
-    farmer: ['dashboard', 'market', 'wallet', 'shop'],
-    koperasi: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'market', 'wallet', 'shop', 'markets', 'integrations', 'products'],
-    developer: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'market', 'wallet', 'shop', 'markets', 'integrations', 'products'],
+    farmer: ['dashboard', 'wallet', 'transactions'],
+    koperasi: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'wallet', 'markets', 'integrations', 'products'],
+    developer: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'wallet', 'markets', 'integrations', 'products'],
 };
 

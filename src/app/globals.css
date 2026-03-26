@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ── DARK THEME (default) ── */
 :root {
   --color-primary: #2D5016;

@@ -20,6 +20,16 @@ const IconBank = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="non
 const IconClose = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const IconCheck = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 
+/* ── Market Data ── */
+const coffeeTypes = [
+    { name: 'Arabika Gayo', grade: 'Grade A', price: 68500, change: -2.1, vol: '4,821 Ton', origin: 'Aceh' },
+    { name: 'Arabika Toraja', grade: 'Grade A', price: 72000, change: +1.4, vol: '3,210 Ton', origin: 'Sulawesi' },
+    { name: 'Robusta Lampung', grade: 'Grade B', price: 42000, change: +0.8, vol: '8,540 Ton', origin: 'Lampung' },
+    { name: 'Arabika Flores', grade: 'Grade A', price: 75000, change: +3.2, vol: '1,980 Ton', origin: 'NTT' },
+    { name: 'Arabika Mandheling', grade: 'Grade AA', price: 80000, change: -0.5, vol: '2,430 Ton', origin: 'Sumut' },
+    { name: 'Liberika Riau', grade: 'Grade B', price: 38000, change: +1.8, vol: '920 Ton', origin: 'Riau' },
+];
+
 export default function LandingPage() {
     const [products, setProducts] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
@@ -177,7 +187,7 @@ export default function LandingPage() {
 
                     {/* Desktop Nav */}
                     <div className={`lp-nav-links${mobileMenu ? ' open' : ''}`}>
-                        {[['#products', 'Produk'], ['#how', 'Cara Kerja']].map(([href, label]) => (
+                        {[['#products', 'Produk'], ['#market', 'Harga Pasar'], ['#how', 'Cara Kerja']].map(([href, label]) => (
                             <a key={href} href={href} onClick={() => setMobileMenu(false)} style={{ color: 'rgba(232,245,224,0.7)', fontSize: 14, padding: '9px 14px', borderRadius: 8, textDecoration: 'none', display: 'block' }}>{label}</a>
                         ))}
                         <Link href="/login" className="lp-btn-primary" onClick={() => setMobileMenu(false)} style={{ padding: '9px 18px', fontSize: 13 }}>
@@ -289,6 +299,41 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* ── HARGA PASAR ── */}
+            <section id="market" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)', background: 'radial-gradient(ellipse at top, rgba(74,124,40,0.05), transparent 70%)' }}>
+                <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: 40 }}>
+                        <h2 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 10, letterSpacing: '-0.5px' }}>Harga Pasar Kopi Live</h2>
+                        <p style={{ color: 'rgba(232,245,224,0.5)', fontSize: 15, maxWidth: 460, margin: '0 auto' }}>Pantau pergerakan harga komoditas kopi Nusantara secara real-time</p>
+                    </div>
+                    <div className="lp-products-grid">
+                        {coffeeTypes.map((c, i) => (
+                            <div key={i} className="lp-card">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(74,124,40,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7ED44A' }}><IconCoffee /></div>
+                                    <div>
+                                        <div style={{ fontWeight: 700, fontSize: 16, color: '#E8F5E0' }}>{c.name}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)' }}>{c.origin} · <span style={{ color: '#7ED44A' }}>{c.grade}</span></div>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                    <div>
+                                        <div style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)', marginBottom: 4 }}>Harga per Kg</div>
+                                        <div style={{ fontSize: 18, fontWeight: 700, color: '#E8F5E0', letterSpacing: '-0.5px' }}>Rp {c.price.toLocaleString('id-ID')}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: c.change > 0 ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)', color: c.change > 0 ? '#4CAF50' : '#f44336' }}>
+                                            {c.change > 0 ? '▲' : '▼'} {Math.abs(c.change)}%
+                                        </div>
+                                        <div style={{ fontSize: 10, color: 'rgba(232,245,224,0.3)', marginTop: 6 }}>Vol: {c.vol}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
             {/* ── HOW IT WORKS ── */}
             <section id="how" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
                 <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -350,8 +395,8 @@ export default function LandingPage() {
                         {orderResult ? (
                             <div style={{ textAlign: 'center' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IconCheck /></div>
-                                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#E8F5E0', marginBottom: 6 }}>Pesanan Berhasil!</h3>
-                                <p style={{ color: 'rgba(232,245,224,0.45)', marginBottom: 20, fontSize: 13 }}>Simpan detail di bawah untuk pembayaran</p>
+                                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#E8F5E0', marginBottom: 6 }}>Menunggu Pembayaran</h3>
+                                <p style={{ color: 'rgba(232,245,224,0.45)', marginBottom: 20, fontSize: 13 }}>Pesanan Anda dicatat! Selesaikan pembayaran Anda sebelum waktu habis.</p>
                                 <div style={{ background: 'rgba(0,0,0,0.35)', borderRadius: 10, padding: 16, textAlign: 'left', fontSize: 13, marginBottom: 16 }}>
                                     {[
                                         ['ID Pesanan', orderResult.orderId],
