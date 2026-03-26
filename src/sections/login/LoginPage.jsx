@@ -98,37 +98,7 @@ export default function LoginPage() {
 
                 <div className={styles.divider}><span>SECURE LOGIN</span></div>
 
-                <div style={{ marginBottom: 20 }}>
-                    <p style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' }}>Akun Demo</p>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                        <thead>
-                            <tr style={{ borderBottom: '1px solid rgba(74,124,40,0.2)' }}>
-                                {['Role', 'Email', 'Password'].map(h => (
-                                    <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: 'rgba(232,245,224,0.4)', fontWeight: 600, fontSize: 11 }}>{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {[
-                                { role: 'Developer', color: 'var(--color-crypto,#a78bfa)', email: 'admin@coffeechain.io', password: 'admin123' },
-                                { role: 'Koperasi', color: 'var(--color-accent,#F5A623)', email: 'koperasi@coffeechain.io', password: 'kop123' },
-                                { role: 'Petani', color: 'var(--color-success,#7ED44A)', email: 'petani@coffeechain.io', password: 'petani123' },
-                            ].map(acc => (
-                                <tr key={acc.role} style={{ borderBottom: '1px solid rgba(74,124,40,0.1)' }}>
-                                    <td style={{ padding: '8px 10px' }}>
-                                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: 'rgba(255,255,255,0.05)', color: acc.color, fontWeight: 700 }}>{acc.role}</span>
-                                    </td>
-                                    <td style={{ padding: '8px 10px' }}>
-                                        <code style={{ fontSize: 11, color: 'rgba(232,245,224,0.65)', fontFamily: 'monospace' }}>{acc.email}</code>
-                                    </td>
-                                    <td style={{ padding: '8px 10px' }}>
-                                        <code style={{ fontSize: 11, color: 'rgba(232,245,224,0.65)', fontFamily: 'monospace' }}>{acc.password}</code>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+
 
                 <form className={styles.form} onSubmit={handleSubmit}>
                     <div className={styles.field}>
