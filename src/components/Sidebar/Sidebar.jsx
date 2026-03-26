@@ -27,7 +27,7 @@ const ALL_NAV = [
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" /><path d="M16 3H8l-2 4h12l-2-4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><circle cx="17" cy="14" r="1" fill="currentColor" /></svg>,
     },
     {
-        id: 'integrations', label: 'Integrasi API', href: '/integrations',
+        id: 'integrations', label: 'Manajemen API', href: '/integrations',
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
     },
     {
@@ -102,11 +102,11 @@ export default function Sidebar({ collapsed, onToggle }) {
                     {(role === 'developer' || role === 'koperasi') && (
                         <>
                             {!collapsed && <span className={styles.navLabel} style={{ marginTop: 12 }}>Admin Panel</span>}
-                            <Link href="/integrations" className={`${styles.navItem} ${pathname === '/integrations' ? styles.active : ''}`} title={collapsed ? 'Integrasi API' : undefined}>
+                            <Link href="/integrations" className={`${styles.navItem} ${pathname === '/integrations' ? styles.active : ''}`} title={collapsed ? 'Manajemen API' : undefined}>
                                 <span className={styles.navIcon}>
                                     <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                 </span>
-                                {!collapsed && <span className={styles.navText}>Integrasi API</span>}
+                                {!collapsed && <span className={styles.navText}>Manajemen API</span>}
                             </Link>
                             <Link href="/products" className={`${styles.navItem} ${pathname === '/products' ? styles.active : ''}`} title={collapsed ? 'Kelola Produk' : undefined}>
                                 <span className={styles.navIcon}>
