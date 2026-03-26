@@ -42,6 +42,10 @@ const ALL_NAV = [
         id: 'integrations', label: 'Integrasi API', href: '/integrations',
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
     },
+    {
+        id: 'products', label: 'Kelola Produk', href: '/products',
+        icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21" stroke="currentColor" strokeWidth="2"/><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke="currentColor" strokeWidth="2"/><polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke="currentColor" strokeWidth="2"/><line x1="12" y1="22.08" x2="12" y2="12" stroke="currentColor" strokeWidth="2"/></svg>,
+    },
 ];
 
 
@@ -124,6 +128,12 @@ export default function Sidebar({ collapsed, onToggle }) {
                                     <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                 </span>
                                 {!collapsed && <span className={styles.navText}>Integrasi API</span>}
+                            </Link>
+                            <Link href="/products" className={`${styles.navItem} ${pathname === '/products' ? styles.active : ''}`} title={collapsed ? 'Kelola Produk' : undefined}>
+                                <span className={styles.navIcon}>
+                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke="currentColor" strokeWidth="2"/><polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke="currentColor" strokeWidth="2"/><line x1="12" y1="22.08" x2="12" y2="12" stroke="currentColor" strokeWidth="2"/></svg>
+                                </span>
+                                {!collapsed && <span className={styles.navText}>Kelola Produk</span>}
                             </Link>
                         </>
                     )}

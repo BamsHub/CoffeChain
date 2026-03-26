@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { readDb, addItem } from '@/lib/db';
+import { readDb, addItem, deleteItem } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request) {
@@ -14,7 +14,7 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { name, origin, grade, variety, roast, weight, pricePerUnit, description, stock, image, tags, rating, sold } = body;
+        const { name, origin, grade, variety, roast, weight, pricePerUnit, description, stock, image, rating, sold } = body;
         if (!name || !origin || !weight || !pricePerUnit) {
             return Response.json({ success: false, message: 'Nama, asal, berat, dan harga wajib diisi' }, { status: 400 });
         }
@@ -31,36 +31,27 @@ export async function POST(request) {
             weight,
             pricePerUnit,
             description: description?.trim() || '',
-            image: image || '☕',
-            tags: tags || [variety, grade],
+            image: image || null,
+            tags: [variety, grade].filter(Boolean),
             stock: Number(stock) || 50,
             rating: Number(rating) || 4.5,
             sold: Number(sold) || 0,
         };
         await addItem('products', newProduct);
-
-        // Auto-buat notifikasi ke semua user
-        try {
-            const notifBody = {
-                type: 'product_added',
-                title: '🛍️ Produk Kopi Baru Tersedia',
-                message: `${newProduct.name} dari ${newProduct.origin} — mulai Rp ${newProduct.pricePerUnit?.[0]?.toLocaleString('id-ID') || '-'}`,
-                targetUserId: 'all',
-                icon: newProduct.image || '☕',
-                actorName: body.addedByName || 'Koperasi',
-                actorRole: body.addedByRole || 'koperasi',
-            };
-            await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002'}/api/notifications`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(notifBody),
-            }).catch(() => { });
-        } catch { /* notif optional */ }
-
         return Response.json({ success: true, data: newProduct }, { status: 201 });
-
     } catch (err) {
         console.error(err);
+        return Response.json({ success: false, message: 'Server error' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        const { id } = await request.json();
+        if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
+        await deleteItem('products', id);
+        return Response.json({ success: true });
+    } catch {
         return Response.json({ success: false, message: 'Server error' }, { status: 500 });
     }
 }
