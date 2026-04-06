@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 const GRADES = ['A', 'B', 'C', 'Specialty', 'Premium'];
 const VARIETIES = ['Arabika', 'Robusta', 'Liberika', 'Excelsa'];
@@ -13,21 +15,34 @@ const initialForm = {
 };
 
 export default function ProductsContent() {
+    const { user } = useAuth();
+    const isFarmer = user?.role === 'farmer';
+    const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
+
     const [products, setProducts] = useState([]);
+    const [pendingProducts, setPendingProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('products'); // 'products' | 'pending'
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState(initialForm);
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState(null); // {type:'ok'|'err', text}
     const [deleting, setDeleting] = useState(null);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState('');    const [editingProduct, setEditingProduct] = useState(null);
+    const [editForm, setEditForm] = useState(initialForm);
+    const [approving, setApproving] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/products');
-            const data = await res.json();
-            if (data.success) setProducts(data.data);
+            const [allRes, pendRes] = await Promise.all([
+                fetch('/api/products'),
+                fetch('/api/products?status=pending'),
+            ]);
+            const allData = await allRes.json();
+            const pendData = await pendRes.json();
+            if (allData.success) setProducts(allData.data);
+            if (pendData.success) setPendingProducts(pendData.data);
         } catch { }
         setLoading(false);
     }, []);
@@ -62,11 +77,17 @@ export default function ProductsContent() {
                     stock: form.stock,
                     weight: form.weights.map(w => w.gram),
                     pricePerUnit: form.weights.map(w => w.price),
+                    submittedBy: user?.id || null,
+                    submittedByName: user?.name || user?.email || null,
+                    submittedByRole: user?.role || null,
                 }),
             });
             const data = await res.json();
             if (data.success) {
-                setMsg({ type: 'ok', text: `Produk "${data.data.name}" berhasil ditambahkan!` });
+                const pendingMsg = isFarmer
+                    ? `Permintaan produk "${data.data.name}" dikirim! Menunggu persetujuan koperasi/developer.`
+                    : `Produk "${data.data.name}" berhasil ditambahkan!`;
+                setMsg({ type: 'ok', text: pendingMsg });
                 setForm(initialForm);
                 setShowForm(false);
                 load();
@@ -95,10 +116,118 @@ export default function ProductsContent() {
         setDeleting(null);
     }
 
-    const filtered = products.filter(p =>
-        !search || p.name?.toLowerCase().includes(search.toLowerCase()) ||
-        p.origin?.toLowerCase().includes(search.toLowerCase())
-    );
+    async function handleApprove(product) {
+        setApproving(`approve-${product.id}`);
+        try {
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: product.id,
+                    status: 'published',
+                    approvedBy: user?.id || 'admin',
+                    approvedByName: user?.name || user?.email || 'Admin',
+                    approvedAt: new Date().toISOString(),
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setMsg({ type: 'ok', text: `Produk "${product.name}" dari ${product.submittedByName || 'petani'} berhasil disetujui dan kini tampil di katalog!` });
+                load();
+            } else setMsg({ type: 'err', text: data.message });
+        } catch { setMsg({ type: 'err', text: 'Gagal menyetujui' }); }
+        setApproving(null);
+    }
+
+    async function handleReject(product) {
+        const reason = prompt(`Alasan penolakan produk "${product.name}"? (opsional)`);
+        setApproving(`reject-${product.id}`);
+        try {
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: product.id,
+                    status: 'rejected',
+                    rejectedReason: reason || 'Tidak memenuhi standar',
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setMsg({ type: 'ok', text: `Produk "${product.name}" ditolak.` });
+                load();
+            } else setMsg({ type: 'err', text: data.message });
+        } catch { setMsg({ type: 'err', text: 'Gagal menolak' }); }
+        setApproving(null);
+    }
+
+    function openEditModal(product) {
+        setEditingProduct(product);
+        setEditForm({
+            name: product.name || '',
+            origin: product.origin || '',
+            variety: product.variety || 'Arabika',
+            grade: product.grade || 'A',
+            roast: product.roast || 'Medium Roast',
+            description: product.description || '',
+            stock: product.stock ?? 0,
+            weights: (product.weight || [250]).map((g, i) => ({ gram: g, price: product.pricePerUnit?.[i] || 0 })),
+        });
+        setMsg(null);
+    }
+
+    function setEditField(key, val) { setEditForm(f => ({ ...f, [key]: val })); }
+    function addEditWeightRow() { setEditForm(f => ({ ...f, weights: [...f.weights, { gram: 500, price: 0 }] })); }
+    function removeEditWeightRow(i) { setEditForm(f => ({ ...f, weights: f.weights.filter((_, idx) => idx !== i) })); }
+    function updateEditWeight(i, key, val) { setEditForm(f => ({ ...f, weights: f.weights.map((w, idx) => idx === i ? { ...w, [key]: Number(val) || 0 } : w) })); }
+
+    async function handleEditSubmit(e) {
+        e.preventDefault();
+        if (!editingProduct) return;
+        if (editForm.weights.some(w => !w.gram || !w.price)) {
+            setMsg({ type: 'err', text: 'Isi semua ukuran berat dan harga' }); return;
+        }
+        setSaving(true); setMsg(null);
+        try {
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: editingProduct.id,
+                    name: editForm.name,
+                    origin: editForm.origin,
+                    variety: editForm.variety,
+                    grade: editForm.grade,
+                    roast: editForm.roast,
+                    description: editForm.description,
+                    stock: Number(editForm.stock) || 0,
+                    weight: editForm.weights.map(w => w.gram),
+                    pricePerUnit: editForm.weights.map(w => w.price),
+                    // Farmer edits go back to pending for re-approval
+                    ...(isFarmer ? { status: 'pending', submittedAt: new Date().toISOString() } : {}),
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                const editMsg = isFarmer
+                    ? `Perubahan produk "${editForm.name}" dikirim! Menunggu persetujuan koperasi/developer.`
+                    : `Produk "${editForm.name}" berhasil diperbarui!`;
+                setMsg({ type: 'ok', text: editMsg });
+                setEditingProduct(null);
+                load();
+            } else {
+                setMsg({ type: 'err', text: data.message || 'Gagal menyimpan' });
+            }
+        } catch { setMsg({ type: 'err', text: 'Koneksi error' }); }
+        setSaving(false);
+    }
+
+    const filtered = products.filter(p => {
+        // Farmer only sees their own products
+        if (isFarmer && p.submittedBy && p.submittedBy !== (user?.id || '')) return false;
+        const q = search.toLowerCase();
+        return !search || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q);
+    });
 
     /* ── STYLES ── */
     const card = { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 };
@@ -111,15 +240,38 @@ export default function ProductsContent() {
     return (
         <div style={{ padding: 'clamp(16px,3vw,32px)', maxWidth: 1100, margin: '0 auto' }}>
 
+            {/* Sub Nav Tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+                <span style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', cursor: 'default' }}>
+                    {isFarmer ? 'Produk Saya' : 'Kelola Produk'}
+                </span>
+                <Link href="/products/stock" style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
+                    Kelola Stok
+                </Link>
+                {canApprove && (
+                    <button onClick={() => setActiveTab(t => t === 'pending' ? 'products' : 'pending')} style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: activeTab === 'pending' ? 'rgba(245,166,35,0.2)' : 'rgba(255,255,255,0.04)', border: `1px solid ${activeTab === 'pending' ? 'rgba(245,166,35,0.5)' : 'var(--color-border)'}`, color: activeTab === 'pending' ? '#F5A623' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        Persetujuan Produk
+                        {pendingProducts.length > 0 && <span style={{ background: '#f44336', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{pendingProducts.length}</span>}
+                    </button>
+                )}
+                {isFarmer && (
+                    <span style={{ padding: '8px 18px', borderRadius: 9, fontSize: 12, background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.3)', color: '#F5A623' }}>
+                        Produk baru memerlukan persetujuan koperasi/developer
+                    </span>
+                )}
+            </div>
+
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
                 <div>
-                    <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>Kelola Produk</h1>
+                    <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
+                        {isFarmer ? 'Produk Saya' : 'Kelola Produk'}
+                    </h1>
                     <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{products.length} produk terdaftar di database</p>
                 </div>
                 <button style={btnPrimary} onClick={() => { setShowForm(s => !s); setMsg(null); }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    {showForm ? 'Batal' : 'Tambah Produk'}
+                    {showForm ? 'Batal' : (isFarmer ? 'Ajukan Produk' : 'Tambah Produk')}
                 </button>
             </div>
 
@@ -214,30 +366,81 @@ export default function ProductsContent() {
                 <input style={{ ...input, maxWidth: 320 }} placeholder="Cari nama / asal produk..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
 
+            {/* PENDING APPROVAL PANEL — for koperasi/developer */}
+            {canApprove && activeTab === 'pending' && (
+                <div style={{ marginBottom: 24 }}>
+                    <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F5A623', display: 'inline-block' }} />
+                        Produk Menunggu Persetujuan ({pendingProducts.length})
+                    </h2>
+                    {pendingProducts.length === 0 ? (
+                        <div style={{ ...card, textAlign: 'center', padding: '32px 0', color: 'var(--color-text-muted)', fontSize: 14 }}>Tidak ada produk yang menunggu persetujuan.</div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
+                            {pendingProducts.map(p => (
+                                <div key={p.id} style={{ ...card, border: '1px solid rgba(245,166,35,0.35)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)' }}>{p.name}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{p.origin} · {p.variety}</div>
+                                        </div>
+                                        <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700, flexShrink: 0 }}>Menunggu</span>
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10, padding: 8, background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                                        <div>Diajukan oleh: <strong style={{ color: 'var(--color-text)' }}>{p.submittedByName || 'Petani'}</strong></div>
+                                        <div>Stok: {p.stock} · Grade: {p.grade} · {p.roast}</div>
+                                        <div>Diajukan: {p.submittedAt ? new Date(p.submittedAt).toLocaleDateString('id-ID') : '—'}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button onClick={() => handleApprove(p)} disabled={!!approving} style={{ flex: 1, padding: '9px 0', background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: approving ? 0.6 : 1 }}>
+                                            {approving === `approve-${p.id}` ? 'Memproses...' : 'Setujui'}
+                                        </button>
+                                        <button onClick={() => handleReject(p)} disabled={!!approving} style={{ flex: 1, padding: '9px 0', background: 'rgba(244,67,54,0.1)', color: '#f44336', border: '1px solid rgba(244,67,54,0.3)', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: approving ? 0.6 : 1 }}>
+                                            {approving === `reject-${p.id}` ? 'Memproses...' : 'Tolak'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* PRODUCT LIST */}
-            {loading ? (
+            {(!canApprove || activeTab === 'products') && (loading ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
                     {Array.from({ length: 4 }).map((_, i) => <div key={i} style={{ ...card, height: 140, opacity: 0.4 }} />)}
                 </div>
             ) : filtered.length === 0 ? (
                 <div style={{ ...card, textAlign: 'center', padding: '48px 0', color: 'var(--color-text-muted)' }}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: 12, opacity: 0.4 }}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-                    <p style={{ fontSize: 14 }}>Belum ada produk. Klik "Tambah Produk" untuk mulai.</p>
+                    <p style={{ fontSize: 14 }}>{isFarmer ? 'Belum ada produk. Klik "Ajukan Produk" untuk menambahkan.' : 'Belum ada produk. Klik "Tambah Produk" untuk mulai.'}</p>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
                     {filtered.map(p => (
-                        <div key={p.id} style={card}>
+                        <div key={p.id} style={{ ...card, border: p.status === 'pending' ? '1px solid rgba(245,166,35,0.35)' : undefined }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>{p.origin} · {p.variety}</div>
+                                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 2 }}>{p.origin} · {p.variety}</div>
+                                    {p.status === 'pending' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Persetujuan</span>}
+                                    {p.status === 'rejected' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(244,67,54,0.12)', color: '#f44336', border: '1px solid rgba(244,67,54,0.3)', fontWeight: 700 }}>Ditolak</span>}
                                 </div>
-                                <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting === p.id} style={btnDanger}>
-                                    {deleting === p.id ? '...' : 'Hapus'}
-                                </button>
+                                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                    {/* Non-farmer: Edit + Delete */}
+                                    {!isFarmer && <button onClick={() => openEditModal(p)} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Edit</button>}
+                                    {!isFarmer && <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting === p.id} style={btnDanger}>{deleting === p.id ? '...' : 'Hapus'}</button>}
+                                    {/* Farmer: Edit only own non-pending products */}
+                                    {isFarmer && p.submittedBy === (user?.id || '') && p.status !== 'pending' && (
+                                        <button onClick={() => openEditModal(p)} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Edit</button>
+                                    )}
+                                    {isFarmer && p.submittedBy === (user?.id || '') && p.status === 'pending' && (
+                                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: 'rgba(245,166,35,0.1)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.25)', fontWeight: 600 }}>Menunggu review</span>
+                                    )}
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, marginTop: 8 }}>
                                 {p.grade && <span style={badge('#7ED44A')}>{p.grade}</span>}
                                 {p.roast && <span style={badge('#F5A623')}>{p.roast}</span>}
                             </div>
@@ -255,6 +458,92 @@ export default function ProductsContent() {
                             <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6, fontFamily: 'monospace' }}>ID: {p.id}</div>
                         </div>
                     ))}
+                </div>
+            ))}
+
+            {/* EDIT MODAL */}
+            {editingProduct && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={e => { if (e.target === e.currentTarget) setEditingProduct(null); }}>
+                    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <div>
+                                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
+                                    {isFarmer ? 'Ajukan Perubahan Produk' : 'Edit Produk'}
+                                </h2>
+                                {isFarmer && (
+                                    <p style={{ fontSize: 12, color: '#F5A623', margin: '4px 0 0', fontWeight: 600 }}>
+                                        Perubahan akan menunggu persetujuan koperasi/developer
+                                    </p>
+                                )}
+                            </div>
+                            <button onClick={() => setEditingProduct(null)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
+                        </div>
+                        <form onSubmit={handleEditSubmit}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14, marginBottom: 14 }}>
+                                <div>
+                                    <label style={label}>Nama Produk *</label>
+                                    <input style={input} required value={editForm.name} onChange={e => setEditField('name', e.target.value)} />
+                                </div>
+                                <div>
+                                    <label style={label}>Asal Daerah</label>
+                                    <input style={input} value={editForm.origin} onChange={e => setEditField('origin', e.target.value)} />
+                                </div>
+                                <div>
+                                    <label style={label}>Varietas</label>
+                                    <select style={input} value={editForm.variety} onChange={e => setEditField('variety', e.target.value)}>
+                                        {VARIETIES.map(v => <option key={v}>{v}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={label}>Grade</label>
+                                    <select style={input} value={editForm.grade} onChange={e => setEditField('grade', e.target.value)}>
+                                        {GRADES.map(g => <option key={g}>{g}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={label}>Tingkat Roast</label>
+                                    <select style={input} value={editForm.roast} onChange={e => setEditField('roast', e.target.value)}>
+                                        {ROASTS.map(r => <option key={r}>{r}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={label}>Stok (unit)</label>
+                                    <input style={input} type="number" min={0} value={editForm.stock} onChange={e => setEditField('stock', e.target.value)} />
+                                </div>
+                            </div>
+                            <div style={{ marginBottom: 14 }}>
+                                <label style={label}>Deskripsi</label>
+                                <textarea style={{ ...input, resize: 'vertical', minHeight: 72 }} value={editForm.description} onChange={e => setEditField('description', e.target.value)} />
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <label style={label}>Ukuran & Harga *</label>
+                                    <button type="button" onClick={addEditWeightRow} style={{ fontSize: 12, color: 'var(--color-primary-light)', background: 'rgba(74,124,40,0.1)', border: '1px solid var(--color-border)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>+ Ukuran</button>
+                                </div>
+                                {editForm.weights.map((w, i) => (
+                                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 140px' }}>
+                                            <input style={{ ...input, width: 90 }} type="number" min={50} max={5000} value={w.gram} onChange={e => updateEditWeight(i, 'gram', e.target.value)} placeholder="gram" />
+                                            <span style={{ color: 'var(--color-text-muted)', fontSize: 13, flexShrink: 0 }}>gram</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 160px' }}>
+                                            <span style={{ color: 'var(--color-text-muted)', fontSize: 13, flexShrink: 0 }}>Rp</span>
+                                            <input style={{ ...input }} type="number" min={0} value={w.price} onChange={e => updateEditWeight(i, 'price', e.target.value)} placeholder="harga" />
+                                        </div>
+                                        {editForm.weights.length > 1 && (
+                                            <button type="button" onClick={() => removeEditWeightRow(i)} style={{ color: '#f44336', background: 'rgba(244,67,54,0.08)', border: 'none', borderRadius: 7, padding: '6px 10px', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                <button type="button" onClick={() => setEditingProduct(null)} style={{ ...btnDanger, padding: '10px 20px' }}>Batal</button>
+                                <button type="submit" style={btnPrimary} disabled={saving}>
+                                    {saving ? 'Menyimpan...' : (isFarmer ? 'Kirim Perubahan' : 'Simpan Perubahan')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

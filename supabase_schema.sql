@@ -43,8 +43,31 @@ CREATE TABLE IF NOT EXISTS products (
   stock INTEGER DEFAULT 0,
   rating NUMERIC(3,1) DEFAULT 4.5,
   sold INTEGER DEFAULT 0,
+  submitted_by TEXT,          -- user.id petani yang mengajukan produk ini
+  submitted_by_name TEXT,
+  submitted_by_role TEXT,
+  submitted_at TIMESTAMPTZ DEFAULT NOW(),
+  status TEXT DEFAULT 'published',   -- pending | published | rejected
+  approved_by TEXT,
+  approved_by_name TEXT,
+  approved_at TIMESTAMPTZ,
+  rejected_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Jika tabel sudah ada, tambahkan kolom submitted_by secara aman:
+ALTER TABLE products ADD COLUMN IF NOT EXISTS submitted_by      TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS submitted_by_name TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS submitted_by_role TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS submitted_at      TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE products ADD COLUMN IF NOT EXISTS status            TEXT DEFAULT 'published';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS approved_by       TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS approved_by_name  TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS approved_at       TIMESTAMPTZ;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS rejected_reason   TEXT;
+
+-- Index agar query petani cepat
+CREATE INDEX IF NOT EXISTS idx_products_submitted_by ON products(submitted_by);
 
 -- ── ORDERS ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS orders (
@@ -176,3 +199,100 @@ CREATE POLICY "Allow anon write all" ON market FOR ALL USING (true) WITH CHECK (
 CREATE POLICY "Allow anon write all" ON markets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon write all" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon write all" ON sessions FOR ALL USING (true) WITH CHECK (true);
+
+-- ================================================================
+-- SALES TABLE — Per-Farmer Sales Dashboard
+-- Setiap petani hanya bisa melihat/mengelola data penjualannya sendiri.
+-- Database dipisah dari orders (landing page) agar tidak tabrakan.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS sales (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     TEXT NOT NULL,            -- references users.id (custom auth)
+  product_name TEXT NOT NULL,
+  variety     TEXT DEFAULT 'Arabika',
+  grade       TEXT DEFAULT 'Grade 1',
+  quantity_kg NUMERIC(10,2) DEFAULT 0,  -- berat yang dijual (kg)
+  price_per_kg BIGINT DEFAULT 0,        -- harga per kg (Rp)
+  total_price BIGINT NOT NULL,          -- quantity_kg * price_per_kg
+  buyer_name  TEXT,
+  payment_method TEXT DEFAULT 'transfer',  -- transfer | cash | qr
+  status      TEXT DEFAULT 'pending',   -- pending | paid | cancelled
+  notes       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index: query petani tertentu lebih cepat
+CREATE INDEX IF NOT EXISTS idx_sales_user_id   ON sales(user_id);
+CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at DESC);
+
+-- ── RLS untuk tabel sales ──────────────────────────────────────
+-- Row Level Security: setiap petani HANYA melihat baris miliknya.
+-- Catatan: RLS ini berlaku saat pakai Supabase Auth (auth.uid()).
+-- Aplikasi ini juga filter di sisi API route menggunakan token custom.
+ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
+
+-- Petani baca data sendiri saja
+CREATE POLICY "Farmer reads own sales"
+  ON sales FOR SELECT
+  USING (auth.uid()::text = user_id);
+
+-- Petani hanya bisa insert baris untuk dirinya sendiri
+CREATE POLICY "Farmer inserts own sales"
+  ON sales FOR INSERT
+  WITH CHECK (auth.uid()::text = user_id);
+
+-- Petani update data sendiri
+CREATE POLICY "Farmer updates own sales"
+  ON sales FOR UPDATE
+  USING (auth.uid()::text = user_id);
+
+-- Petani hapus data sendiri (opsional)
+CREATE POLICY "Farmer deletes own sales"
+  ON sales FOR DELETE
+  USING (auth.uid()::text = user_id);
+
+-- Service role (admin) bisa akses semua (digunakan oleh API Next.js)
+CREATE POLICY "Service role full access on sales"
+  ON sales FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
+-- ================================================================
+-- COFFEE TRACES — Blockchain Traceability Records
+-- Setiap kopi yang diregistrasi tercatat on-chain via Solana Memo
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS coffee_traces (
+  id TEXT PRIMARY KEY,
+  coffee_id TEXT UNIQUE NOT NULL,      -- "CF-XXXX" unique ID kopi
+  name TEXT NOT NULL,
+  origin TEXT,
+  variety TEXT,
+  grade TEXT,
+  weight_kg NUMERIC,
+  farmer_name TEXT,
+  farmer_id TEXT,
+  harvest_date TEXT,
+  process_method TEXT,                 -- washed, natural, honey
+  roast_level TEXT,
+  certification TEXT,
+  description TEXT,
+  tx_signature TEXT,                   -- Solana Memo TX hash
+  explorer_url TEXT,
+  status TEXT DEFAULT 'registered',    -- registered | verified | sold
+  registered_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_coffee_traces_coffee_id ON coffee_traces(coffee_id);
+CREATE INDEX IF NOT EXISTS idx_coffee_traces_status ON coffee_traces(status);
+
+-- RLS
+ALTER TABLE coffee_traces ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all read coffee_traces" ON coffee_traces FOR SELECT USING (true);
+CREATE POLICY "Allow all write coffee_traces" ON coffee_traces FOR ALL USING (true) WITH CHECK (true);
+
+-- Tambah kolom coffee_id ke products (untuk link trace)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS coffee_id TEXT;

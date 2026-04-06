@@ -14,7 +14,8 @@ export async function GET(request) {
         const grade = searchParams.get('grade') || '';
 
         const db = await readDb('products');
-        let products = db.items;
+        // Only show published products on landing page (exclude pending/rejected farmer submissions)
+        let products = db.items.filter(p => !p.status || p.status === 'published');
 
         if (search) {
             const q = search.toLowerCase();

@@ -3,15 +3,23 @@ import { readDb, addItem } from '@/lib/db';
 import { sbSelect, sbInsert, sbUpdate, ordersToSnake, ordersToCamel } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
 
-// Helper: ambil orders dari Supabase dengan fallback JSON
+// Helper: ambil orders dari Supabase + JSON (merge keduanya)
 async function getOrders(userId) {
+    // Coba Supabase
     const sbData = await sbSelect('orders', userId ? { user_id: userId } : {});
-    if (sbData !== null) {
-        return sbData.map(ordersToCamel);
-    }
-    // Fallback JSON
+    // Baca JSON
     const db = await readDb('orders');
-    return userId ? db.items.filter(o => o.userId === userId) : db.items;
+    const jsonOrders = userId ? db.items.filter(o => o.userId === userId) : db.items;
+
+    if (sbData !== null && sbData.length > 0) {
+        const sbOrders = sbData.map(ordersToCamel);
+        // Gabungkan: tambahkan JSON orders yang tidak ada di Supabase (by orderId)
+        const sbIds = new Set(sbOrders.map(o => o.orderId || o.id));
+        const uniqueJson = jsonOrders.filter(o => !sbIds.has(o.orderId) && !sbIds.has(o.id));
+        return [...sbOrders, ...uniqueJson].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    // Fallback or merge: return JSON when Supabase empty/unavailable
+    return jsonOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 // GET — riwayat order

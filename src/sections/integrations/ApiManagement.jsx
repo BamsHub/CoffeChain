@@ -95,6 +95,84 @@ const PLATFORMS = [
     },
 ];
 
+const COURIERS = [
+    {
+        id: 'jne',
+        name: 'JNE Express',
+        icon: (
+            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+        ),
+        color: 'from-red-900 to-red-800',
+        accent: '#EF4444',
+        accentLight: '#fef2f2',
+        desc: 'Integrasi pengiriman JNE Express. Cek ongkos kirim, lacak paket, dan buat airway bill otomatis.',
+        docsUrl: 'https://www.jne.co.id',
+        fields: ['API Key', 'Username', 'Sender Code'],
+    },
+    {
+        id: 'jnt',
+        name: 'J&T Express',
+        icon: (
+            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+        ),
+        color: 'from-yellow-900 to-orange-900',
+        accent: '#F59E0B',
+        accentLight: '#fffbeb',
+        desc: 'Layanan kurir J&T dengan jangkauan ke seluruh Indonesia dan tarif kompetitif untuk kopi.',
+        docsUrl: 'https://www.jet.co.id',
+        fields: ['CustomerID', 'AppKey', 'Secret'],
+    },
+    {
+        id: 'sicepat',
+        name: 'SiCepat Ekspres',
+        icon: (
+            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+        ),
+        color: 'from-orange-900 to-amber-900',
+        accent: '#FB923C',
+        accentLight: '#fff7ed',
+        desc: 'SiCepat Ekspres — pengiriman express same-day & next-day untuk produk kopi premium.',
+        docsUrl: 'https://www.sicepat.com',
+        fields: ['API Key', 'Shipper ID'],
+    },
+    {
+        id: 'anteraja',
+        name: 'AnterAja',
+        icon: (
+            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+        ),
+        color: 'from-blue-900 to-indigo-900',
+        accent: '#60A5FA',
+        accentLight: '#eff6ff',
+        desc: 'AnterAja kurir on-demand dengan berbagai layanan: Reguler, Hemat, dan Same Day.',
+        docsUrl: 'https://anteraja.id',
+        fields: ['API Key', 'Merchant ID', 'Secret Key'],
+    },
+    {
+        id: 'posindonesia',
+        name: 'Pos Indonesia',
+        icon: (
+            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+            </svg>
+        ),
+        color: 'from-orange-900 to-red-900',
+        accent: '#F97316',
+        accentLight: '#fff7ed',
+        desc: 'Pos Indonesia — jangkauan terluas hingga pelosok nusantara dengan tarif pos terjangkau.',
+        docsUrl: 'https://developer.posindonesia.co.id',
+        fields: ['Client ID', 'Client Secret', 'WS URL'],
+    },
+];
+
 const STORAGE_KEY = 'cc_api_integrations';
 
 function loadApiKeys() {
@@ -286,6 +364,82 @@ export default function ApiManagement() {
                             <span className="text-gray-500 text-xs">{desc}</span>
                         </div>
                     ))}
+                </div>
+            </div>
+
+            {/* Courier Section */}
+            <div className="mt-8">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                    <div>
+                        <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                            <svg className="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                            </svg>
+                            Manajemen Kurir
+                        </h2>
+                        <p className="text-xs text-gray-400 mt-0.5">Hubungkan layanan pengiriman untuk memproses pesanan kopi</p>
+                    </div>
+                    <div className="bg-orange-900/30 border border-orange-700/40 rounded-xl px-4 py-2 text-center">
+                        <div className="text-base font-bold text-orange-400">{COURIERS.filter(c => !!apiKeys[c.id]).length} / {COURIERS.length}</div>
+                        <div className="text-xs text-gray-400">Aktif</div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {COURIERS.map(courier => {
+                        const isConnected = !!apiKeys[courier.id];
+                        const info = apiKeys[courier.id];
+                        return (
+                            <div key={courier.id} className={`relative rounded-2xl border transition-all duration-200 overflow-hidden ${isConnected
+                                ? 'border-orange-600/50 bg-gradient-to-br from-gray-900 to-gray-800 shadow-lg shadow-orange-900/20'
+                                : 'border-gray-700/50 bg-gradient-to-br from-gray-900 to-gray-850 hover:border-gray-600/60'}`}>
+                                {isConnected && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-yellow-400" />}
+                                <div className="p-5">
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${courier.color} flex items-center justify-center text-white`}
+                                                style={{ color: courier.accent }}>
+                                                {courier.icon}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-white text-sm leading-tight">{courier.name}</h3>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-orange-400 animate-pulse' : 'bg-gray-600'}`} />
+                                                    <span className={`text-xs font-medium ${isConnected ? 'text-orange-400' : 'text-gray-500'}`}>
+                                                        {isConnected ? 'Aktif' : 'Belum Terhubung'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">{courier.desc}</p>
+                                    {isConnected && info?.connectedAt && (
+                                        <div className="text-xs text-gray-500 mb-3 bg-gray-800/60 rounded-lg px-3 py-1.5">
+                                            Terhubung: {new Date(info.connectedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <button onClick={() => openModal(courier)}
+                                            className="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all bg-orange-700 hover:bg-orange-600 text-white">
+                                            {isConnected ? '⚙ Edit API Key' : '+ Hubungkan'}
+                                        </button>
+                                        {isConnected && (
+                                            <button onClick={() => handleDisconnect(courier.id)}
+                                                disabled={disconnecting === courier.id}
+                                                className="py-2 px-3 rounded-xl text-xs font-semibold transition-all bg-red-900/40 hover:bg-red-800/60 text-red-400 border border-red-800/40">
+                                                {disconnecting === courier.id ? '...' : 'Putus'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    {courier.docsUrl !== '#' && (
+                                        <a href={courier.docsUrl} target="_blank" rel="noopener noreferrer"
+                                            className="block mt-2 text-center text-xs text-gray-500 hover:text-gray-400 transition-colors">
+                                            Lihat dokumentasi →
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
