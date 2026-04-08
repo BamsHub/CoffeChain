@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { readDb, addItem } from '@/lib/db';
+import { readDb, addItem, updateItem } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { SOLANA_NETWORK, MEMO_PROGRAM_ID, MEMO_SIGNER_PUBLIC, getExplorerTxUrl } from '@/lib/contractConfig';
@@ -20,9 +20,9 @@ function generateCoffeeId() {
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { name, origin, variety, grade, weightKg, farmerName, farmerId,
+        const { productId, name, origin, variety, grade, weightKg, farmerName, farmerId,
                 harvestDate, processMethod, roastLevel, certification, description,
-                registeredBy } = body;
+                registeredBy, paymentWallet } = body;
 
         if (!name || !origin) {
             return Response.json({ success: false, message: 'Nama dan asal kopi wajib diisi' }, { status: 400 });
@@ -97,6 +97,16 @@ export async function POST(request) {
         };
 
         await addItem('coffee_traces', trace);
+
+        if (productId) {
+            try {
+                const updateData = { coffeeId };
+                if (paymentWallet) updateData.paymentWallet = paymentWallet;
+                await updateItem('products', productId, updateData);
+            } catch (e) {
+                console.error('[coffee-trace] Failed to attach coffeeId/wallet to product:', e.message);
+            }
+        }
 
         return Response.json({
             success: true,

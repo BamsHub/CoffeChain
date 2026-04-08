@@ -6,7 +6,7 @@ export default function CoffeeRegisterContent() {
     const [form, setForm] = useState({
         name: '', origin: '', variety: 'Arabika', grade: 'Grade A',
         weightKg: '', farmerName: '', harvestDate: '', processMethod: 'Washed',
-        roastLevel: 'Medium', certification: '', description: '',
+        roastLevel: 'Medium', certification: '', description: '', paymentWallet: '',
     });
     const [traces, setTraces] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ export default function CoffeeRegisterContent() {
             const data = await res.json();
             if (data.success) {
                 setMsg({ type: 'success', text: data.message, coffeeId: data.data.coffeeId, txSignature: data.data.txSignature });
-                setForm({ name: '', origin: '', variety: 'Arabika', grade: 'Grade A', weightKg: '', farmerName: '', harvestDate: '', processMethod: 'Washed', roastLevel: 'Medium', certification: '', description: '' });
+                setForm({ name: '', origin: '', variety: 'Arabika', grade: 'Grade A', weightKg: '', farmerName: '', harvestDate: '', processMethod: 'Washed', roastLevel: 'Medium', certification: '', description: '', paymentWallet: '' });
                 loadTraces();
             } else {
                 setMsg({ type: 'error', text: data.message });
@@ -109,6 +109,9 @@ export default function CoffeeRegisterContent() {
                 {sel('Metode Proses', 'processMethod', ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled'])}
                 {sel('Level Roast', 'roastLevel', ['Green Bean', 'Light', 'Medium', 'Medium-Dark', 'Dark'])}
                 {inp('Sertifikasi', 'certification', 'text', 'Organic, Fair Trade')}
+                <div style={{ gridColumn: '1 / -1' }}>
+                    {inp('Wallet Pembayaran Khusus (Opsional)', 'paymentWallet', 'text', 'Biarkan kosong untuk menggunakan wallet sistem')}
+                </div>
                 <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <label style={{ fontSize: 12, color: 'rgba(232,245,224,0.55)', fontWeight: 600 }}>Deskripsi</label>
                     <textarea value={form.description} onChange={e => F('description', e.target.value)} rows={3} placeholder="Deskripsi singkat tentang kopi ini..."

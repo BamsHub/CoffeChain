@@ -5,7 +5,7 @@ import {
     connectPhantom, disconnectPhantom, getSolBalance,
     shortenAddress, isPhantomInstalled, sendSolTransaction, rupiahToSol,
 } from '@/lib/phantom';
-import { STORE_WALLET } from '@/lib/contractConfig';
+import { STORE_WALLET, MEMO_SIGNER_PUBLIC } from '@/lib/contractConfig';
 
 /* ── SVG Icons ── */
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
@@ -56,6 +56,10 @@ export default function LandingPage() {
     const [qrConfirm, setQrConfirm] = useState({ loading: false, done: false, error: null });
     const [bankVerified, setBankVerified] = useState(false);
     const [showBuyAgain, setShowBuyAgain] = useState(false);
+    const [detailModal, setDetailModal] = useState(false);
+    const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
+    const [traceData, setTraceData] = useState(null);
+    const [traceLoading, setTraceLoading] = useState(false);
     const solanaIntervalRef = useRef(null);
 
     /* ── Phantom Wallet State ── */
@@ -115,6 +119,24 @@ export default function LandingPage() {
         load();
     }, []);
 
+    useEffect(() => {
+        if (detailModal && selectedDetailProduct?.coffeeId) {
+            setTraceLoading(true);
+            fetch(`/api/coffee-trace/${selectedDetailProduct.coffeeId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success && data.data) {
+                        setTraceData(data.data);
+                    } else {
+                        setTraceData(null);
+                    }
+                }).catch(() => setTraceData(null))
+                .finally(() => setTraceLoading(false));
+        } else {
+            setTraceData(null);
+        }
+    }, [detailModal, selectedDetailProduct]);
+
     /* ── Phantom Wallet Functions ── */
     async function connectWallet() {
         if (!isPhantomInstalled()) { window.open('https://phantom.app/', '_blank'); return false; }
@@ -163,10 +185,12 @@ export default function LandingPage() {
         }
         setOrdering(true);
         let txSignature = null;
+        const targetWallet = selectedProduct.paymentWallet || MEMO_SIGNER_PUBLIC;
+
         try {
             if (pm === 'transfer') {
                 const solAmt = rupiahToSol(totalPrice);
-                try { txSignature = await sendSolTransaction(walletPublicKey, STORE_WALLET, solAmt); }
+                try { txSignature = await sendSolTransaction(walletPublicKey, targetWallet, solAmt); }
                 catch (txErr) { alert(`Transaksi Solana gagal: ${txErr.message}`); setOrdering(false); return; }
             }
             const res = await fetch('/api/public/order', {
@@ -209,14 +233,14 @@ export default function LandingPage() {
                     const memo = encodeURIComponent(data.data.orderId);
                     const label = encodeURIComponent('CoffeeChain');
                     const message = encodeURIComponent(selectedProduct.name);
-                    const solanaPay = `solana:${STORE_WALLET}?amount=${solAmt}&label=${label}&message=${message}&memo=${memo}`;
+                    const solanaPay = `solana:${targetWallet}?amount=${solAmt}&label=${label}&message=${message}&memo=${memo}`;
                     try {
                         const QRCode = (await import('qrcode')).default;
                         const url = await QRCode.toDataURL(solanaPay, { width: 240, margin: 2, color: { dark: '#7ED44A', light: '#0a120a' } });
                         setQrDataUrl(url);
                     } catch { setQrDataUrl(null); }
 
-                    // Auto-poll Solana devnet for incoming payment to STORE_WALLET
+                    // Auto-poll Solana devnet for incoming payment to targetWallet
                     if (solanaIntervalRef.current) clearInterval(solanaIntervalRef.current);
                     const capturedOrderId = data.data.orderId;
                     try {
@@ -224,7 +248,7 @@ export default function LandingPage() {
                         const baseRes = await fetch(rpc, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'getSignaturesForAddress', params:[STORE_WALLET, { limit:1 }] }),
+                            body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'getSignaturesForAddress', params:[targetWallet, { limit:1 }] }),
                         });
                         const baseData = await baseRes.json();
                         const latestSig = baseData.result?.[0]?.signature ?? null;
@@ -236,7 +260,7 @@ export default function LandingPage() {
                                 const checkRes = await fetch(rpc, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'getSignaturesForAddress', params:[STORE_WALLET, { limit:1 }] }),
+                                    body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'getSignaturesForAddress', params:[targetWallet, { limit:1 }] }),
                                 });
                                 const checkData = await checkRes.json();
                                 const newSig = checkData.result?.[0]?.signature ?? null;
@@ -515,7 +539,7 @@ export default function LandingPage() {
                             const outOfStock = stock <= 0;
                             const lowStock = stock > 0 && stock <= 10;
                             return (
-                            <div key={p.id} className="lp-card">
+                            <div key={p.id} className="lp-card" onClick={() => { setSelectedDetailProduct(p); setDetailModal(true); }} style={{ cursor: 'pointer' }}>
                                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
                                     <div style={{ width:48, height:48, borderRadius:12, background: outOfStock ? 'rgba(100,100,100,0.1)' : 'rgba(74,124,40,0.15)', display:'flex', alignItems:'center', justifyContent:'center', color: outOfStock ? 'rgba(255,255,255,0.2)' : '#7ED44A', flexShrink:0 }}>
                                         <IconCoffee />
@@ -550,7 +574,7 @@ export default function LandingPage() {
                                         <div style={{ fontSize:10, color:'rgba(147,51,234,0.7)' }}>≈ {rupiahToSol(p.pricePerUnit?.[0] || 0).toFixed(4)} SOL</div>
                                     </div>
                                     <button
-                                        onClick={() => !outOfStock && openOrder(p)}
+                                        onClick={(e) => { e.stopPropagation(); !outOfStock && openOrder(p); }}
                                         disabled={outOfStock}
                                         className={outOfStock ? '' : 'lp-btn-phantom'}
                                         style={outOfStock
@@ -1122,6 +1146,75 @@ export default function LandingPage() {
                                 className="lp-btn-outline"
                                 style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:13 }}>
                                 Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── PRODUCT DETAILS MODAL ── */}
+            {detailModal && selectedDetailProduct && (
+                <div style={{ position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, backdropFilter:'blur(4px)' }} onClick={() => setDetailModal(false)}>
+                    <div style={{ background:'#0A120A', border:'1px solid rgba(74,124,40,0.2)', borderRadius:20, maxWidth:500, width:'100%', overflow:'hidden', boxShadow:'0 10px 40px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ padding:'20px 24px', borderBottom:'1px solid rgba(255,255,255,0.05)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                            <h3 style={{ fontSize:18, fontWeight:700, color:'#E8F5E0', display:'flex', alignItems:'center', gap:8 }}>
+                                <IconCoffee /> Detail Produk
+                            </h3>
+                            <button onClick={() => setDetailModal(false)} style={{ background:'transparent', border:'none', color:'rgba(255,255,255,0.5)', cursor:'pointer', padding:4 }}><IconClose /></button>
+                        </div>
+                        <div style={{ padding:'24px', maxHeight:'70vh', overflowY:'auto' }}>
+                            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
+                                <div>
+                                    <h2 style={{ fontSize:22, fontWeight:800, color:'#7ED44A', marginBottom:4 }}>{selectedDetailProduct.name}</h2>
+                                    <p style={{ fontSize:14, color:'rgba(232,245,224,0.6)' }}>{selectedDetailProduct.origin} {selectedDetailProduct.variety && `· ${selectedDetailProduct.variety}`}</p>
+                                </div>
+                                <div style={{ fontSize:20, fontWeight:700, color:'#F5A623' }}>Rp {selectedDetailProduct.pricePerUnit?.[0]?.toLocaleString('id-ID')}</div>
+                            </div>
+                            
+                            <div style={{ padding:'16px', background:'rgba(255,255,255,0.03)', borderRadius:12, marginBottom:20 }}>
+                                <h4 style={{ fontSize:12, color:'rgba(232,245,224,0.4)', marginBottom:8, textTransform:'uppercase', letterSpacing:1 }}>Deskripsi Kopi</h4>
+                                <p style={{ fontSize:14, color:'#E8F5E0', lineHeight:1.6 }}>{selectedDetailProduct.description || 'Tidak ada deskripsi.'}</p>
+                            </div>
+
+                            {selectedDetailProduct.coffeeId ? (
+                                <div style={{ padding:'16px', background:'rgba(124,77,255,0.05)', border:'1px solid rgba(124,77,255,0.2)', borderRadius:12 }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b388ff" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                        <h4 style={{ fontSize:14, fontWeight:700, color:'#b388ff' }}>On-Chain Traceability</h4>
+                                    </div>
+                                    <div style={{ fontSize:13, color:'rgba(232,245,224,0.7)', marginBottom:6 }}>
+                                        <strong>Coffee ID:</strong> {selectedDetailProduct.coffeeId}
+                                    </div>
+                                    {traceLoading ? (
+                                        <div style={{ fontSize:13, color:'rgba(255,255,255,0.5)', display:'flex', alignItems:'center', gap:6 }}><span className="lp-spinner"/> Mengambil transaksi...</div>
+                                    ) : traceData?.txSignature ? (
+                                        <div style={{ fontSize:13, color:'rgba(232,245,224,0.7)' }}>
+                                            <div style={{ marginBottom:8 }}><strong>Hash Transaksi:</strong> <span style={{ fontFamily:'monospace', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:4 }}>{shortenAddress(traceData.txSignature)}</span></div>
+                                            <a href={`https://explorer.solana.com/tx/${traceData.txSignature}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 12px', background:'rgba(124,77,255,0.15)', color:'#b388ff', borderRadius:8, textDecoration:'none', fontWeight:600, fontSize:12 }}>
+                                                Lihat di Solana Explorer
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize:12, color:'#F5A623', padding:'8px', background:'rgba(245,166,35,0.1)', borderRadius:6 }}>
+                                            ⏳ Menunggu verifikasi blockchain (Pending)
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div style={{ padding:'12px', background:'rgba(255,255,255,0.02)', borderRadius:12, fontSize:13, color:'rgba(255,255,255,0.3)', textAlign:'center' }}>
+                                    Produk ini belum terdaftar di blockchain.
+                                </div>
+                            )}
+
+                        </div>
+                        <div style={{ padding:'16px 24px', borderTop:'1px solid rgba(255,255,255,0.05)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                            <button className="lp-btn-outline" onClick={() => setDetailModal(false)} style={{ padding:'12px', justifyContent:'center' }}>Kembali</button>
+                            <button className="lp-btn-primary" onClick={() => {
+                                setDetailModal(false);
+                                if((selectedDetailProduct.stock??0) > 0) openOrder(selectedDetailProduct);
+                            }} disabled={(selectedDetailProduct.stock??0) <= 0} style={{ padding:'12px', justifyContent:'center', opacity:(selectedDetailProduct.stock??0) <= 0 ? 0.5 : 1 }}>
+                                {(selectedDetailProduct.stock??0) <= 0 ? 'Stok Habis' : 'Beli Sekarang'}
                             </button>
                         </div>
                     </div>

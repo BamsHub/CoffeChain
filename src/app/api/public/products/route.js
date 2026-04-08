@@ -44,6 +44,8 @@ export async function GET(request) {
             stock: p.stock,
             rating: p.rating,
             sold: p.sold,
+            coffeeId: p.coffeeId,
+            paymentWallet: p.paymentWallet || p.payment_wallet || null,
         }));
 
         return Response.json({
