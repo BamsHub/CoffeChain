@@ -19,7 +19,7 @@ export async function POST(request) {
     try {
         const body = await request.json();
         const { name, origin, grade, variety, roast, weight, pricePerUnit, description, stock, image, rating, sold,
-                submittedBy, submittedByName, submittedByRole } = body;
+                coffeeId, submittedBy, submittedByName, submittedByRole } = body;
         if (!name || !origin || !weight || !pricePerUnit) {
             return Response.json({ success: false, message: 'Nama, asal, berat, dan harga wajib diisi' }, { status: 400 });
         }
@@ -43,6 +43,7 @@ export async function POST(request) {
             rating: Number(rating) || 4.5,
             sold: Number(sold) || 0,
             status: isFarmer ? 'pending' : 'published',
+            coffeeId: coffeeId || null,
             submittedBy: submittedBy || null,
             submittedByName: submittedByName || null,
             submittedByRole: submittedByRole || null,

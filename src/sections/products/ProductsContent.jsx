@@ -10,7 +10,7 @@ const WEIGHT_OPTIONS = [100, 200, 250, 500, 1000];
 
 const initialForm = {
     name: '', origin: '', variety: 'Arabika', grade: 'A', roast: 'Medium Roast',
-    description: '', stock: 50,
+    description: '', stock: 50, coffeeId: '',
     weights: [{ gram: 250, price: 75000 }],
 };
 
@@ -31,6 +31,7 @@ export default function ProductsContent() {
     const [search, setSearch] = useState('');    const [editingProduct, setEditingProduct] = useState(null);
     const [editForm, setEditForm] = useState(initialForm);
     const [approving, setApproving] = useState(null);
+    const [verifying, setVerifying] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -75,6 +76,7 @@ export default function ProductsContent() {
                     name: form.name, origin: form.origin, variety: form.variety,
                     grade: form.grade, roast: form.roast, description: form.description,
                     stock: form.stock,
+                    coffeeId: form.coffeeId || null,
                     weight: form.weights.map(w => w.gram),
                     pricePerUnit: form.weights.map(w => w.price),
                     submittedBy: user?.id || null,
@@ -222,6 +224,46 @@ export default function ProductsContent() {
         setSaving(false);
     }
 
+    async function handleVerifyBlockchain(product) {
+        if (verifying) return;
+        setVerifying(product.id);
+        setMsg(null);
+        try {
+            const payload = {
+                productId: product.id,
+                name: product.name,
+                origin: product.origin || 'Tidak diketahui',
+                variety: product.variety || 'Arabika',
+                grade: product.grade || 'A',
+                weightKg: product.weight?.[0] || 0,
+                farmerName: product.submittedByName || 'Koperasi CoffeeChain',
+                harvestDate: new Date().toISOString().split('T')[0],
+                processMethod: 'Washed',
+                roastLevel: product.roast || 'Medium',
+                certification: product.tags?.join(', ') || '',
+                description: product.description || '',
+            };
+            const res = await fetch('/api/coffee-trace', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.success && data.data?.txSignature) {
+                setMsg({ type: 'ok', text: `✅ "${product.name}" berhasil diverifikasi di Solana! Coffee ID: ${data.data.coffeeId}` });
+                load();
+            } else if (data.success) {
+                setMsg({ type: 'err', text: `⚠️ "${product.name}" terdaftar tapi gagal verifikasi on-chain. Pastikan wallet server memiliki SOL untuk gas fee.` });
+                load();
+            } else {
+                setMsg({ type: 'err', text: data.message || 'Gagal verifikasi' });
+            }
+        } catch {
+            setMsg({ type: 'err', text: 'Koneksi error saat verifikasi blockchain' });
+        }
+        setVerifying(null);
+    }
+
     const filtered = products.filter(p => {
         // Farmer only sees their own products
         if (isFarmer && p.submittedBy && p.submittedBy !== (user?.id || '')) return false;
@@ -320,6 +362,11 @@ export default function ProductsContent() {
                             <div>
                                 <label style={label}>Stok (unit)</label>
                                 <input style={input} type="number" min={0} value={form.stock} onChange={e => setField('stock', e.target.value)} />
+                            </div>
+                            <div>
+                                <label style={label}>Kopi ID (Opsional)</label>
+                                <input style={input} value={form.coffeeId} onChange={e => setField('coffeeId', e.target.value)} placeholder="CF-XXXXXX" />
+                                <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3, display: 'block' }}>Masukkan ID seri kopi jika sudah ada. Kosongkan jika belum.</span>
                             </div>
                         </div>
 
@@ -455,12 +502,33 @@ export default function ProductsContent() {
                                     </div>
                                 ) : null
                             ))}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
                                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>ID: {p.id}</div>
                                 {p.coffeeId ? (
                                     <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}>☕ {p.coffeeId}</span>
                                 ) : (
-                                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(232,245,224,0.3)', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>Belum terdaftar</span>
+                                    !isFarmer && p.status !== 'pending' ? (
+                                        <button
+                                            onClick={() => handleVerifyBlockchain(p)}
+                                            disabled={!!verifying}
+                                            style={{
+                                                fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 7, cursor: verifying ? 'wait' : 'pointer',
+                                                background: verifying === p.id ? 'rgba(124,77,255,0.2)' : 'rgba(124,77,255,0.1)',
+                                                color: '#7c4dff', border: '1px solid rgba(124,77,255,0.3)',
+                                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                                opacity: verifying && verifying !== p.id ? 0.5 : 1,
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            {verifying === p.id ? (
+                                                <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span> Verifikasi...</>
+                                            ) : (
+                                                <>🔗 Verify ke Blockchain</>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}>⚠️ Belum terverifikasi</span>
+                                    )
                                 )}
                             </div>
                         </div>
