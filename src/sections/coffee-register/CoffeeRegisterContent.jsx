@@ -3,18 +3,33 @@ import { useState, useEffect } from 'react';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
 
 export default function CoffeeRegisterContent() {
-    const [form, setForm] = useState({
-        name: '', origin: '', variety: 'Arabika', grade: 'Grade A',
-        weightKg: '', farmerName: '', harvestDate: '', processMethod: 'Washed',
-        roastLevel: 'Medium', certification: '', description: '', paymentWallet: '',
-    });
+    const [products, setProducts] = useState([]);
+    const [selectedProductId, setSelectedProductId] = useState('');
     const [traces, setTraces] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadingProducts, setLoadingProducts] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [msg, setMsg] = useState(null);
     const [search, setSearch] = useState('');
+    const [extraFields, setExtraFields] = useState({
+        farmerName: '', harvestDate: '', processMethod: 'Washed',
+        roastLevel: 'Medium', certification: '', paymentWallet: '',
+    });
 
-    useEffect(() => { loadTraces(); }, []);
+    useEffect(() => {
+        loadProducts();
+        loadTraces();
+    }, []);
+
+    async function loadProducts() {
+        setLoadingProducts(true);
+        try {
+            const res = await fetch('/api/products');
+            const data = await res.json();
+            if (data.success) setProducts(data.data || []);
+        } catch { }
+        setLoadingProducts(false);
+    }
 
     async function loadTraces() {
         setLoading(true);
@@ -26,20 +41,47 @@ export default function CoffeeRegisterContent() {
         setLoading(false);
     }
 
+    const selectedProduct = products.find(p => p.id === selectedProductId);
+
+    // Products that don't have a coffeeId yet (not registered)
+    const unregisteredProducts = products.filter(p => !p.coffeeId);
+    const registeredProducts = products.filter(p => p.coffeeId);
+
     async function handleSubmit(e) {
         e.preventDefault();
+        if (!selectedProduct) {
+            setMsg({ type: 'error', text: 'Pilih produk terlebih dahulu!' });
+            return;
+        }
         setSubmitting(true); setMsg(null);
         try {
+            const payload = {
+                productId: selectedProduct.id,
+                name: selectedProduct.name,
+                origin: selectedProduct.origin || '',
+                variety: selectedProduct.variety || 'Arabika',
+                grade: selectedProduct.grade || 'A',
+                weightKg: selectedProduct.weight?.[0] || 0,
+                farmerName: extraFields.farmerName || selectedProduct.submittedByName || '',
+                harvestDate: extraFields.harvestDate || '',
+                processMethod: extraFields.processMethod,
+                roastLevel: extraFields.roastLevel || selectedProduct.roast || 'Medium',
+                certification: extraFields.certification || '',
+                description: selectedProduct.description || '',
+                paymentWallet: extraFields.paymentWallet || '',
+            };
             const res = await fetch('/api/coffee-trace', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...form, weightKg: parseFloat(form.weightKg) || 0 }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
             if (data.success) {
                 setMsg({ type: 'success', text: data.message, coffeeId: data.data.coffeeId, txSignature: data.data.txSignature });
-                setForm({ name: '', origin: '', variety: 'Arabika', grade: 'Grade A', weightKg: '', farmerName: '', harvestDate: '', processMethod: 'Washed', roastLevel: 'Medium', certification: '', description: '', paymentWallet: '' });
+                setSelectedProductId('');
+                setExtraFields({ farmerName: '', harvestDate: '', processMethod: 'Washed', roastLevel: 'Medium', certification: '', paymentWallet: '' });
                 loadTraces();
+                loadProducts(); // Refresh to update coffeeId status
             } else {
                 setMsg({ type: 'error', text: data.message });
             }
@@ -47,23 +89,10 @@ export default function CoffeeRegisterContent() {
         setSubmitting(false);
     }
 
-    const F = (k, v) => setForm(f => ({ ...f, [k]: v }));
-    const inp = (label, k, type = 'text', placeholder = '') => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: 'rgba(232,245,224,0.55)', fontWeight: 600 }}>{label}</label>
-            <input type={type} value={form[k]} onChange={e => F(k, e.target.value)} placeholder={placeholder}
-                style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--color-surface, rgba(255,255,255,0.04))', border: '1px solid var(--border-color, rgba(74,124,40,0.25))', color: 'var(--text-primary, #E8F5E0)', fontSize: 14, outline: 'none' }} />
-        </div>
-    );
-    const sel = (label, k, options) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: 'rgba(232,245,224,0.55)', fontWeight: 600 }}>{label}</label>
-            <select value={form[k]} onChange={e => F(k, e.target.value)}
-                style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--color-surface, rgba(255,255,255,0.04))', border: '1px solid var(--border-color, rgba(74,124,40,0.25))', color: 'var(--text-primary, #E8F5E0)', fontSize: 14, outline: 'none' }}>
-                {options.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-        </div>
-    );
+    const EF = (k, v) => setExtraFields(f => ({ ...f, [k]: v }));
+
+    const inputStyle = { padding: '10px 12px', borderRadius: 8, background: 'var(--color-surface, rgba(255,255,255,0.04))', border: '1px solid var(--border-color, rgba(74,124,40,0.25))', color: 'var(--text-primary, #E8F5E0)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' };
+    const labelStyle = { fontSize: 12, color: 'rgba(232,245,224,0.55)', fontWeight: 600 };
 
     const filtered = traces.filter(t =>
         !search || t.coffeeId?.toLowerCase().includes(search.toLowerCase()) ||
@@ -77,7 +106,7 @@ export default function CoffeeRegisterContent() {
                 Register Kopi ke Blockchain
             </h2>
             <p style={{ fontSize: 13, color: 'var(--text-secondary, rgba(232,245,224,0.5))', marginBottom: 24 }}>
-                Daftarkan kopi baru ke Solana Devnet. Data akan tercatat permanen dan bisa diverifikasi siapa saja.
+                Pilih produk dari Kelola Produk untuk didaftarkan ke Solana Devnet. Data akan tercatat permanen di blockchain.
             </p>
 
             {/* Message */}
@@ -98,28 +127,90 @@ export default function CoffeeRegisterContent() {
             )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, marginBottom: 32, padding: 20, borderRadius: 14, background: 'var(--color-surface, rgba(255,255,255,0.02))', border: '1px solid var(--border-color, rgba(74,124,40,0.15))' }}>
-                {inp('Nama Kopi *', 'name', 'text', 'Arabika Gayo Premium')}
-                {inp('Asal / Daerah *', 'origin', 'text', 'Aceh Tengah')}
-                {sel('Varietas', 'variety', ['Arabika', 'Robusta', 'Liberika', 'Excelsa'])}
-                {sel('Grade', 'grade', ['Grade AA', 'Grade A', 'Grade B', 'Grade C', 'Specialty'])}
-                {inp('Berat (kg)', 'weightKg', 'number', '10')}
-                {inp('Nama Petani', 'farmerName', 'text', 'Ahmad Gayo')}
-                {inp('Tanggal Panen', 'harvestDate', 'date')}
-                {sel('Metode Proses', 'processMethod', ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled'])}
-                {sel('Level Roast', 'roastLevel', ['Green Bean', 'Light', 'Medium', 'Medium-Dark', 'Dark'])}
-                {inp('Sertifikasi', 'certification', 'text', 'Organic, Fair Trade')}
-                <div style={{ gridColumn: '1 / -1' }}>
-                    {inp('Wallet Pembayaran Khusus (Opsional)', 'paymentWallet', 'text', 'Biarkan kosong untuk menggunakan wallet sistem')}
+            <form onSubmit={handleSubmit} style={{ marginBottom: 32, padding: 20, borderRadius: 14, background: 'var(--color-surface, rgba(255,255,255,0.02))', border: '1px solid var(--border-color, rgba(74,124,40,0.15))' }}>
+
+                {/* Product Selector */}
+                <div style={{ marginBottom: 16 }}>
+                    <label style={{ ...labelStyle, display: 'block', marginBottom: 6 }}>Pilih Produk *</label>
+                    {loadingProducts ? (
+                        <div style={{ padding: 12, color: 'var(--text-secondary, rgba(232,245,224,0.4))', fontSize: 13 }}>Memuat produk...</div>
+                    ) : unregisteredProducts.length === 0 ? (
+                        <div style={{ padding: '14px 16px', borderRadius: 10, background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)', fontSize: 13, color: '#F5A623' }}>
+                            ⚠️ Semua produk sudah terdaftar di blockchain. Tambahkan produk baru di <strong>Kelola Produk</strong> terlebih dahulu.
+                        </div>
+                    ) : (
+                        <select
+                            value={selectedProductId}
+                            onChange={e => setSelectedProductId(e.target.value)}
+                            style={{ ...inputStyle, cursor: 'pointer' }}
+                        >
+                            <option value="">-- Pilih produk untuk didaftarkan --</option>
+                            {unregisteredProducts.map(p => (
+                                <option key={p.id} value={p.id}>
+                                    {p.name} — {p.origin} ({p.variety}, {p.grade})
+                                </option>
+                            ))}
+                        </select>
+                    )}
                 </div>
-                <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontSize: 12, color: 'rgba(232,245,224,0.55)', fontWeight: 600 }}>Deskripsi</label>
-                    <textarea value={form.description} onChange={e => F('description', e.target.value)} rows={3} placeholder="Deskripsi singkat tentang kopi ini..."
-                        style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--color-surface, rgba(255,255,255,0.04))', border: '1px solid var(--border-color, rgba(74,124,40,0.25))', color: 'var(--text-primary, #E8F5E0)', fontSize: 14, outline: 'none', resize: 'vertical' }} />
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                    <button type="submit" disabled={submitting || !form.name || !form.origin}
-                        style={{ padding: '12px 28px', borderRadius: 10, background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, opacity: submitting ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+
+                {/* Product Preview Card */}
+                {selectedProduct && (
+                    <div style={{ padding: '14px 16px', borderRadius: 10, marginBottom: 16, background: 'rgba(74,124,40,0.08)', border: '1px solid rgba(126,212,74,0.2)' }}>
+                        <div style={{ fontSize: 11, color: 'rgba(232,245,224,0.5)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>Preview Produk Terpilih</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+                            <div><span style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>Nama:</span> <strong style={{ fontSize: 13 }}>{selectedProduct.name}</strong></div>
+                            <div><span style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>Asal:</span> <strong style={{ fontSize: 13 }}>{selectedProduct.origin || '-'}</strong></div>
+                            <div><span style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>Varietas:</span> <strong style={{ fontSize: 13 }}>{selectedProduct.variety || '-'}</strong></div>
+                            <div><span style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>Grade:</span> <strong style={{ fontSize: 13 }}>{selectedProduct.grade || '-'}</strong></div>
+                            <div><span style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>Roast:</span> <strong style={{ fontSize: 13 }}>{selectedProduct.roast || '-'}</strong></div>
+                            <div><span style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>Stok:</span> <strong style={{ fontSize: 13 }}>{selectedProduct.stock ?? '-'}</strong></div>
+                            <div><span style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>ID Produk:</span> <strong style={{ fontSize: 11, fontFamily: 'monospace' }}>{selectedProduct.id}</strong></div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Extra Fields (only shown when product is selected) */}
+                {selectedProduct && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, marginBottom: 16 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={labelStyle}>Nama Petani</label>
+                            <input type="text" value={extraFields.farmerName} onChange={e => EF('farmerName', e.target.value)} placeholder={selectedProduct.submittedByName || 'Nama Petani'}
+                                style={inputStyle} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={labelStyle}>Tanggal Panen</label>
+                            <input type="date" value={extraFields.harvestDate} onChange={e => EF('harvestDate', e.target.value)}
+                                style={inputStyle} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={labelStyle}>Metode Proses</label>
+                            <select value={extraFields.processMethod} onChange={e => EF('processMethod', e.target.value)} style={inputStyle}>
+                                {['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled'].map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={labelStyle}>Level Roast</label>
+                            <select value={extraFields.roastLevel} onChange={e => EF('roastLevel', e.target.value)} style={inputStyle}>
+                                {['Green Bean', 'Light', 'Medium', 'Medium-Dark', 'Dark'].map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={labelStyle}>Sertifikasi</label>
+                            <input type="text" value={extraFields.certification} onChange={e => EF('certification', e.target.value)} placeholder="Organic, Fair Trade"
+                                style={inputStyle} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={labelStyle}>Wallet Pembayaran (Opsional)</label>
+                            <input type="text" value={extraFields.paymentWallet} onChange={e => EF('paymentWallet', e.target.value)} placeholder="Kosongkan = wallet sistem"
+                                style={inputStyle} />
+                        </div>
+                    </div>
+                )}
+
+                <div>
+                    <button type="submit" disabled={submitting || !selectedProductId}
+                        style={{ padding: '12px 28px', borderRadius: 10, background: selectedProductId ? 'linear-gradient(135deg,#4A7C28,#7ED44A)' : 'rgba(255,255,255,0.08)', color: selectedProductId ? '#fff' : 'rgba(232,245,224,0.3)', border: 'none', cursor: selectedProductId ? 'pointer' : 'not-allowed', fontWeight: 700, fontSize: 14, opacity: submitting ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}>
                         {submitting ? '⏳ Mendaftarkan ke Solana...' : '🔗 Register ke Blockchain'}
                     </button>
                 </div>

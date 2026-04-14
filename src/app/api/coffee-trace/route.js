@@ -1,4 +1,6 @@
-export const runtime = 'edge';
+// Node.js runtime required for @solana/web3.js compatibility
+export const runtime = 'nodejs';
+
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
@@ -48,30 +50,64 @@ export async function POST(request) {
         // Send Memo TX to Solana Devnet
         try {
             const secretKeyEnv = process.env.MEMO_SIGNER_SECRET_KEY;
-            if (secretKeyEnv) {
-                const secretArray = JSON.parse(secretKeyEnv);
-                const signer = Keypair.fromSecretKey(Uint8Array.from(secretArray));
-                const connection = new Connection(SOLANA_NETWORK, 'confirmed');
-                const memoProgramId = new PublicKey(MEMO_PROGRAM_ID);
-
-                const memoInstruction = new TransactionInstruction({
-                    keys: [{ pubkey: signer.publicKey, isSigner: true, isWritable: false }],
-                    programId: memoProgramId,
-                    data: new TextEncoder().encode(memoData),
-                });
-
-                const { blockhash } = await connection.getLatestBlockhash();
-                const tx = new Transaction({ recentBlockhash: blockhash, feePayer: signer.publicKey });
-                tx.add(memoInstruction);
-                tx.sign(signer);
-
-                txSignature = await connection.sendRawTransaction(tx.serialize());
-                await connection.confirmTransaction(txSignature, 'confirmed');
-                explorerUrl = getExplorerTxUrl(txSignature);
+            if (!secretKeyEnv) {
+                throw new Error('MEMO_SIGNER_SECRET_KEY not configured');
             }
+
+            const secretArray = JSON.parse(secretKeyEnv);
+            const signer = Keypair.fromSecretKey(Uint8Array.from(secretArray));
+            const connection = new Connection(SOLANA_NETWORK, {
+                commitment: 'confirmed',
+                confirmTransactionInitialTimeout: 60000,
+            });
+            const memoProgramId = new PublicKey(MEMO_PROGRAM_ID);
+
+            const memoInstruction = new TransactionInstruction({
+                keys: [{ pubkey: signer.publicKey, isSigner: true, isWritable: false }],
+                programId: memoProgramId,
+                data: new TextEncoder().encode(memoData),
+            });
+
+            // Get blockhash WITH lastValidBlockHeight for proper confirmation
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+            const tx = new Transaction({
+                recentBlockhash: blockhash,
+                feePayer: signer.publicKey,
+                lastValidBlockHeight,
+            });
+            tx.add(memoInstruction);
+            tx.sign(signer);
+
+            // Send with skipPreflight for faster submission on devnet
+            txSignature = await connection.sendRawTransaction(tx.serialize(), {
+                skipPreflight: false,
+                maxRetries: 5,
+                preflightCommitment: 'confirmed',
+            });
+
+            console.log('[coffee-trace] TX sent:', txSignature);
+
+            // Use modern confirmTransaction API with blockhash strategy
+            const confirmation = await connection.confirmTransaction({
+                signature: txSignature,
+                blockhash,
+                lastValidBlockHeight,
+            }, 'confirmed');
+
+            if (confirmation.value?.err) {
+                throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+            }
+
+            explorerUrl = getExplorerTxUrl(txSignature);
+            console.log('[coffee-trace] TX confirmed:', txSignature);
         } catch (solErr) {
             console.error('[coffee-trace] Solana memo TX failed:', solErr?.message);
-            // Still save to DB even if Solana fails — can retry later
+            // If we got a signature but confirmation timed out, still save it
+            // The tx may have landed on-chain even if confirmation tracking failed
+            if (txSignature) {
+                console.log('[coffee-trace] TX signature obtained despite error, saving:', txSignature);
+                explorerUrl = getExplorerTxUrl(txSignature);
+            }
         }
 
         const trace = {
@@ -112,7 +148,7 @@ export async function POST(request) {
             success: true,
             message: txSignature
                 ? `Kopi ${coffeeId} berhasil didaftarkan ke blockchain Solana!`
-                : `Kopi ${coffeeId} disimpan (Solana TX pending)`,
+                : `Kopi ${coffeeId} gagal didaftarkan ke blockchain. Pastikan wallet memiliki SOL untuk gas fee.`,
             data: trace,
         }, { status: 201 });
 

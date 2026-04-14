@@ -93,7 +93,7 @@ export const ROLE_LABELS = {
 // Nav items per role
 export const ROLE_NAV = {
     farmer: ['dashboard', 'transactions', 'wallet', 'products'],
-    koperasi: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'wallet', 'markets', 'integrations', 'products', 'request-log', 'coffee-register'],
-    developer: ['dashboard', 'transactions', 'farmers', 'supply-chain', 'wallet', 'markets', 'integrations', 'products', 'request-log', 'coffee-register'],
+    koperasi: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'request-log', 'coffee-register'],
+    developer: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'request-log', 'coffee-register'],
 };
 

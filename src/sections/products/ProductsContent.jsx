@@ -455,7 +455,14 @@ export default function ProductsContent() {
                                     </div>
                                 ) : null
                             ))}
-                            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6, fontFamily: 'monospace' }}>ID: {p.id}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 8 }}>
+                                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>ID: {p.id}</div>
+                                {p.coffeeId ? (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}>☕ {p.coffeeId}</span>
+                                ) : (
+                                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(232,245,224,0.3)', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>Belum terdaftar</span>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>

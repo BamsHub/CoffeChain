@@ -19,10 +19,6 @@ const ALL_NAV = [
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M17 20H7a4 4 0 01-4-4v-1a4 4 0 014-4h10a4 4 0 014 4v1a4 4 0 01-4 4z" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" /></svg>,
     },
     {
-        id: 'supply-chain', label: 'Supply Chain', href: '/supply-chain',
-        icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M9 17H4a2 2 0 01-2-2V5a2 2 0 012-2h5m6 14h5a2 2 0 002-2V5a2 2 0 00-2-2h-5m-6 0h6m-6 14h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="12" r="2" fill="currentColor" /></svg>,
-    },
-    {
         id: 'wallet', label: 'Dompet', href: '/wallet',
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" /><path d="M16 3H8l-2 4h12l-2-4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><circle cx="17" cy="14" r="1" fill="currentColor" /></svg>,
     },
