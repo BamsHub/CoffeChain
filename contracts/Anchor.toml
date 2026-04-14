@@ -6,9 +6,11 @@ skip-lint = false
 
 [programs.devnet]
 coffee_payment = "CoffW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
+coffee_inventory = "InvW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
 
 [programs.mainnet-beta]
 coffee_payment = "CoffW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
+coffee_inventory = "InvW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
 
 [registry]
 url = "https://api.apr.dev"
