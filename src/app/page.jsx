@@ -30,6 +30,7 @@ const IconBank = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="non
 const IconMobileQR = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;
 const IconClockWait = ({ size = 44 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
 const IconSuccessCircle = ({ size = 48 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>;
+const IconMidtrans = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
 
 /* ── Market Data ── */
 const coffeeTypes = [
@@ -72,6 +73,17 @@ export default function LandingPage() {
         const handleScroll = () => setScrolled(window.scrollY > 60);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    /* ── Load Midtrans Snap.js ── */
+    useEffect(() => {
+        const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || 'Mid-client-k6WqARMZiLSJbg2_';
+        const script = document.createElement('script');
+        script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+        script.setAttribute('data-client-key', clientKey);
+        script.async = true;
+        document.head.appendChild(script);
+        return () => { if (document.head.contains(script)) document.head.removeChild(script); };
     }, []);
 
     /* ── Auto-connect Phantom if already approved ── */
@@ -183,6 +195,72 @@ export default function LandingPage() {
             }
             if (!orderForm.ewalletApp) { alert('Pilih aplikasi e-wallet.'); return; }
         }
+
+        /* ── Midtrans Snap Payment ── */
+        if (pm === 'midtrans') {
+            setOrdering(true);
+            try {
+                const res = await fetch('/api/midtrans/create-transaction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        productId: selectedProduct.id,
+                        weight: orderForm.weight || selectedProduct.weight?.[0],
+                        quantity: orderForm.quantity,
+                        buyerName: orderForm.buyerName,
+                        buyerEmail: orderForm.buyerEmail,
+                        buyerPhone: orderForm.buyerPhone || undefined,
+                        recipientName: orderForm.recipientName || orderForm.buyerName,
+                        shippingAddress: orderForm.shippingAddress || undefined,
+                        shippingCity: orderForm.shippingCity || undefined,
+                        shippingProvince: orderForm.shippingProvince || undefined,
+                        shippingPostal: orderForm.shippingPostal || undefined,
+                        shippingPhone: orderForm.shippingPhone || orderForm.buyerPhone || undefined,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success && data.snapToken) {
+                    setOrdering(false);
+                    if (!window.snap) {
+                        alert('Midtrans Snap belum siap. Refresh halaman dan coba lagi.');
+                        return;
+                    }
+                    window.snap.pay(data.snapToken, {
+                        onSuccess: (result) => {
+                            setOrderResult({ ...data.data, status: 'paid' });
+                            setProducts(prev => prev.map(p =>
+                                p.id === selectedProduct.id
+                                    ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
+                                    : p
+                            ));
+                            setShowBuyAgain(true);
+                        },
+                        onPending: (result) => {
+                            setOrderResult({ ...data.data, status: 'pending' });
+                            setProducts(prev => prev.map(p =>
+                                p.id === selectedProduct.id
+                                    ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
+                                    : p
+                            ));
+                        },
+                        onError: (result) => {
+                            alert('Pembayaran Midtrans gagal: ' + (result.status_message || 'Terjadi kesalahan'));
+                        },
+                        onClose: () => {
+                            setOrderResult({ ...data.data, status: 'pending' });
+                        },
+                    });
+                } else {
+                    alert(data.message || 'Gagal membuat transaksi Midtrans');
+                    setOrdering(false);
+                }
+            } catch (err) {
+                alert(err.message || 'Terjadi kesalahan. Coba lagi.');
+                setOrdering(false);
+            }
+            return;
+        }
+
         setOrdering(true);
         let txSignature = null;
         const targetWallet = selectedProduct.paymentWallet || MEMO_SIGNER_PUBLIC;
@@ -320,7 +398,7 @@ export default function LandingPage() {
     function openOrder(product) {
         if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
         setSelectedProduct(product);
-        setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: 'transfer-idr', bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: '' });
+        setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: 'midtrans', bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: '' });
         setOrderResult(null);
         setQrDataUrl(null);
         setQrConfirm({ loading: false, done: false, error: null });
@@ -733,18 +811,21 @@ export default function LandingPage() {
                                 </div>
                                 <h3 style={{ fontSize:20, fontWeight:700, color:'#E8F5E0', marginBottom:6 }}>
                                     {orderResult.status === 'paid' ? 'Pembayaran Berhasil'
+                                        : orderResult.paymentMethod === 'midtrans' ? 'Pesanan Dicatat — Menunggu Konfirmasi'
                                         : orderResult.paymentMethod === 'transfer-idr' ? 'Transfer ke Virtual Account'
                                         : orderResult.paymentMethod === 'qr-idr' ? 'Scan QR Code Pembayaran'
                                         : 'Menunggu Pembayaran Solana'}
                                 </h3>
                                 <p style={{ color:'rgba(232,245,224,0.45)', marginBottom:20, fontSize:13 }}>
                                     {orderResult.status === 'paid'
-                                        ? 'Transaksi SOL telah dikonfirmasi on-chain di Solana!'
-                                        : orderResult.paymentMethod === 'transfer-idr'
-                                            ? 'Transfer Rupiah ke nomor Virtual Account di bawah sebelum pesanan kadaluarsa.'
-                                            : orderResult.paymentMethod === 'qr-idr'
-                                                ? 'Scan QR Code di bawah menggunakan aplikasi pembayaran Anda.'
-                                                : 'Scan QR Solana Pay di bawah untuk menyelesaikan pembayaran.'}
+                                        ? 'Pembayaran berhasil dikonfirmasi!'
+                                        : orderResult.paymentMethod === 'midtrans'
+                                            ? 'Pembayaran Midtrans masih dalam proses. Cek email untuk konfirmasi.'
+                                            : orderResult.paymentMethod === 'transfer-idr'
+                                                ? 'Transfer Rupiah ke nomor Virtual Account di bawah sebelum pesanan kadaluarsa.'
+                                                : orderResult.paymentMethod === 'qr-idr'
+                                                    ? 'Scan QR Code di bawah menggunakan aplikasi pembayaran Anda.'
+                                                    : 'Scan QR Solana Pay di bawah untuk menyelesaikan pembayaran.'}
                                 </p>
 
                                 {/* Virtual Account Box */}
@@ -766,6 +847,7 @@ export default function LandingPage() {
                                         ['Metode', orderResult.paymentMethod === 'qr' ? 'Solana Pay QR'
                                             : orderResult.paymentMethod === 'transfer' ? 'Transfer SOL'
                                             : orderResult.paymentMethod === 'qr-idr' ? 'QR Code IDR'
+                                            : orderResult.paymentMethod === 'midtrans' ? 'Midtrans (Sandbox)'
                                             : 'Transfer Bank IDR'],
                                         ...(orderResult.walletAddress ? [['Wallet', shortenAddress(orderResult.walletAddress, 6)]] : []),
                                         ...(orderResult.txSignature ? [['Tx Hash', `${orderResult.txSignature.slice(0,16)}...`]] : []),
@@ -925,9 +1007,19 @@ export default function LandingPage() {
                                             className="lp-inp" />
                                     </div>
 
-                                    {/* Payment Methods — Rupiah & Solana */}
+                                    {/* Payment Methods — Midtrans, Rupiah & Solana */}
                                     <div>
                                         <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:6 }}>Metode Pembayaran</label>
+                                        {/* Midtrans — full width (recommended) */}
+                                        <div style={{ marginBottom:6 }}>
+                                            {[['midtrans', 'Midtrans (Sandbox)', 'Kartu Kredit, GoPay, OVO, DANA, VA, QRIS, dll.', '#00AEF0']].map(([v, l, desc, accent]) => (
+                                                <button key={v} type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:v }))}
+                                                    style={{ width:'100%', padding:'11px 14px', borderRadius:10, cursor:'pointer', fontSize:11, fontWeight:600, textAlign:'left', background: orderForm.paymentMethod===v ? 'rgba(0,174,240,0.15)' : 'rgba(255,255,255,0.03)', border:`1px solid ${orderForm.paymentMethod===v ? 'rgba(0,174,240,0.5)' : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod===v ? accent : 'rgba(232,245,224,0.5)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                                                    <span style={{ fontSize:13, display:'flex', alignItems:'center', gap:6 }}><IconMidtrans />{l}</span>
+                                                    <span style={{ fontSize:10, opacity:0.7, fontWeight:400, color:'rgba(232,245,224,0.45)' }}>{desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                                             {[
                                                 ['transfer-idr', 'Transfer Bank IDR', 'Virtual Account Rupiah', '#F5A623'],
@@ -938,7 +1030,7 @@ export default function LandingPage() {
                                                 const pIcon = v==='transfer-idr' ? <IconBank /> : v==='qr-idr' ? <IconMobileQR /> : v==='transfer' ? <IconSolana /> : <IconQr />;
                                                 return (
                                                 <button key={v} type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:v }))}
-                                                    style={{ padding:'11px 10px', borderRadius:10, cursor:'pointer', fontSize:11, fontWeight:600, textAlign:'left', background: orderForm.paymentMethod===v ? `rgba(${accent==='#F5A623'?'245,166,35':'168,85,247'},0.15)` : 'rgba(255,255,255,0.03)', border:`1px solid ${orderForm.paymentMethod===v ? (accent==='#F5A623'?'rgba(245,166,35,0.5)':'rgba(168,85,247,0.5)') : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod===v ? accent : 'rgba(232,245,224,0.5)', display:'flex', flexDirection:'column', gap:3 }}>
+                                                    style={{ padding:'11px 10px', borderRadius:10, cursor:'pointer', fontSize:11, fontWeight:600, textAlign:'left', background: orderForm.paymentMethod===v ? (accent==='#F5A623'?'rgba(245,166,35,0.15)':'rgba(168,85,247,0.15)') : 'rgba(255,255,255,0.03)', border:`1px solid ${orderForm.paymentMethod===v ? (accent==='#F5A623'?'rgba(245,166,35,0.5)':'rgba(168,85,247,0.5)') : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod===v ? accent : 'rgba(232,245,224,0.5)', display:'flex', flexDirection:'column', gap:3 }}>
                                                     <span style={{ fontSize:13, display:'flex', alignItems:'center', gap:5 }}>{pIcon}{l}</span>
                                                     <span style={{ fontSize:10, opacity:0.7, fontWeight:400, color:'rgba(232,245,224,0.45)' }}>{desc}</span>
                                                 </button>
@@ -1094,9 +1186,11 @@ export default function LandingPage() {
                                         return (
                                             <button type="submit" disabled={disabled}
                                                 className={isSol ? 'lp-btn-phantom' : 'lp-btn-primary'}
-                                                style={{ width:'100%', justifyContent:'center', padding:'14px', fontSize:14, opacity:disabled?0.6:1, cursor:disabled?'not-allowed':'pointer' }}>
+                                                style={{ width:'100%', justifyContent:'center', padding:'14px', fontSize:14, opacity:disabled?0.6:1, cursor:disabled?'not-allowed':'pointer',
+                                                    ...(pm === 'midtrans' ? { background:'linear-gradient(135deg,#00AEF0,#0070B8)' } : {}) }}>
                                                 {ordering ? <><span className="lp-spinner" /> Memproses...</>
                                                     : needsWallet ? <><IconPhantomLogo /> Connect Phantom dulu</>
+                                                    : pm === 'midtrans' ? <><IconMidtrans size={18} /> Bayar dengan Midtrans</>
                                                     : pm === 'transfer' ? <><IconPhantomLogo /> Transfer {solAmount.toFixed(4)} SOL via Phantom</>
                                                     : pm === 'qr' ? <><IconQr /> Buat Order &amp; Tampilkan QR Solana Pay</>
                                                     : pm === 'qr-idr' ? <><IconMobileQR /> Buat Order &amp; Tampilkan QR IDR</>
