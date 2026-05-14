@@ -32,6 +32,19 @@ export async function GET(request) {
         const { data, error } = await query;
         if (error) throw error;
 
+        // Count actual paid orders per product from the orders table (matches dashboard data)
+        const { data: paidOrders } = await supabaseAdmin
+            .from('orders')
+            .select('product_id')
+            .eq('status', 'paid');
+
+        const orderCountMap = {};
+        (paidOrders || []).forEach(o => {
+            if (o.product_id) {
+                orderCountMap[o.product_id] = (orderCountMap[o.product_id] || 0) + 1;
+            }
+        });
+
         const result = (data || []).map(p => {
             // Normalize price_per_unit: can be JSONB array, number, or null
             const rawPrice = p.price_per_unit;
@@ -57,7 +70,9 @@ export async function GET(request) {
                 tags:           p.tags,
                 stock:          p.stock ?? 0,
                 rating:         p.rating ?? 4.5,
-                sold:           p.sold ?? 0,
+                // Real paid order count from orders table (matches dashboard penjualan)
+                // Falls back to seeded static value if no orders exist yet
+                sold:           orderCountMap[p.id] ?? p.sold ?? 0,
                 coffeeId:       p.coffee_id,
                 paymentWallet:  p.payment_wallet,
                 submittedByName: p.submitted_by_name,
