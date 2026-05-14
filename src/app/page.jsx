@@ -412,10 +412,10 @@ export default function LandingPage() {
         }
     }
 
-    function openOrder(product) {
+    function openOrder(product, defaultPayment = 'midtrans') {
         if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
         setSelectedProduct(product);
-        setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: 'midtrans', bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: '' });
+        setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: '' });
         setOrderResult(null);
         setQrDataUrl(null);
         setQrConfirm({ loading: false, done: false, error: null });
@@ -700,23 +700,31 @@ export default function LandingPage() {
                                     {[1,2,3,4,5].map(s => <span key={s} style={{ color:'#F5A623' }}><IconStar filled={s <= Math.round(p.rating || 4)} /></span>)}
                                     <span style={{ fontSize:11, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>{p.rating?.toFixed(1)} · {p.sold || 0} terjual</span>
                                 </div>
-                                <div style={{ marginTop:'auto', paddingTop:10, borderTop:'1px solid rgba(74,124,40,0.12)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-                                    <div>
+                                <div style={{ marginTop:'auto', paddingTop:10, borderTop:'1px solid rgba(74,124,40,0.12)' }}>
+                                    <div style={{ marginBottom:8 }}>
                                         <div style={{ fontSize:10, color:'rgba(232,245,224,0.35)' }}>mulai dari</div>
-                                        <div style={{ fontSize:16, fontWeight:700, color: outOfStock ? 'rgba(232,245,224,0.3)' : '#7ED44A' }}>Rp {(p.pricePerUnit?.[0] || 0).toLocaleString('id-ID')}</div>
-                                        <div style={{ fontSize:10, color:'rgba(147,51,234,0.7)' }}>≈ {rupiahToSol(p.pricePerUnit?.[0] || 0).toFixed(4)} SOL</div>
+                                        <div style={{ fontSize:16, fontWeight:700, color: outOfStock ? 'rgba(232,245,224,0.3)' : '#7ED44A' }}>Rp {(p.pricePerUnit?.[0] || 0).toLocaleString('id-ID')}<span style={{ fontSize:11, fontWeight:400, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>/{p.weight?.[0]}g</span></div>
+                                        <div style={{ fontSize:10, color:'rgba(147,51,234,0.6)' }}>≈ {rupiahToSol(p.pricePerUnit?.[0] || 0).toFixed(4)} SOL</div>
                                     </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); !outOfStock && openOrder(p); }}
-                                        disabled={outOfStock}
-                                        className={outOfStock ? '' : 'lp-btn-phantom'}
-                                        style={outOfStock
-                                            ? { padding:'9px 14px', fontSize:12, opacity:0.4, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.12)', borderRadius:10, color:'rgba(232,245,224,0.3)', cursor:'not-allowed', display:'inline-flex', alignItems:'center', gap:6 }
-                                            : { padding:'9px 14px', fontSize:12 }
-                                        }
-                                    >
-                                        {outOfStock ? <><IconPackage /> Habis</> : <><IconPhantomLogo /> Bayar SOL</>}
-                                    </button>
+                                    {outOfStock ? (
+                                        <div style={{ padding:'9px', fontSize:11, opacity:0.4, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.12)', borderRadius:10, color:'rgba(232,245,224,0.3)', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                            <IconPackage /> Stok Habis
+                                        </div>
+                                    ) : (
+                                        <div style={{ display:'flex', gap:6 }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); openOrder(p, 'midtrans'); }}
+                                                style={{ flex:1, padding:'9px 8px', fontSize:11, fontWeight:700, background:'linear-gradient(135deg,#00AEF0,#0070B8)', color:'#fff', border:'none', borderRadius:10, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:4 }}>
+                                                <IconMidtrans /> Midtrans
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); openOrder(p, 'transfer'); }}
+                                                className="lp-btn-phantom"
+                                                style={{ flex:1, padding:'9px 8px', fontSize:11, justifyContent:'center' }}>
+                                                <IconPhantomLogo /> SOL
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             );
@@ -1003,8 +1011,8 @@ export default function LandingPage() {
                                     <button onClick={() => setOrderModal(false)} style={{ color:'rgba(232,245,224,0.5)', cursor:'pointer', background:'none', border:'none', padding:4 }}><IconClose /></button>
                                 </div>
 
-                                {/* Wallet Banner — only for SOL payments */}
-                                {(orderForm.paymentMethod === 'transfer' || orderForm.paymentMethod === 'qr') && (
+                                {/* Wallet Banner — only for SOL payment */}
+                                {orderForm.paymentMethod === 'transfer' && (
                                     walletPublicKey ? (
                                         <div style={{ background:'rgba(81,45,168,0.15)', border:'1px solid rgba(147,51,234,0.3)', borderRadius:10, padding:'10px 14px', marginBottom:14, display:'flex', alignItems:'center', gap:10, fontSize:13 }}>
                                             <IconPhantomLogo size={20} />
@@ -1062,104 +1070,26 @@ export default function LandingPage() {
                                             className="lp-inp" />
                                     </div>
 
-                                    {/* Payment Methods — Midtrans, Rupiah & Solana */}
+                                    {/* Payment Methods — Midtrans atau Solana */}
                                     <div>
-                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:6 }}>Metode Pembayaran</label>
-                                        {/* Midtrans — full width (recommended) */}
-                                        <div style={{ marginBottom:6 }}>
-                                            {[['midtrans', 'Midtrans (Sandbox)', 'Kartu Kredit, GoPay, OVO, DANA, VA, QRIS, dll.', '#00AEF0']].map(([v, l, desc, accent]) => (
-                                                <button key={v} type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:v }))}
-                                                    style={{ width:'100%', padding:'11px 14px', borderRadius:10, cursor:'pointer', fontSize:11, fontWeight:600, textAlign:'left', background: orderForm.paymentMethod===v ? 'rgba(0,174,240,0.15)' : 'rgba(255,255,255,0.03)', border:`1px solid ${orderForm.paymentMethod===v ? 'rgba(0,174,240,0.5)' : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod===v ? accent : 'rgba(232,245,224,0.5)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                                                    <span style={{ fontSize:13, display:'flex', alignItems:'center', gap:6 }}><IconMidtrans />{l}</span>
-                                                    <span style={{ fontSize:10, opacity:0.7, fontWeight:400, color:'rgba(232,245,224,0.45)' }}>{desc}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                                            {[
-                                                ['transfer-idr', 'Transfer Bank IDR', 'Virtual Account Rupiah', '#F5A623'],
-                                                ['qr-idr', 'QR Code IDR', 'Scan QR QRIS / Rupiah', '#F5A623'],
-                                                ['transfer', 'Transfer SOL', 'Kirim SOL via Phantom', '#a855f7'],
-                                                ['qr', 'Solana Pay QR', 'Scan QR di Phantom Mobile', '#a855f7'],
-                                            ].map(([v, l, desc, accent]) => {
-                                                const pIcon = v==='transfer-idr' ? <IconBank /> : v==='qr-idr' ? <IconMobileQR /> : v==='transfer' ? <IconSolana /> : <IconQr />;
-                                                return (
-                                                <button key={v} type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:v }))}
-                                                    style={{ padding:'11px 10px', borderRadius:10, cursor:'pointer', fontSize:11, fontWeight:600, textAlign:'left', background: orderForm.paymentMethod===v ? (accent==='#F5A623'?'rgba(245,166,35,0.15)':'rgba(168,85,247,0.15)') : 'rgba(255,255,255,0.03)', border:`1px solid ${orderForm.paymentMethod===v ? (accent==='#F5A623'?'rgba(245,166,35,0.5)':'rgba(168,85,247,0.5)') : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod===v ? accent : 'rgba(232,245,224,0.5)', display:'flex', flexDirection:'column', gap:3 }}>
-                                                    <span style={{ fontSize:13, display:'flex', alignItems:'center', gap:5 }}>{pIcon}{l}</span>
-                                                    <span style={{ fontSize:10, opacity:0.7, fontWeight:400, color:'rgba(232,245,224,0.45)' }}>{desc}</span>
-                                                </button>
-                                                );
-                                            })}
+                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:8 }}>Metode Pembayaran</label>
+                                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                                            <button type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:'midtrans' }))}
+                                                style={{ padding:'16px 10px', borderRadius:12, cursor:'pointer', textAlign:'center', background: orderForm.paymentMethod==='midtrans' ? 'rgba(0,174,240,0.18)' : 'rgba(255,255,255,0.03)', border:`2px solid ${orderForm.paymentMethod==='midtrans' ? '#00AEF0' : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod==='midtrans' ? '#00AEF0' : 'rgba(232,245,224,0.5)', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                                                <IconMidtrans size={22} />
+                                                <span style={{ fontSize:13, fontWeight:700 }}>Midtrans</span>
+                                                <span style={{ fontSize:10, color:'rgba(232,245,224,0.4)' }}>GoPay · OVO · Kartu · VA</span>
+                                            </button>
+                                            <button type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:'transfer' }))}
+                                                style={{ padding:'16px 10px', borderRadius:12, cursor:'pointer', textAlign:'center', background: orderForm.paymentMethod==='transfer' ? 'rgba(153,69,255,0.18)' : 'rgba(255,255,255,0.03)', border:`2px solid ${orderForm.paymentMethod==='transfer' ? '#9945FF' : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod==='transfer' ? '#b388ff' : 'rgba(232,245,224,0.5)', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                                                <IconPhantomLogo size={22} />
+                                                <span style={{ fontSize:13, fontWeight:700 }}>Phantom SOL</span>
+                                                <span style={{ fontSize:10, color:'rgba(232,245,224,0.4)' }}>Transfer Solana Wallet</span>
+                                            </button>
                                         </div>
                                     </div>
 
-                                    {/* Bank Details for Transfer IDR */}
-                                    {orderForm.paymentMethod === 'transfer-idr' && (
-                                        <div style={{ background:'rgba(245,166,35,0.06)', border:'1px solid rgba(245,166,35,0.2)', borderRadius:12, padding:'14px 16px' }}>
-                                            <div style={{ fontSize:12, fontWeight:700, color:'#F5A623', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                                                <IconBank /> Detail Rekening Bank
-                                            </div>
-                                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:4 }}>Bank / Dompet Digital</label>
-                                                    <select value={orderForm.bankName} onChange={e => { setOrderForm(f=>({...f, bankName:e.target.value})); setBankVerified(false); }} className="lp-inp" style={{ fontSize:13 }}>
-                                                        {['BCA','BNI','BRI','Mandiri','Permata','CIMB Niaga','GoPay','OVO','DANA','ShopeePay','LinkAja'].map(b=><option key={b}>{b}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:4 }}>Nomor Rekening / Akun</label>
-                                                    <div style={{ display:'flex', gap:6 }}>
-                                                        <input type="text" inputMode="numeric" maxLength={20} value={orderForm.accountNumber} onChange={e => { setOrderForm(f=>({...f, accountNumber:e.target.value})); setBankVerified(false); }} className="lp-inp" placeholder="Contoh: 1234567890" style={{ fontSize:13 }} />
-                                                        <button type="button" onClick={() => {
-                                                            const acc = orderForm.accountNumber.replace(/\D/g,'');
-                                                            if (acc.length >= 8) { setBankVerified(true); } else { alert('Nomor rekening minimal 8 digit.'); }
-                                                        }} style={{ background:'rgba(245,166,35,0.15)', border:'1px solid rgba(245,166,35,0.4)', color:'#F5A623', borderRadius:8, padding:'0 12px', cursor:'pointer', fontSize:12, fontWeight:700, flexShrink:0, whiteSpace:'nowrap' }}>Cek</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {bankVerified && (
-                                                <div style={{ marginTop:8, display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#4CAF50' }}>
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                                    Rekening {orderForm.bankName} <strong>{orderForm.accountNumber}</strong> terverifikasi
-                                                </div>
-                                            )}
-                                            <div style={{ marginTop:8, fontSize:11, color:'rgba(232,245,224,0.3)' }}>Setelah order dibuat, transfer ke Virtual Account yang akan dikirimkan.</div>
-                                        </div>
-                                    )}
 
-                                    {/* E-wallet / QRIS for QR IDR */}
-                                    {orderForm.paymentMethod === 'qr-idr' && (
-                                        <div style={{ background:'rgba(245,166,35,0.06)', border:'1px solid rgba(245,166,35,0.2)', borderRadius:12, padding:'14px 16px' }}>
-                                            <div style={{ fontSize:12, fontWeight:700, color:'#F5A623', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                                                <IconMobileQR /> Detail Pembayaran QR / QRIS
-                                            </div>
-                                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:4 }}>Aplikasi E-wallet</label>
-                                                    <select value={orderForm.ewalletApp} onChange={e => { setOrderForm(f=>({...f, ewalletApp:e.target.value})); setBankVerified(false); }} className="lp-inp" style={{ fontSize:13 }}>
-                                                        {['GoPay','OVO','DANA','ShopeePay','LinkAja','QRIS'].map(a=><option key={a}>{a}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:4 }}>No. HP E-wallet</label>
-                                                    <div style={{ display:'flex', gap:6 }}>
-                                                        <input type="tel" maxLength={15} value={orderForm.ewalletPhone} onChange={e => { setOrderForm(f=>({...f, ewalletPhone:e.target.value})); setBankVerified(false); }} className="lp-inp" placeholder="08xxxxxxxxxx" style={{ fontSize:13 }} />
-                                                        <button type="button" onClick={() => {
-                                                            const ph = orderForm.ewalletPhone.replace(/\D/g,'');
-                                                            if (ph.length >= 9) { setBankVerified(true); } else { alert('Nomor HP minimal 9 digit.'); }
-                                                        }} style={{ background:'rgba(245,166,35,0.15)', border:'1px solid rgba(245,166,35,0.4)', color:'#F5A623', borderRadius:8, padding:'0 12px', cursor:'pointer', fontSize:12, fontWeight:700, flexShrink:0, whiteSpace:'nowrap' }}>Cek</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {bankVerified && (
-                                                <div style={{ marginTop:8, display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#4CAF50' }}>
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                                    {orderForm.ewalletApp} <strong>{orderForm.ewalletPhone}</strong> — siap dibayar
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
 
                                                     {/* Shipping Address */}
                                     <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:14 }}>
@@ -1217,7 +1147,7 @@ export default function LandingPage() {
                                             <span style={{ fontSize:12, color:'rgba(232,245,224,0.45)' }}>Total Pembayaran</span>
                                             <span style={{ fontSize:18, fontWeight:700, color:'#7ED44A' }}>Rp {totalPrice.toLocaleString('id-ID')}</span>
                                         </div>
-                                        {(orderForm.paymentMethod === 'transfer' || orderForm.paymentMethod === 'qr') && (
+                                        {orderForm.paymentMethod === 'transfer' && (
                                             <>
                                                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                                                     <span style={{ fontSize:12, color:'rgba(232,245,224,0.45)' }}>Setara SOL</span>
@@ -1234,7 +1164,7 @@ export default function LandingPage() {
 
                                     {(() => {
                                         const pm = orderForm.paymentMethod;
-                                        const isSol = pm === 'transfer' || pm === 'qr';
+                                        const isSol = pm === 'transfer';
                                         const needsWallet = isSol && !walletPublicKey;
                                         const insufficientBal = pm === 'transfer' && walletPublicKey && walletBalance < solAmount;
                                         const disabled = ordering || needsWallet || insufficientBal;
@@ -1246,10 +1176,7 @@ export default function LandingPage() {
                                                 {ordering ? <><span className="lp-spinner" /> Memproses...</>
                                                     : needsWallet ? <><IconPhantomLogo /> Connect Phantom dulu</>
                                                     : pm === 'midtrans' ? <><IconMidtrans size={18} /> Bayar dengan Midtrans</>
-                                                    : pm === 'transfer' ? <><IconPhantomLogo /> Transfer {solAmount.toFixed(4)} SOL via Phantom</>
-                                                    : pm === 'qr' ? <><IconQr /> Buat Order &amp; Tampilkan QR Solana Pay</>
-                                                    : pm === 'qr-idr' ? <><IconMobileQR /> Buat Order &amp; Tampilkan QR IDR</>
-                                                    : <><IconBank /> Buat Order &amp; Dapatkan No. Rekening</>
+                                                    : <><IconPhantomLogo /> Transfer {solAmount.toFixed(4)} SOL via Phantom</>
                                                 }
                                             </button>
                                         );
