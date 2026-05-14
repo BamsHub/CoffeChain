@@ -51,6 +51,8 @@ export async function POST(request) {
         const serverKey = process.env.MIDTRANS_SERVER_KEY;
         const authString = Buffer.from(`${serverKey}:`).toString('base64');
 
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app';
+
         const midtransPayload = {
             transaction_details: {
                 order_id: orderId,
@@ -69,8 +71,10 @@ export async function POST(request) {
                 name: `${product.name} ${weight || ''}g`.trim().slice(0, 50),
             }],
             callbacks: {
-                finish: `${process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.pages.dev'}/`,
+                finish: `${appUrl}/`,
             },
+            // Hardcode notification URL so Midtrans always hits the correct Vercel endpoint
+            notification_url: `${appUrl}/api/midtrans/notification`,
         };
 
         if (shippingAddress) {
