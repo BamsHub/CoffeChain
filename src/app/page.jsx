@@ -696,11 +696,21 @@ export default function LandingPage() {
                                         </a>
                                     )}
                                 </div>
-                                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                                    {[1,2,3,4,5].map(s => <span key={s} style={{ color:'#F5A623' }}><IconStar filled={s <= Math.round(p.rating || 4)} /></span>)}
-                                    <span style={{ fontSize:11, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>
-                                        {p.rating ? p.rating.toFixed(1) : '4.0'} · {p.sold > 0 ? `${p.sold} terjual` : 'Baru'}
-                                    </span>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+                                        {[1,2,3,4,5].map(s => <span key={s} style={{ color:'#F5A623', fontSize:12 }}><IconStar filled={s <= Math.round(p.rating || 4)} /></span>)}
+                                        <span style={{ fontSize:11, color:'rgba(232,245,224,0.5)', marginLeft:3 }}>
+                                            {p.rating ? p.rating.toFixed(1) : '4.0'}
+                                        </span>
+                                    </div>
+                                    {p.sold > 0 ? (
+                                        <span style={{ fontSize:10, fontWeight:700, color:'#F5A623', background:'rgba(245,166,35,0.12)', border:'1px solid rgba(245,166,35,0.25)', borderRadius:100, padding:'2px 8px', display:'inline-flex', alignItems:'center', gap:3 }}>
+                                            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
+                                            {p.sold.toLocaleString('id-ID')} terjual
+                                        </span>
+                                    ) : (
+                                        <span style={{ fontSize:10, color:'rgba(126,212,74,0.6)', background:'rgba(74,124,40,0.1)', border:'1px solid rgba(74,124,40,0.2)', borderRadius:100, padding:'2px 8px' }}>Baru</span>
+                                    )}
                                 </div>
                                 <div style={{ marginTop:'auto', paddingTop:10, borderTop:'1px solid rgba(74,124,40,0.12)' }}>
                                     <div style={{ marginBottom:8 }}>
