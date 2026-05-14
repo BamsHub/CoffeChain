@@ -15,10 +15,10 @@ export async function GET(request) {
         const search = searchParams.get('search') || '';
         const grade  = searchParams.get('grade')  || '';
 
-        // Query Supabase directly — all products (status column may not exist yet)
+        // Query Supabase directly — all products (no status filter; show everything in catalog)
         let query = supabaseAdmin
             .from('products')
-            .select('id,name,origin,grade,variety,roast,weight,price_per_unit,description,image,tags,stock,rating,sold,coffee_id,payment_wallet,submitted_by,submitted_by_name,submitted_by_role,created_at')
+            .select('id,name,origin,grade,variety,roast,weight,price_per_unit,description,image,tags,stock,rating,sold,coffee_id,payment_wallet,submitted_by,submitted_by_name,created_at')
             .order('created_at', { ascending: false })
             .limit(limit);
 
