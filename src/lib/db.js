@@ -21,10 +21,18 @@ function convertKeys(obj, converter) {
 // ── readDb: fetch all rows from a table ─────────────────────────
 export async function readDb(collection) {
     try {
-        const { data, error } = await supabaseAdmin
-            .from(collection)
-            .select('*')
-            .order('created_at', { ascending: false });
+        let query = supabaseAdmin.from(collection).select('*');
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (error && error.message?.includes('created_at')) {
+            const fallback = await supabaseAdmin.from(collection).select('*');
+            if (fallback.error) {
+                console.error(`[db] readDb ${collection} error:`, fallback.error.message);
+                return { items: [] };
+            }
+            return { items: (fallback.data || []).map(row => convertKeys(row, toCamel)) };
+        }
 
         if (error) {
             console.error(`[db] readDb ${collection} error:`, error.message, error.details);

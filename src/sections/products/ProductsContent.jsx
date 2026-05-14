@@ -227,7 +227,7 @@ export default function ProductsContent() {
     async function handleVerifyBlockchain(product) {
         if (verifying) return;
         setVerifying(product.id);
-        setMsg(null);
+        setMsg({ type: 'ok', text: `⏳ Mengirim "${product.name}" ke Solana Devnet... (maks 30 detik)` });
         try {
             const payload = {
                 productId: product.id,
@@ -249,17 +249,36 @@ export default function ProductsContent() {
                 body: JSON.stringify(payload),
             });
             const data = await res.json();
-            if (data.success && data.data?.txSignature) {
-                setMsg({ type: 'ok', text: `✅ "${product.name}" berhasil diverifikasi di Solana! Coffee ID: ${data.data.coffeeId}` });
+            if (data.success && data.verified && data.data?.txSignature) {
+                // Full on-chain success
+                const explorerUrl = data.data.explorerUrl ||
+                    `https://explorer.solana.com/tx/${data.data.txSignature}?cluster=devnet`;
+                setMsg({
+                    type: 'ok',
+                    text: `✅ "${product.name}" berhasil terverifikasi di Solana! Coffee ID: ${data.data.coffeeId} — Gas fee dipotong dari wallet server.`,
+                    explorerUrl,
+                    txSig: data.data.txSignature,
+                });
+                load();
+            } else if (data.success && data.data?.txSignature) {
+                // TX sent but confirmation pending
+                const explorerUrl = data.data.explorerUrl ||
+                    `https://explorer.solana.com/tx/${data.data.txSignature}?cluster=devnet`;
+                setMsg({
+                    type: 'ok',
+                    text: `⚡ TX dikirim! Coffee ID: ${data.data.coffeeId} — Konfirmasi sedang berlangsung di Solana.`,
+                    explorerUrl,
+                    txSig: data.data.txSignature,
+                });
                 load();
             } else if (data.success) {
-                setMsg({ type: 'err', text: `⚠️ "${product.name}" terdaftar tapi gagal verifikasi on-chain. Pastikan wallet server memiliki SOL untuk gas fee.` });
+                setMsg({ type: 'err', text: `⚠️ "${product.name}" tersimpan tapi TX gagal on-chain. Coba lagi atau cek saldo wallet server.` });
                 load();
             } else {
-                setMsg({ type: 'err', text: data.message || 'Gagal verifikasi' });
+                setMsg({ type: 'err', text: data.message || 'Gagal verifikasi blockchain' });
             }
-        } catch {
-            setMsg({ type: 'err', text: 'Koneksi error saat verifikasi blockchain' });
+        } catch (e) {
+            setMsg({ type: 'err', text: `Koneksi error: ${e.message}` });
         }
         setVerifying(null);
     }

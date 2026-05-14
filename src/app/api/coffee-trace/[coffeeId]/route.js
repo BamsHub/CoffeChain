@@ -1,11 +1,7 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { readDb } from '@/lib/db';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
 
-/**
- * GET /api/coffee-trace/[coffeeId]
- * Lookup satu kopi trace by coffeeId (CF-XXXX)
- */
 export async function GET(request, { params }) {
     try {
         const { coffeeId } = await params;
