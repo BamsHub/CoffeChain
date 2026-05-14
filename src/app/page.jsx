@@ -698,13 +698,24 @@ export default function LandingPage() {
                                 </div>
                                 <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                                     {[1,2,3,4,5].map(s => <span key={s} style={{ color:'#F5A623' }}><IconStar filled={s <= Math.round(p.rating || 4)} /></span>)}
-                                    <span style={{ fontSize:11, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>{p.rating?.toFixed(1)} · {p.sold || 0} terjual</span>
+                                    <span style={{ fontSize:11, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>
+                                        {p.rating ? p.rating.toFixed(1) : '4.0'} · {p.sold > 0 ? `${p.sold} terjual` : 'Baru'}
+                                    </span>
                                 </div>
                                 <div style={{ marginTop:'auto', paddingTop:10, borderTop:'1px solid rgba(74,124,40,0.12)' }}>
                                     <div style={{ marginBottom:8 }}>
                                         <div style={{ fontSize:10, color:'rgba(232,245,224,0.35)' }}>mulai dari</div>
-                                        <div style={{ fontSize:16, fontWeight:700, color: outOfStock ? 'rgba(232,245,224,0.3)' : '#7ED44A' }}>Rp {(p.pricePerUnit?.[0] || 0).toLocaleString('id-ID')}<span style={{ fontSize:11, fontWeight:400, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>/{p.weight?.[0]}g</span></div>
-                                        <div style={{ fontSize:10, color:'rgba(147,51,234,0.6)' }}>≈ {rupiahToSol(p.pricePerUnit?.[0] || 0).toFixed(4)} SOL</div>
+                                        {p.pricePerUnit?.length > 0 ? (
+                                            <>
+                                                <div style={{ fontSize:16, fontWeight:700, color: outOfStock ? 'rgba(232,245,224,0.3)' : '#7ED44A' }}>
+                                                    Rp {(p.pricePerUnit[0]).toLocaleString('id-ID')}
+                                                    {p.weight?.length > 0 && <span style={{ fontSize:11, fontWeight:400, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>/{p.weight[0]}g</span>}
+                                                </div>
+                                                <div style={{ fontSize:10, color:'rgba(147,51,234,0.6)' }}>≈ {rupiahToSol(p.pricePerUnit[0]).toFixed(4)} SOL</div>
+                                            </>
+                                        ) : (
+                                            <div style={{ fontSize:13, color:'rgba(232,245,224,0.3)', fontStyle:'italic' }}>Harga belum diatur</div>
+                                        )}
                                     </div>
                                     {outOfStock ? (
                                         <div style={{ padding:'9px', fontSize:11, opacity:0.4, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.12)', borderRadius:10, color:'rgba(232,245,224,0.3)', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
