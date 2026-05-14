@@ -1,0 +1,17 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "functions": {
+    "src/app/api/coffee-trace/route.js": {
+      "maxDuration": 60
+    },
+    "src/app/api/midtrans/**": {
+      "maxDuration": 30
+    },
+    "src/app/api/**/*.js": {
+      "maxDuration": 30
+    }
+  }
+}

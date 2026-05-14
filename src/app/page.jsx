@@ -63,6 +63,9 @@ export default function LandingPage() {
     const [traceLoading, setTraceLoading] = useState(false);
     const solanaIntervalRef = useRef(null);
 
+    /* ── Admin Session State (untuk floating admin bar) ── */
+    const [adminUser, setAdminUser] = useState(null);
+
     /* ── Phantom Wallet State ── */
     const [walletPublicKey, setWalletPublicKey] = useState(null);
     const [walletBalance, setWalletBalance] = useState(0);
@@ -73,6 +76,20 @@ export default function LandingPage() {
         const handleScroll = () => setScrolled(window.scrollY > 60);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    /* ── Check admin/developer session from localStorage ── */
+    useEffect(() => {
+        const token = localStorage.getItem('cc_token');
+        if (!token) return;
+        fetch(`/api/auth/me?token=${token}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
+                    setAdminUser(data.user);
+                }
+            })
+            .catch(() => { /* ignore */ });
     }, []);
 
     /* ── Load Midtrans Snap.js ── */
@@ -537,8 +554,46 @@ export default function LandingPage() {
                 </div>
             </nav>
 
+            {/* ── ADMIN PANEL BAR (visible only when admin/developer/koperasi is logged in) ── */}
+            {adminUser && (
+                <div style={{
+                    position: 'fixed', top: 68, left: 0, right: 0, zIndex: 99,
+                    background: 'linear-gradient(135deg, rgba(10,20,10,0.98), rgba(22,40,14,0.98))',
+                    backdropFilter: 'blur(16px)',
+                    borderBottom: '1px solid rgba(126,212,74,0.3)',
+                    padding: '0 20px',
+                }}>
+                    <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 44, gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(232,245,224,0.7)' }}>
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7ED44A', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                            <span style={{ fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {adminUser.role === 'developer' ? 'Developer' : adminUser.role === 'koperasi' ? 'Koperasi' : 'Admin'}
+                            </span>
+                            <span style={{ color: 'rgba(232,245,224,0.45)' }}>·</span>
+                            <span>{adminUser.name || adminUser.email}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(126,212,74,0.12)', border: '1px solid rgba(126,212,74,0.25)', color: '#7ED44A', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                                <IconPackage /> Dashboard
+                            </Link>
+                            <Link href="/dashboard?section=products" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(74,124,40,0.2)', color: 'rgba(232,245,224,0.8)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
+                                <IconCart /> Produk
+                            </Link>
+                            <Link href="/coffee-register" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(74,124,40,0.2)', color: 'rgba(232,245,224,0.8)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
+                                <IconChain /> Register Kopi
+                            </Link>
+                            <button
+                                onClick={() => { localStorage.removeItem('cc_token'); setAdminUser(null); }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.2)', color: '#f44336', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                                <IconClose /> Keluar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ── HERO ── */}
-            <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', paddingTop: 68 }}>
+            <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', paddingTop: adminUser ? 112 : 68 }}>
                 <div style={{ position: 'absolute', width: '70vw', maxWidth: 600, height: '70vw', maxHeight: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(74,124,40,0.1) 0%,transparent 70%)', top: '5%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }} />
 
                 <div style={{ textAlign: 'center', maxWidth: 820, padding: '0 20px', position: 'relative', zIndex: 1, animation: 'fadeUp 0.6s ease' }}>

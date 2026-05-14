@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const maxDuration = 60; // Vercel: allow up to 60s for Solana TX
 
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -89,7 +90,7 @@ async function sendMemoTx(memoData) {
 
     const confirmation = await Promise.race([
         connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, 'confirmed'),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('confirmation timeout 30s')), 30000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('confirmation timeout 20s')), 20000)),
     ]);
 
     if (confirmation?.value?.err) {
@@ -117,15 +118,20 @@ export async function POST(request) {
         let resolvedProductId = productId || null;
 
         if (productId) {
-            const { data: product } = await supabaseAdmin
-                .from('products')
-                .select('id, coffee_id')
-                .eq('id', productId)
-                .single();
+            try {
+                const { data: product } = await supabaseAdmin
+                    .from('products')
+                    .select('id, coffee_id')
+                    .eq('id', productId)
+                    .single();
 
-            if (product?.coffee_id) {
-                coffeeId = product.coffee_id;
-            } else {
+                if (product?.coffee_id) {
+                    coffeeId = product.coffee_id;
+                } else {
+                    coffeeId = generateCoffeeId();
+                }
+            } catch (productLookupErr) {
+                console.warn('[coffee-trace] Product lookup failed, generating new ID:', productLookupErr.message);
                 coffeeId = generateCoffeeId();
             }
         } else {
@@ -184,15 +190,22 @@ export async function POST(request) {
             createdAt: new Date().toISOString(),
         };
 
+        // Save trace to DB — if coffee_traces table doesn't exist yet, log and continue
+        // (coffeeId is still attached to product below, so registration succeeds regardless)
         try {
             await addItem('coffee_traces', trace);
         } catch (insertErr) {
             if (insertErr.message?.includes('column') || insertErr.message?.includes('schema')) {
                 console.warn('[coffee-trace] Retrying insert without optional columns:', insertErr.message);
-                const { productId: _pid, paymentWallet: _pw, ...baseTrace } = trace;
-                await addItem('coffee_traces', baseTrace);
+                try {
+                    const { productId: _pid, paymentWallet: _pw, ...baseTrace } = trace;
+                    await addItem('coffee_traces', baseTrace);
+                } catch (retryErr) {
+                    console.warn('[coffee-trace] Retry insert also failed:', retryErr.message);
+                }
             } else {
-                throw insertErr;
+                // Table may not exist yet — log but do NOT crash (coffeeId still attached to product below)
+                console.warn('[coffee-trace] Could not save to coffee_traces (table may not exist):', insertErr.message);
             }
         }
 
