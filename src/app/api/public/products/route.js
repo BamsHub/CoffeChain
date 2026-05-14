@@ -57,7 +57,7 @@ export async function GET(request) {
             headers: {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET',
-                'Cache-Control': 'public, max-age=60',
+                'Cache-Control': 'no-store, max-age=0',
             }
         });
     } catch (err) {

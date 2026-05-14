@@ -132,6 +132,34 @@ export default function Sidebar({ collapsed, onToggle }) {
                 </div>
             </nav>
 
+            {/* Back to Landing Page — always visible */}
+            <div style={{ padding: collapsed ? '8px 10px' : '8px 12px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
+                <Link
+                    href="/"
+                    title="Lihat Landing Page"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: collapsed ? '10px 8px' : '10px 12px',
+                        borderRadius: 9,
+                        background: 'linear-gradient(135deg,rgba(74,124,40,0.12),rgba(126,212,74,0.06))',
+                        border: '1px solid rgba(126,212,74,0.22)',
+                        color: '#7ED44A',
+                        textDecoration: 'none',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        justifyContent: collapsed ? 'center' : 'flex-start',
+                        transition: 'background 0.15s',
+                    }}
+                >
+                    {/* Home / store icon */}
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    {!collapsed && <span>Lihat Landing Page</span>}
+                </Link>
+            </div>
+
             {/* Bottom Section */}
             {!collapsed && (
                 <div className={styles.sidebarBottom}>

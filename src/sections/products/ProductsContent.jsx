@@ -89,7 +89,7 @@ export default function ProductsContent() {
                 const pendingMsg = isFarmer
                     ? `Permintaan produk "${data.data.name}" dikirim! Menunggu persetujuan koperasi/developer.`
                     : `Produk "${data.data.name}" berhasil ditambahkan!`;
-                setMsg({ type: 'ok', text: pendingMsg });
+                setMsg({ type: 'ok', text: pendingMsg, landingLink: !isFarmer });
                 setForm(initialForm);
                 setShowForm(false);
                 load();
@@ -111,7 +111,7 @@ export default function ProductsContent() {
             });
             const data = await res.json();
             if (data.success) {
-                setMsg({ type: 'ok', text: `Produk "${name}" dihapus.` });
+                setMsg({ type: 'ok', text: `Produk "${name}" dihapus.`, landingLink: true });
                 load();
             } else setMsg({ type: 'err', text: data.message });
         } catch { setMsg({ type: 'err', text: 'Gagal menghapus' }); }
@@ -338,8 +338,14 @@ export default function ProductsContent() {
 
             {/* Toast */}
             {msg && (
-                <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: msg.type === 'ok' ? 'rgba(76,175,80,0.12)' : 'rgba(244,67,54,0.12)', border: `1px solid ${msg.type === 'ok' ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.35)'}`, color: msg.type === 'ok' ? '#4CAF50' : '#f44336', fontSize: 13, fontWeight: 600 }}>
-                    {msg.type === 'ok' ? '✓ ' : '✕ '}{msg.text}
+                <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: msg.type === 'ok' ? 'rgba(76,175,80,0.12)' : 'rgba(244,67,54,0.12)', border: `1px solid ${msg.type === 'ok' ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.35)'}`, color: msg.type === 'ok' ? '#4CAF50' : '#f44336', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <span>{msg.type === 'ok' ? '\u2713 ' : '\u2715 '}{msg.text}</span>
+                    {msg.type === 'ok' && msg.landingLink && (
+                        <a href="/" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 7, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.35)', color: '#4CAF50', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            Lihat di Landing Page
+                        </a>
+                    )}
                 </div>
             )}
 
