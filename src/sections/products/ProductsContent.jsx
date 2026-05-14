@@ -36,9 +36,17 @@ export default function ProductsContent() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
+            // Farmers only see their own products; developer/koperasi/admin see all
+            const myProductsUrl = isFarmer && user?.id
+                ? `/api/products?submittedBy=${encodeURIComponent(user.id)}`
+                : '/api/products';
+            const myPendingUrl = isFarmer && user?.id
+                ? `/api/products?status=pending&submittedBy=${encodeURIComponent(user.id)}`
+                : '/api/products?status=pending';
+
             const [allRes, pendRes] = await Promise.all([
-                fetch('/api/products'),
-                fetch('/api/products?status=pending'),
+                fetch(myProductsUrl),
+                fetch(myPendingUrl),
             ]);
             const allData = await allRes.json();
             const pendData = await pendRes.json();
@@ -46,7 +54,7 @@ export default function ProductsContent() {
             if (pendData.success) setPendingProducts(pendData.data);
         } catch { }
         setLoading(false);
-    }, []);
+    }, [isFarmer, user?.id]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -328,7 +336,11 @@ export default function ProductsContent() {
                     <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
                         {isFarmer ? 'Produk Saya' : 'Kelola Produk'}
                     </h1>
-                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{products.length} produk terdaftar di database</p>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                        {isFarmer
+                            ? `${products.length} produk yang kamu ajukan`
+                            : `${products.length} produk terdaftar di database`}
+                    </p>
                 </div>
                 <button style={btnPrimary} onClick={() => { setShowForm(s => !s); setMsg(null); }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>

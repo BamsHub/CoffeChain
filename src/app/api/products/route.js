@@ -26,10 +26,12 @@ function convertKeys(obj, converter) {
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
-        const statusFilter = searchParams.get('status');
+        const statusFilter      = searchParams.get('status');
+        const submittedByFilter = searchParams.get('submittedBy');
 
-        let query = supabaseAdmin.from('products').select('*');
-        if (statusFilter) query = query.eq('status', statusFilter);
+        let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
+        if (statusFilter)      query = query.eq('status', statusFilter);
+        if (submittedByFilter) query = query.eq('submitted_by', submittedByFilter);
 
         const { data, error } = await query;
         if (error) throw error;

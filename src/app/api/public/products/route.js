@@ -1,75 +1,74 @@
-export const runtime = 'edge';
-import { readDb } from '@/lib/db';
+// Use nodejs runtime so supabaseAdmin (service-role) works reliably
+export const runtime = 'nodejs';
+
+import { supabaseAdmin } from '@/lib/supabase';
 
 /**
  * PUBLIC API — Katalog Produk Kopi CoffeeChain
  * GET /api/public/products
- * Tidak memerlukan autentikasi. Bebas diakses oleh aplikasi eksternal.
+ * Tidak memerlukan autentikasi. Menampilkan semua produk published dari Supabase.
  */
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
-        const limit = parseInt(searchParams.get('limit') || '50');
+        const limit  = parseInt(searchParams.get('limit')  || '200');
         const search = searchParams.get('search') || '';
-        const grade = searchParams.get('grade') || '';
+        const grade  = searchParams.get('grade')  || '';
 
-        const db = await readDb('products');
-        // Only show published products on landing page (exclude pending/rejected farmer submissions)
-        let products = db.items.filter(p => !p.status || p.status === 'published');
+        // Query Supabase directly — only published products
+        let query = supabaseAdmin
+            .from('products')
+            .select('id,name,origin,grade,variety,roast,weight,price_per_unit,description,image,tags,stock,rating,sold,coffee_id,payment_wallet,status,submitted_by,submitted_by_name,submitted_by_role,created_at')
+            .eq('status', 'published')
+            .order('created_at', { ascending: false })
+            .limit(limit);
 
         if (search) {
-            const q = search.toLowerCase();
-            products = products.filter(p =>
-                p.name?.toLowerCase().includes(q) ||
-                p.origin?.toLowerCase().includes(q) ||
-                p.variety?.toLowerCase().includes(q)
-            );
+            query = query.or(`name.ilike.%${search}%,origin.ilike.%${search}%,variety.ilike.%${search}%`);
         }
         if (grade) {
-            products = products.filter(p => p.grade === grade);
+            query = query.eq('grade', grade);
         }
 
-        const result = products.slice(0, limit).map(p => ({
-            id: p.id,
-            name: p.name,
-            origin: p.origin,
-            grade: p.grade,
-            variety: p.variety,
-            roast: p.roast,
-            weight: p.weight,
-            pricePerUnit: p.pricePerUnit,
-            description: p.description,
-            image: p.image,
-            tags: p.tags,
-            stock: p.stock,
-            rating: p.rating,
-            sold: p.sold,
-            coffeeId: p.coffeeId,
-            paymentWallet: p.paymentWallet || p.payment_wallet || null,
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const result = (data || []).map(p => ({
+            id:             p.id,
+            name:           p.name,
+            origin:         p.origin,
+            grade:          p.grade,
+            variety:        p.variety,
+            roast:          p.roast,
+            weight:         p.weight,
+            pricePerUnit:   p.price_per_unit,
+            description:    p.description,
+            image:          p.image,
+            tags:           p.tags,
+            stock:          p.stock,
+            rating:         p.rating,
+            sold:           p.sold,
+            coffeeId:       p.coffee_id,
+            paymentWallet:  p.payment_wallet,
+            submittedByName: p.submitted_by_name,
+            createdAt:      p.created_at,
         }));
 
         return Response.json({
             success: true,
-            total: result.length,
-            data: result,
-            _source: 'CoffeeChain Public API v1',
+            total:   result.length,
+            data:    result,
+            _source: 'CoffeeChain Public API v2 — Supabase Direct',
         }, {
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin':  '*',
                 'Access-Control-Allow-Methods': 'GET',
-                'Cache-Control': 'no-store, max-age=0',
+                'Cache-Control':                'no-store, max-age=0',
             }
         });
     } catch (err) {
+        console.error('[public/products]', err.message);
         return Response.json({ success: false, message: 'Gagal memuat produk' }, { status: 500 });
     }
 }
 
-export async function OPTIONS() {
-    return new Response(null, {
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET',
-        }
-    });
-}

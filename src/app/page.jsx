@@ -129,7 +129,7 @@ export default function LandingPage() {
         async function load() {
             try {
                 const [prodRes, farmerRes, txRes] = await Promise.all([
-                    fetch('/api/public/products?limit=8'),
+                    fetch('/api/public/products'),
                     fetch('/api/farmers'),
                     fetch('/api/transactions'),
                 ]);
