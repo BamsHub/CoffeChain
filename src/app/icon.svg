@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Green gradient background rounded square -->
+  <rect width="32" height="32" rx="8" fill="url(#bg)"/>
+  <!-- Coffee cup icon (white strokes) -->
+  <path d="M20 10h1a3.5 3.5 0 010 7h-1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 10h16v8a3.5 3.5 0 01-3.5 3.5h-9A3.5 3.5 0 014 18V10z" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="8" y1="6" x2="8" y2="9" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="12" y1="6" x2="12" y2="9" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="16" y1="6" x2="16" y2="9" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4A7C28"/>
+      <stop offset="100%" stop-color="#7ED44A"/>
+    </linearGradient>
+  </defs>
+</svg>

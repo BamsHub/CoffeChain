@@ -6,6 +6,7 @@ import {
     shortenAddress, isPhantomInstalled, sendSolTransaction, rupiahToSol,
 } from '@/lib/phantom';
 import { STORE_WALLET, MEMO_SIGNER_PUBLIC } from '@/lib/contractConfig';
+import { useAuth } from '@/context/AuthContext';
 
 /* ── SVG Icons ── */
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
@@ -43,6 +44,7 @@ const coffeeTypes = [
 ];
 
 export default function LandingPage() {
+    const { logout } = useAuth();
     const [products, setProducts] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -588,7 +590,7 @@ export default function LandingPage() {
                                 <IconChain /> Register Kopi
                             </Link>
                             <button
-                                onClick={() => { localStorage.removeItem('cc_token'); setAdminUser(null); }}
+                                onClick={async () => { await logout(); setAdminUser(null); }}
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.2)', color: '#f44336', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                                 <IconClose /> Keluar
                             </button>

@@ -21,7 +21,7 @@ export default function LoginPage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (user) router.push('/dashboard');
+        if (user) router.replace('/dashboard');
     }, [user, router]);
 
     async function handleResendVerification() {
@@ -50,7 +50,7 @@ export default function LoginPage() {
         setNeedsVerification(false);
         try {
             await login(form.email, form.password);
-            router.push('/dashboard');
+            router.replace('/dashboard');
         } catch (err) {
             try {
                 const parsed = JSON.parse(err.message);
