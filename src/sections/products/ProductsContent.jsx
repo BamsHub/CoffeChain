@@ -542,30 +542,20 @@ export default function ProductsContent() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
                                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>ID: {p.id}</div>
                                 {p.coffeeId ? (
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}>☕ {p.coffeeId}</span>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}>✅ On-Chain: {p.coffeeId}</span>
+                                ) : p.status === 'pending' ? (
+                                    <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}>⏳ Menunggu Persetujuan</span>
                                 ) : (
-                                    !isFarmer && p.status !== 'pending' ? (
-                                        <button
-                                            onClick={() => handleVerifyBlockchain(p)}
-                                            disabled={!!verifying}
-                                            style={{
-                                                fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 7, cursor: verifying ? 'wait' : 'pointer',
-                                                background: verifying === p.id ? 'rgba(124,77,255,0.2)' : 'rgba(124,77,255,0.1)',
-                                                color: '#7c4dff', border: '1px solid rgba(124,77,255,0.3)',
-                                                display: 'inline-flex', alignItems: 'center', gap: 5,
-                                                opacity: verifying && verifying !== p.id ? 0.5 : 1,
-                                                transition: 'all 0.2s',
-                                            }}
-                                        >
-                                            {verifying === p.id ? (
-                                                <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span> Verifikasi...</>
-                                            ) : (
-                                                <>🔗 Verify ke Blockchain</>
-                                            )}
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}>⚠️ Belum terverifikasi</span>
-                                    )
+                                    <Link href="/coffee-register"
+                                        style={{
+                                            fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 7,
+                                            background: 'rgba(153,69,255,0.1)', color: '#9945FF',
+                                            border: '1px solid rgba(153,69,255,0.3)',
+                                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                                            textDecoration: 'none', transition: 'all 0.2s',
+                                        }}>
+                                        ⛓ Daftarkan ke Blockchain
+                                    </Link>
                                 )}
                             </div>
                         </div>

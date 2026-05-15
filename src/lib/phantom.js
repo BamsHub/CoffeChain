@@ -98,6 +98,51 @@ export function rupiahToSol(rupiah, ratePerSol = 2_000_000) {
     return rupiah / ratePerSol;
 }
 
+const MEMO_PROGRAM_ID_STR = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+
+/**
+ * Kirim Memo transaction ke Solana menggunakan Phantom Wallet (client-side signing).
+ * User membayar gas fee sendiri dari wallet mereka.
+ * @param {string} walletPublicKey - Public key wallet Phantom yang terhubung
+ * @param {string} memoText - Data trace yang akan ditulis ke blockchain (max 560 karakter)
+ * @returns {Promise<string>} txSignature
+ */
+export async function sendMemoWithPhantom(walletPublicKey, memoText) {
+    if (typeof window === 'undefined' || !window.solana) {
+        throw new Error('Phantom Wallet tidak terhubung');
+    }
+
+    const feePayer = new PublicKey(walletPublicKey);
+    const memoProgramId = new PublicKey(MEMO_PROGRAM_ID_STR);
+    const memoEncoded = Buffer.from(memoText.slice(0, 560), 'utf8');
+
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+
+    const tx = new Transaction({
+        recentBlockhash: blockhash,
+        feePayer,
+    });
+
+    // Tambah memo instruction
+    tx.add(new (await import('@solana/web3.js')).TransactionInstruction({
+        keys: [{ pubkey: feePayer, isSigner: true, isWritable: false }],
+        programId: memoProgramId,
+        data: memoEncoded,
+    }));
+
+    // Minta Phantom untuk sign
+    const signed = await window.solana.signTransaction(tx);
+
+    // Kirim ke Solana
+    const signature = await connection.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+    });
+
+    await connection.confirmTransaction(signature, 'confirmed');
+    return signature;
+}
+
 /**
  * Kirim SOL menggunakan Phantom Wallet dengan prioritas fee minimal
  * Cocok untuk devnet dan testnet

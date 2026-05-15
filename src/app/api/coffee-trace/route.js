@@ -108,6 +108,8 @@ export async function POST(request) {
             productId, name, origin, variety, grade, weightKg,
             farmerName, farmerId, harvestDate, processMethod, roastLevel,
             certification, description, registeredBy, paymentWallet,
+            // ── Phantom-signed TX: jika disediakan, skip server wallet ──
+            phantomTxSignature, phantomWalletAddress,
         } = body;
 
         if (!name || !origin) {
@@ -155,13 +157,21 @@ export async function POST(request) {
         let explorerUrl = null;
         let txError = null;
 
-        try {
-            const result = await sendMemoTx(memoData);
-            txSignature = result.txSignature;
-            explorerUrl = result.explorerUrl;
-        } catch (solErr) {
-            txError = solErr?.message || 'Unknown Solana error';
-            console.error('[coffee-trace] Solana TX failed:', txError);
+        if (phantomTxSignature) {
+            // ── Phantom sudah sign & kirim TX di client-side ──
+            txSignature = phantomTxSignature;
+            explorerUrl = getExplorerTxUrl(phantomTxSignature);
+            console.log('[coffee-trace] Using Phantom-signed TX:', phantomTxSignature);
+        } else {
+            // ── Fallback: gunakan server wallet ──
+            try {
+                const result = await sendMemoTx(memoData);
+                txSignature = result.txSignature;
+                explorerUrl = result.explorerUrl;
+            } catch (solErr) {
+                txError = solErr?.message || 'Unknown Solana error';
+                console.error('[coffee-trace] Solana TX failed:', txError);
+            }
         }
 
         const isVerified = txSignature !== null;
