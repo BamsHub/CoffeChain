@@ -7,18 +7,18 @@ import Header from '@/components/Header/Header';
 import { useAuth } from '@/context/AuthContext';
 import styles from './DashboardLayout.module.css';
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({ children, publicRoute = false }) {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [walletPublicKey, setWalletPublicKey] = useState(null);
     const { user, loading } = useAuth();
     const router = useRouter();
 
-    // Auth guard — redirect ke /login jika tidak ada session
+    // Auth guard — redirect ke /login jika tidak ada session (kecuali publicRoute)
     useEffect(() => {
-        if (!loading && !user) {
+        if (!publicRoute && !loading && !user) {
             router.push('/login');
         }
-    }, [user, loading, router]);
+    }, [user, loading, router, publicRoute]);
 
     // Loading state saat hydrating auth
     if (loading) {
@@ -38,8 +38,8 @@ export default function DashboardLayout({ children }) {
         );
     }
 
-    // Jika tidak login, render null sementara redirect
-    if (!user) return null;
+    // Jika tidak login dan bukan publicRoute, render null sementara redirect
+    if (!publicRoute && !user) return null;
 
     // Clone children dengan props walletPublicKey + user
     const childrenWithProps = typeof children === 'object'
