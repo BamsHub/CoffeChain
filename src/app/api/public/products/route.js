@@ -15,12 +15,11 @@ export async function GET(request) {
         const search = searchParams.get('search') || '';
         const grade  = searchParams.get('grade')  || '';
 
-        // Query Supabase — show published products OR products with no status (legacy rows)
-        // Products with status='pending' or status='rejected' are excluded
+        // Query Supabase — tampilkan semua produk (kolom 'status' belum ada di DB)
+        // Gunakan * agar tidak crash jika ada kolom opsional yang belum di-migrate
         let query = supabaseAdmin
             .from('products')
-            .select('id,name,origin,grade,variety,roast,weight,price_per_unit,description,image,tags,stock,rating,sold,coffee_id,payment_wallet,submitted_by,submitted_by_name,created_at')
-            .or('status.eq.published,status.is.null')
+            .select('*')
             .order('created_at', { ascending: false })
             .limit(limit);
 
