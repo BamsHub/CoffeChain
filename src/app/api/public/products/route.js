@@ -15,11 +15,12 @@ export async function GET(request) {
         const search = searchParams.get('search') || '';
         const grade  = searchParams.get('grade')  || '';
 
-        // Query Supabase — only published products appear in the public catalog
+        // Query Supabase — show published products OR products with no status (legacy rows)
+        // Products with status='pending' or status='rejected' are excluded
         let query = supabaseAdmin
             .from('products')
             .select('id,name,origin,grade,variety,roast,weight,price_per_unit,description,image,tags,stock,rating,sold,coffee_id,payment_wallet,submitted_by,submitted_by_name,created_at')
-            .eq('status', 'published')
+            .or('status.eq.published,status.is.null')
             .order('created_at', { ascending: false })
             .limit(limit);
 
