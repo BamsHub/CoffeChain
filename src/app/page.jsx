@@ -63,6 +63,11 @@ export default function LandingPage() {
     const [traceLoading, setTraceLoading] = useState(false);
     const solanaIntervalRef = useRef(null);
 
+    /* ── Katalog Search & Filter ── */
+    const [catalogSearch, setCatalogSearch] = useState('');
+    const [catalogGrade, setCatalogGrade] = useState('');
+    const [catalogSort, setCatalogSort] = useState('newest');
+
     /* ── Admin Session State (untuk floating admin bar) ── */
     const [adminUser, setAdminUser] = useState(null);
 
@@ -651,11 +656,63 @@ export default function LandingPage() {
             {/* ── PRODUCTS GRID ── */}
             <section id="products" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-                    <div style={{ textAlign: 'center', marginBottom: 40 }}>
+                    <div style={{ textAlign: 'center', marginBottom: 32 }}>
                         <h2 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 10, letterSpacing: '-0.5px' }}>Katalog Kopi Premium</h2>
                         <p style={{ color: 'rgba(232,245,224,0.5)', fontSize: 15, maxWidth: 480, margin: '0 auto' }}>
                             Kopi pilihan terbaik dari petani bersertifikat · Bayar via <strong style={{ color: '#a855f7', display:'inline-flex', alignItems:'center', gap:4, verticalAlign:'middle' }}><IconPhantomLogo /> Phantom Wallet</strong>
                         </p>
+                    </div>
+
+                    {/* ── FILTER & SEARCH BAR ── */}
+                    <div style={{ display:'flex', gap:10, marginBottom:28, flexWrap:'wrap', alignItems:'center' }}>
+                        {/* Search */}
+                        <div style={{ position:'relative', flex:'1 1 220px', maxWidth:320 }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'rgba(232,245,224,0.3)', pointerEvents:'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input
+                                value={catalogSearch}
+                                onChange={e => setCatalogSearch(e.target.value)}
+                                placeholder="Cari nama, asal, varietas..."
+                                style={{ width:'100%', padding:'9px 12px 9px 32px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.25)', color:'#E8F5E0', fontSize:13, outline:'none', boxSizing:'border-box' }}
+                            />
+                        </div>
+
+                        {/* Grade Filter */}
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                            {['', 'Specialty', 'Premium', 'A', 'B', 'C'].map(g => (
+                                <button key={g} onClick={() => setCatalogGrade(g)}
+                                    style={{ padding:'7px 14px', borderRadius:100, fontSize:12, fontWeight:600, cursor:'pointer', border:'1px solid', transition:'all 0.15s',
+                                        background: catalogGrade === g ? 'linear-gradient(135deg,#4A7C28,#7ED44A)' : 'rgba(255,255,255,0.03)',
+                                        borderColor: catalogGrade === g ? 'transparent' : 'rgba(74,124,40,0.22)',
+                                        color: catalogGrade === g ? '#fff' : 'rgba(232,245,224,0.55)',
+                                    }}>
+                                    {g === '' ? 'Semua' : `Grade ${g}`}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Sort */}
+                        <select value={catalogSort} onChange={e => setCatalogSort(e.target.value)}
+                            style={{ padding:'8px 12px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.25)', color:'rgba(232,245,224,0.7)', fontSize:12, outline:'none', cursor:'pointer' }}>
+                            <option value="newest">Terbaru</option>
+                            <option value="price_asc">Harga: Rendah → Tinggi</option>
+                            <option value="price_desc">Harga: Tinggi → Rendah</option>
+                            <option value="popular">Terlaris</option>
+                            <option value="rating">Rating Tertinggi</option>
+                        </select>
+
+                        {/* Result count */}
+                        {!loading && (
+                            <span style={{ fontSize:12, color:'rgba(232,245,224,0.35)', marginLeft:'auto', whiteSpace:'nowrap' }}>
+                                {(() => {
+                                    const q = catalogSearch.toLowerCase();
+                                    const count = products.filter(p =>
+                                        (!q || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q) || p.variety?.toLowerCase().includes(q)) &&
+                                        (!catalogGrade || p.grade === catalogGrade)
+                                    ).length;
+                                    return `${count} produk ditemukan`;
+                                })()}
+                            </span>
+                        )}
                     </div>
 
                     <div className="lp-products-grid">
@@ -667,7 +724,23 @@ export default function LandingPage() {
                                 <IconPackage /> Belum ada produk tersedia
                             </div>
                         )}
-                        {products.map(p => {
+                        {!loading && products.length > 0 && (() => {
+                            const q = catalogSearch.toLowerCase();
+                            let filtered = products.filter(p =>
+                                (!q || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q) || p.variety?.toLowerCase().includes(q)) &&
+                                (!catalogGrade || p.grade === catalogGrade)
+                            );
+                            if (catalogSort === 'price_asc') filtered = [...filtered].sort((a, b) => (a.pricePerUnit?.[0] ?? 0) - (b.pricePerUnit?.[0] ?? 0));
+                            else if (catalogSort === 'price_desc') filtered = [...filtered].sort((a, b) => (b.pricePerUnit?.[0] ?? 0) - (a.pricePerUnit?.[0] ?? 0));
+                            else if (catalogSort === 'popular') filtered = [...filtered].sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
+                            else if (catalogSort === 'rating') filtered = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+                            if (filtered.length === 0) return (
+                                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 0', color: 'rgba(232,245,224,0.35)', fontSize: 14 }}>
+                                    <IconPackage /> Tidak ada produk yang cocok dengan pencarian
+                                </div>
+                            );
+                            return filtered;
+                        })()?.map?.(p => {
                             const stock = p.stock ?? 0;
                             const outOfStock = stock <= 0;
                             const lowStock = stock > 0 && stock <= 10;
