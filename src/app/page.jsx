@@ -1373,10 +1373,19 @@ export default function LandingPage() {
                                     ) : traceData?.txSignature ? (
                                         <div style={{ fontSize:13, color:'rgba(232,245,224,0.7)' }}>
                                             <div style={{ marginBottom:8 }}><strong>Hash Transaksi:</strong> <span style={{ fontFamily:'monospace', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:4 }}>{shortenAddress(traceData.txSignature)}</span></div>
-                                            <a href={`https://explorer.solana.com/tx/${traceData.txSignature}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 12px', background:'rgba(124,77,255,0.15)', color:'#b388ff', borderRadius:8, textDecoration:'none', fontWeight:600, fontSize:12 }}>
-                                                Lihat di Solana Explorer
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                                            </a>
+                                            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                                                <a href={`https://explorer.solana.com/tx/${traceData.txSignature}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 12px', background:'rgba(124,77,255,0.15)', color:'#b388ff', borderRadius:8, textDecoration:'none', fontWeight:600, fontSize:12 }}>
+                                                    Lihat di Solana Explorer
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                                                </a>
+                                                <QRButton
+                                                    explorerUrl={`https://explorer.solana.com/tx/${traceData.txSignature}?cluster=devnet`}
+                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${selectedDetailProduct.coffeeId}`}
+                                                    coffeeId={selectedDetailProduct.coffeeId}
+                                                    productName={selectedDetailProduct.name}
+                                                    label="QR Bukti"
+                                                />
+                                            </div>
                                         </div>
                                     ) : (
                                         <div style={{ fontSize:12, color:'#F5A623', padding:'8px', background:'rgba(245,166,35,0.1)', borderRadius:6 }}>
