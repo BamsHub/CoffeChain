@@ -62,6 +62,10 @@ export default function CoffeeRegisterContent() {
     /* ── Log search ── */
     const [logSearch, setLogSearch]       = useState('');
 
+    /* ── Batch on-chain (server wallet) ── */
+    const [batchLoading, setBatchLoading] = useState(false);
+    const [batchResult, setBatchResult]   = useState(null);
+
     /* ── Auto-connect Phantom ── */
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -214,6 +218,21 @@ export default function CoffeeRegisterContent() {
         setSubmitting(false);
     }
 
+    /* ── Batch on-chain via server wallet ── */
+    async function handleBatchOnchain() {
+        if (!window.confirm(`On-chain ${unregistered.length} produk menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
+        setBatchLoading(true); setBatchResult(null);
+        try {
+            const res = await fetch('/api/admin/batch-onchain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+            const data = await res.json();
+            setBatchResult(data);
+            if (data.success) { await Promise.all([loadProducts(), loadTraces()]); }
+        } catch (err) {
+            setBatchResult({ success: false, message: err.message });
+        }
+        setBatchLoading(false);
+    }
+
     /* ── Derived data ── */
     const unregistered    = products.filter(p => !p.coffeeId);
     const registered      = products.filter(p => !!p.coffeeId);
@@ -327,10 +346,34 @@ export default function CoffeeRegisterContent() {
                             {/* Unregistered */}
                             {unregistered.length > 0 && (
                                 <>
-                                    <div style={{ fontSize: 11, fontWeight: 700, color: '#FFB300', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FFB300', display: 'inline-block' }} />
-                                        Belum Terdaftar di Blockchain ({unregistered.length})
+                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap', marginBottom: 12 }}>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: '#FFB300', textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FFB300', display: 'inline-block' }} />
+                                            Belum Terdaftar di Blockchain ({unregistered.length})
+                                        </div>
+                                        <button onClick={handleBatchOnchain} disabled={batchLoading}
+                                            style={{ ...S.btnG, fontSize: 12, padding:'7px 14px', opacity: batchLoading ? 0.7 : 1 }}>
+                                            {batchLoading ? <><IcoSpin /> Memproses...</> : <><IcoShield /> On-Chain Semua (Server)</>}
+                                        </button>
                                     </div>
+                                    {batchResult && (
+                                        <div style={{ padding:'12px 14px', borderRadius:10, marginBottom:14, fontSize:13, fontWeight:600,
+                                            background: batchResult.success ? 'rgba(76,175,80,0.1)' : 'rgba(244,67,54,0.1)',
+                                            border: `1px solid ${batchResult.success ? 'rgba(76,175,80,0.3)' : 'rgba(244,67,54,0.3)'}`,
+                                            color: batchResult.success ? '#4CAF50' : '#f44336',
+                                        }}>
+                                            {batchResult.message}
+                                            {batchResult.results && (
+                                                <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
+                                                    {batchResult.results.map(r => (
+                                                        <div key={r.id} style={{ fontSize:11, color: r.status==='success' ? '#7ED44A' : '#f44336' }}>
+                                                            {r.status==='success' ? '✅' : '❌'} {r.name} {r.coffeeId ? `→ ${r.coffeeId}` : r.error ? `(${r.error})` : ''}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(270px,1fr))', gap: 14, marginBottom: 28 }}>
                                         {unregistered.map(p => (
                                             <div key={p.id} className="cr-card" onClick={() => openRegister(p)}
@@ -382,8 +425,12 @@ export default function CoffeeRegisterContent() {
                                                     <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6 }}>{p.coffeeId}</span>
                                                     <span style={{ fontSize: 10, color: '#7ED44A', background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(126,212,74,0.25)', padding: '2px 7px', borderRadius: 100, fontWeight: 700 }}>✅ On-Chain</span>
                                                 </div>
-                                                {/* QR Bukti Blockchain */}
-                                                <div style={{ marginTop: 10 }}>
+                                                {/* QR + Link Bukti Blockchain */}
+                                                <div style={{ marginTop: 10, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                                                    <a href={`/trace?id=${p.coffeeId}`} target="_blank" rel="noopener noreferrer"
+                                                        style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#7ED44A', textDecoration:'none', fontWeight:700, padding:'4px 10px', borderRadius:7, background:'rgba(74,124,40,0.1)', border:'1px solid rgba(74,124,40,0.25)' }}>
+                                                        <IcoLink /> Trace Link
+                                                    </a>
                                                     <QRButton
                                                         traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
                                                         coffeeId={p.coffeeId}
@@ -492,11 +539,21 @@ export default function CoffeeRegisterContent() {
                                 }}>
                                     {regMsg.text}
                                     {regMsg.coffeeId && <div style={{ fontSize: 11, marginTop: 6, color: 'rgba(232,245,224,0.6)' }}>Coffee ID: <strong style={{ color: '#7ED44A' }}>{regMsg.coffeeId}</strong></div>}
-                                    {regMsg.txSig && (
-                                        <a href={regMsg.explorerUrl} target="_blank" rel="noopener noreferrer"
-                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8, fontSize: 12, color: '#b388ff', textDecoration: 'none', fontWeight: 700, padding: '5px 12px', borderRadius: 7, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)' }}>
-                                            <IcoLink /> Lihat di Solana Explorer
-                                        </a>
+                                    {(regMsg.txSig || regMsg.coffeeId) && (
+                                        <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                                            {regMsg.txSig && (
+                                                <a href={regMsg.explorerUrl} target="_blank" rel="noopener noreferrer"
+                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#b388ff', textDecoration: 'none', fontWeight: 700, padding: '5px 12px', borderRadius: 7, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)' }}>
+                                                    <IcoLink /> Solana Explorer
+                                                </a>
+                                            )}
+                                            {regMsg.coffeeId && (
+                                                <a href={`/trace?id=${regMsg.coffeeId}`} target="_blank" rel="noopener noreferrer"
+                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#7ED44A', textDecoration: 'none', fontWeight: 700, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.3)' }}>
+                                                    <IcoLink /> Lihat Trace Publik
+                                                </a>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                                 {/* QR Code Bukti Blockchain — tampil saat sukses */}
