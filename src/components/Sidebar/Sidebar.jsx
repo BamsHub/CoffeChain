@@ -51,18 +51,11 @@ export default function Sidebar({ collapsed, onToggle }) {
         <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
             {/* Logo */}
             <div className={styles.logo}>
-                <div className={styles.logoIcon}>
-                    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                        <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.15" />
-                        <path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" stroke="currentColor" strokeWidth="1.5" />
-                        <path d="M12 16c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <circle cx="16" cy="16" r="2" fill="currentColor" />
-                        <path d="M16 10v2M16 20v2M10 16h2M20 16h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
+                <div className={styles.logoIcon} style={{ background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Georgia,serif', fontWeight: 900, fontSize: 20, width: 32, height: 32 }}>
+                    C
                 </div>
                 {!collapsed && (
                     <div className={styles.logoText}>
-                        <span className={styles.logoName}>CoffeeChain</span>
                         <span className={styles.logoTagline}>Blockchain Kopi</span>
                     </div>
                 )}
