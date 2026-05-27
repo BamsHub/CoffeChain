@@ -7,6 +7,7 @@ import {
 } from '@/lib/phantom';
 import { STORE_WALLET, MEMO_SIGNER_PUBLIC } from '@/lib/contractConfig';
 import { useAuth } from '@/context/AuthContext';
+import QRButton from '@/components/BlockchainQR/BlockchainQR';
 
 /* ── SVG Icons ── */
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
@@ -765,10 +766,20 @@ export default function LandingPage() {
                                         <span key={tag} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.2)', fontWeight:600 }}>{tag}</span>
                                     ))}
                                     {p.coffeeId && (
-                                        <a href={`/trace?id=${p.coffeeId}`} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(124,77,255,0.12)', color:'#b388ff', border:'1px solid rgba(124,77,255,0.25)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
+                                        <a href={`/trace?id=${p.coffeeId}`} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(124,77,255,0.12)', color:'#b388ff', border:'1px solid rgba(124,77,255,0.25)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
                                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                                             On-Chain
                                         </a>
+                                    )}
+                                    {p.coffeeId && (
+                                        <div onClick={e => e.stopPropagation()}>
+                                            <QRButton
+                                                traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
+                                                coffeeId={p.coffeeId}
+                                                productName={p.name}
+                                                label="QR"
+                                            />
+                                        </div>
                                     )}
                                 </div>
                                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
