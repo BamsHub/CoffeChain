@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import QRButton from '@/components/BlockchainQR/BlockchainQR';
 
 const GRADES = ['A', 'B', 'C', 'Specialty', 'Premium'];
 const VARIETIES = ['Arabika', 'Robusta', 'Liberika', 'Excelsa'];
@@ -352,12 +353,28 @@ export default function ProductsContent() {
             {msg && (
                 <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: msg.type === 'ok' ? 'rgba(76,175,80,0.12)' : 'rgba(244,67,54,0.12)', border: `1px solid ${msg.type === 'ok' ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.35)'}`, color: msg.type === 'ok' ? '#4CAF50' : '#f44336', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <span>{msg.type === 'ok' ? '\u2713 ' : '\u2715 '}{msg.text}</span>
-                    {msg.type === 'ok' && msg.landingLink && (
-                        <a href="/" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 7, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.35)', color: '#4CAF50', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
-                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            Lihat di Landing Page
-                        </a>
-                    )}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {msg.type === 'ok' && msg.explorerUrl && (
+                            <a href={msg.explorerUrl} target="_blank" rel="noopener noreferrer"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 7, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><polyline points="15 3 21 3 21 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                Solana Explorer
+                            </a>
+                        )}
+                        {msg.type === 'ok' && msg.txSig && (
+                            <QRButton
+                                explorerUrl={msg.explorerUrl}
+                                coffeeId={msg.txSig?.slice(0, 8) + '...'}
+                                label="QR Bukti"
+                            />
+                        )}
+                        {msg.type === 'ok' && msg.landingLink && (
+                            <a href="/" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 7, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.35)', color: '#4CAF50', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+                                <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                Lihat di Landing Page
+                            </a>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -542,7 +559,15 @@ export default function ProductsContent() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
                                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>ID: {p.id}</div>
                                 {p.coffeeId ? (
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}>✅ On-Chain: {p.coffeeId}</span>
+                                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}>✅ On-Chain: {p.coffeeId}</span>
+                                        <QRButton
+                                            traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
+                                            coffeeId={p.coffeeId}
+                                            productName={p.name}
+                                            label="QR Bukti"
+                                        />
+                                    </div>
                                 ) : p.status === 'pending' ? (
                                     <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}>⏳ Menunggu Persetujuan</span>
                                 ) : (

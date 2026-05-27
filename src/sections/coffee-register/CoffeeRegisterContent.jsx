@@ -10,6 +10,7 @@ import {
     getSolBalance, shortenAddress, sendMemoWithPhantom,
 } from '@/lib/phantom';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
+import QRButton, { BlockchainQRCard } from '@/components/BlockchainQR/BlockchainQR';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 const IcoShield  = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
@@ -381,6 +382,15 @@ export default function CoffeeRegisterContent() {
                                                     <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6 }}>{p.coffeeId}</span>
                                                     <span style={{ fontSize: 10, color: '#7ED44A', background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(126,212,74,0.25)', padding: '2px 7px', borderRadius: 100, fontWeight: 700 }}>✅ On-Chain</span>
                                                 </div>
+                                                {/* QR Bukti Blockchain */}
+                                                <div style={{ marginTop: 10 }}>
+                                                    <QRButton
+                                                        traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
+                                                        coffeeId={p.coffeeId}
+                                                        productName={p.name}
+                                                        label="QR Bukti Trace"
+                                                    />
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -417,7 +427,7 @@ export default function CoffeeRegisterContent() {
                                         </div>
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
                                     {t.txSignature ? (
                                         <>
                                             <span style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', padding: '3px 9px', borderRadius: 7, background: 'rgba(74,124,40,0.15)', border: '1px solid rgba(126,212,74,0.25)' }}>✅ Verified</span>
@@ -425,6 +435,13 @@ export default function CoffeeRegisterContent() {
                                                 style={{ fontSize: 11, color: '#b388ff', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, background: 'rgba(124,77,255,0.1)', border: '1px solid rgba(124,77,255,0.25)' }}>
                                                 <IcoLink /> Explorer
                                             </a>
+                                            <QRButton
+                                                explorerUrl={t.explorerUrl || DEVNET_EXPLORER(t.txSignature)}
+                                                traceUrl={t.coffeeId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${t.coffeeId}` : undefined}
+                                                coffeeId={t.coffeeId}
+                                                productName={t.name}
+                                                label="QR"
+                                            />
                                         </>
                                     ) : (
                                         <span style={{ fontSize: 11, color: '#FFB300', fontWeight: 600, padding: '4px 10px', borderRadius: 7, background: 'rgba(255,152,0,0.1)', border: '1px solid rgba(255,152,0,0.25)' }}>⏳ Pending</span>
@@ -467,18 +484,31 @@ export default function CoffeeRegisterContent() {
 
                         {/* Status message */}
                         {regMsg && (
-                            <div style={{ padding: '12px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600,
-                                background: regMsg.type === 'success' ? 'rgba(76,175,80,0.1)' : regMsg.type === 'error' ? 'rgba(244,67,54,0.1)' : 'rgba(153,69,255,0.1)',
-                                border: `1px solid ${regMsg.type === 'success' ? 'rgba(76,175,80,0.3)' : regMsg.type === 'error' ? 'rgba(244,67,54,0.3)' : 'rgba(153,69,255,0.3)'}`,
-                                color: regMsg.type === 'success' ? '#4CAF50' : regMsg.type === 'error' ? '#f44336' : '#b388ff',
-                            }}>
-                                {regMsg.text}
-                                {regMsg.coffeeId && <div style={{ fontSize: 11, marginTop: 6, color: 'rgba(232,245,224,0.6)' }}>Coffee ID: <strong style={{ color: '#7ED44A' }}>{regMsg.coffeeId}</strong></div>}
-                                {regMsg.txSig && (
-                                    <a href={regMsg.explorerUrl} target="_blank" rel="noopener noreferrer"
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8, fontSize: 12, color: '#b388ff', textDecoration: 'none', fontWeight: 700, padding: '5px 12px', borderRadius: 7, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)' }}>
-                                        <IcoLink /> Lihat di Solana Explorer
-                                    </a>
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ padding: '12px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                                    background: regMsg.type === 'success' ? 'rgba(76,175,80,0.1)' : regMsg.type === 'error' ? 'rgba(244,67,54,0.1)' : 'rgba(153,69,255,0.1)',
+                                    border: `1px solid ${regMsg.type === 'success' ? 'rgba(76,175,80,0.3)' : regMsg.type === 'error' ? 'rgba(244,67,54,0.3)' : 'rgba(153,69,255,0.3)'}`,
+                                    color: regMsg.type === 'success' ? '#4CAF50' : regMsg.type === 'error' ? '#f44336' : '#b388ff',
+                                }}>
+                                    {regMsg.text}
+                                    {regMsg.coffeeId && <div style={{ fontSize: 11, marginTop: 6, color: 'rgba(232,245,224,0.6)' }}>Coffee ID: <strong style={{ color: '#7ED44A' }}>{regMsg.coffeeId}</strong></div>}
+                                    {regMsg.txSig && (
+                                        <a href={regMsg.explorerUrl} target="_blank" rel="noopener noreferrer"
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8, fontSize: 12, color: '#b388ff', textDecoration: 'none', fontWeight: 700, padding: '5px 12px', borderRadius: 7, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)' }}>
+                                            <IcoLink /> Lihat di Solana Explorer
+                                        </a>
+                                    )}
+                                </div>
+                                {/* QR Code Bukti Blockchain — tampil saat sukses */}
+                                {regMsg.type === 'success' && (regMsg.txSig || regMsg.coffeeId) && (
+                                    <div style={{ marginTop: 16 }}>
+                                        <BlockchainQRCard
+                                            explorerUrl={regMsg.explorerUrl || (regMsg.txSig ? `https://explorer.solana.com/tx/${regMsg.txSig}?cluster=devnet` : undefined)}
+                                            traceUrl={regMsg.coffeeId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${regMsg.coffeeId}` : undefined}
+                                            coffeeId={regMsg.coffeeId}
+                                            productName={regProduct?.name}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         )}
