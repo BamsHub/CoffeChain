@@ -51,11 +51,9 @@ export default function Sidebar({ collapsed, onToggle }) {
         <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
             {/* Logo */}
             <div className={styles.logo}>
-                <div className={styles.logoIcon} style={{ background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Georgia,serif', fontWeight: 900, fontSize: 20, width: 32, height: 32 }}>
-                    C
-                </div>
                 {!collapsed && (
                     <div className={styles.logoText}>
+                        <span className={styles.logoName}>CoffeeChain</span>
                         <span className={styles.logoTagline}>Blockchain Kopi</span>
                     </div>
                 )}

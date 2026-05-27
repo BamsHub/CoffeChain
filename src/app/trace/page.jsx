@@ -179,9 +179,11 @@ export default function TracePage() {
             `}</style>
             <nav style={{ position: 'sticky', top: 0, zIndex: 50, background: 'var(--color-bg-surface)', backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--color-border)', padding: '0 20px' }}>
                 <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily:'Georgia,serif', fontWeight:900, fontSize:20 }}>C</div>
-                        <span style={{ fontWeight: 800, fontSize: 16, color: '#7ED44A' }}>CoffeeChain</span>
+                    <Link href="/" style={{ textDecoration: 'none' }}>
+                        <div>
+                            <div style={{ fontWeight: 800, fontSize: 16, color: '#7ED44A', letterSpacing: '-0.5px', lineHeight: 1 }}>CoffeeChain</div>
+                            <div style={{ fontSize: 9, color: 'rgba(126,212,74,0.55)', letterSpacing: 1.2, textTransform: 'uppercase' }}>Blockchain Kopi</div>
+                        </div>
                     </Link>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ThemeToggle />

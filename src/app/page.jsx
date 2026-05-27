@@ -504,9 +504,10 @@ export default function LandingPage() {
             }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 68 }}>
                     {/* Logo */}
-                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                        <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, fontFamily:'Georgia,serif', fontWeight:900, fontSize:22 }}>
-                            C
+                    <Link href="/" style={{ textDecoration: 'none' }}>
+                        <div>
+                            <div style={{ fontWeight: 800, fontSize: 17, color: '#7ED44A', letterSpacing: '-0.5px', lineHeight: 1 }}>CoffeeChain</div>
+                            <div style={{ fontSize: 9, color: 'rgba(126,212,74,0.55)', letterSpacing: 1.2, textTransform: 'uppercase' }}>Blockchain Kopi</div>
                         </div>
                     </Link>
 
