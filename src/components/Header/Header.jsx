@@ -90,8 +90,17 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
 
     return (
         <header className={styles.header} style={{ left: sidebarCollapsed ? '68px' : '260px' }}>
-            {/* Left — Search */}
+            {/* Left — Logo & Search */}
             <div className={styles.left}>
+                {sidebarCollapsed && (
+                    <img 
+                        src="/logo.png" 
+                        alt="CoffeeChain" 
+                        width="30" 
+                        height="30" 
+                        style={{ borderRadius: 6, flexShrink: 0, marginRight: 12 }} 
+                    />
+                )}
                 <div className={styles.searchBox}>
                     <svg className={styles.searchIcon} width="16" height="16" fill="none" viewBox="0 0 24 24">
                         <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
