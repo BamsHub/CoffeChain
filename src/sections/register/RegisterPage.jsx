@@ -157,21 +157,7 @@ export default function RegisterPage() {
                 {/* Logo */}
                 <div className={styles.logoSection}>
                     <div className={styles.logoIcon}>
-                        <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
-                            <circle cx="24" cy="24" r="22" stroke="url(#rlg)" strokeWidth="2" />
-                            <path d="M24 10 L36 18 L36 30 L24 38 L12 30 L12 18 Z" fill="url(#rlg2)" opacity="0.3" />
-                            <circle cx="24" cy="24" r="6" fill="url(#rlg)" />
-                            <defs>
-                                <linearGradient id="rlg" x1="0" y1="0" x2="1" y2="1">
-                                    <stop offset="0%" stopColor="#7ED44A" />
-                                    <stop offset="100%" stopColor="#4A7C28" />
-                                </linearGradient>
-                                <linearGradient id="rlg2" x1="0" y1="0" x2="1" y2="1">
-                                    <stop offset="0%" stopColor="#7ED44A" />
-                                    <stop offset="100%" stopColor="#F5A623" />
-                                </linearGradient>
-                            </defs>
-                        </svg>
+                        <img src="/coffeechain-logo-20260528.png" alt="CoffeeChain" className={styles.logoImage} />
                     </div>
                     <div>
                         <h1 className={styles.logoText}>CoffeeChain</h1>

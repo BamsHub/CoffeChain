@@ -508,7 +508,7 @@ export default function LandingPage() {
                 <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 68 }}>
                     {/* Logo */}
                     <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <img src="/logo.png" alt="CoffeeChain Logo" width={36} height={36} style={{ borderRadius: 6 }} />
+                        <img src="/coffeechain-logo-20260528.png" alt="CoffeeChain Logo" width={36} height={36} style={{ borderRadius: 6, objectFit: 'contain' }} />
                         <div>
                             <div style={{ fontWeight: 800, fontSize: 17, color: '#7ED44A', letterSpacing: '-0.5px', lineHeight: 1 }}>CoffeeChain</div>
                             <div style={{ fontSize: 9, color: 'rgba(126,212,74,0.55)', letterSpacing: 1.2, textTransform: 'uppercase' }}>Blockchain Kopi</div>
@@ -949,7 +949,7 @@ export default function LandingPage() {
             <footer style={{ padding: '32px 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }} className="lp-footer-inner">
                     <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                        <img src="/logo.png" alt="CoffeeChain Logo" width={32} height={32} style={{ borderRadius: 4 }} />
+                        <img src="/coffeechain-logo-20260528.png" alt="CoffeeChain Logo" width={32} height={32} style={{ borderRadius: 4, objectFit: 'contain' }} />
                         <div>
                             <span style={{ fontWeight: 700, color: '#7ED44A', fontSize: 15, display: 'block' }}>CoffeeChain</span>
                             <span style={{ fontSize: 9, color: 'rgba(126,212,74,0.45)', letterSpacing: 1, textTransform: 'uppercase' }}>Blockchain Traceability</span>

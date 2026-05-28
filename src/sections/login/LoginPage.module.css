@@ -114,6 +114,12 @@
     backdrop-filter: blur(10px);
 }
 
+.logoImage {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+}
+
 @keyframes iconFloatLevitate {
 
     0%,

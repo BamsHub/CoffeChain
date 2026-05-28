@@ -51,7 +51,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
             {/* Logo */}
             <div className={styles.logo}>
-                <img src="/logo.png" alt="CoffeeChain" width={collapsed ? 28 : 32} height={collapsed ? 28 : 32} style={{ borderRadius: 4, flexShrink: 0 }} />
+                <img src="/coffeechain-logo-20260528.png" alt="CoffeeChain" width={collapsed ? 28 : 32} height={collapsed ? 28 : 32} style={{ borderRadius: 4, flexShrink: 0, objectFit: 'contain' }} />
                 {!collapsed && (
                     <div className={styles.logoText}>
                         <span className={styles.logoName}>CoffeeChain</span>

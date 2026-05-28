@@ -104,6 +104,12 @@
     justify-content: center;
 }
 
+.logoImage {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+}
+
 .logoText {
     font-size: 18px;
     font-weight: 800;

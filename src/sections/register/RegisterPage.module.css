@@ -168,6 +168,12 @@
     animation: logoGlow 3s ease-in-out infinite;
 }
 
+.logoImage {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+}
+
 @keyframes logoGlow {
     0%, 100% { box-shadow: 0 0 10px rgba(126, 212, 74, 0.2); }
     50% { box-shadow: 0 0 25px rgba(126, 212, 74, 0.4); }

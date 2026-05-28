@@ -70,16 +70,7 @@ function VerifyEmailContent() {
             {/* Logo */}
             <div className={styles.logoSection}>
                 <div className={styles.logoIcon}>
-                    <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
-                        <circle cx="24" cy="24" r="22" stroke="url(#vlg)" strokeWidth="2" />
-                        <circle cx="24" cy="24" r="6" fill="url(#vlg)" />
-                        <defs>
-                            <linearGradient id="vlg" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stopColor="#7ED44A" />
-                                <stop offset="100%" stopColor="#4A7C28" />
-                            </linearGradient>
-                        </defs>
-                    </svg>
+                    <img src="/coffeechain-logo-20260528.png" alt="CoffeeChain" className={styles.logoImage} />
                 </div>
                 <span className={styles.logoText}>CoffeeChain</span>
             </div>

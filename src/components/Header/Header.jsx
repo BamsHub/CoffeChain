@@ -94,7 +94,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
             <div className={styles.left}>
                 {sidebarCollapsed && (
                     <img 
-                        src="/logo.png" 
+                        src="/coffeechain-logo-20260528.png" 
                         alt="CoffeeChain" 
                         width="30" 
                         height="30" 
