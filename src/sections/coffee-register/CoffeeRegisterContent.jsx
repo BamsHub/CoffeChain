@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 /**
  * CoffeeRegisterContent — Unified Register Kopi + Request Log
  * Alur: Kelola Produk → status blockchain per produk → klik → Phantom sign → Solana
@@ -584,13 +584,13 @@ export default function CoffeeRegisterContent() {
                                     </div>
                                     <div>
                                         <label style={S.lbl}>Metode Proses</label>
-                                        <select style={S.inp} value={regForm.processMethod} onChange={e => setRegForm(f => ({ ...f, processMethod: e.target.value }))}>
+                                        <select style={S.inp} value={regForm.processMethod} onChange={e => setRegForm(f => ({ ...f, processMethod: e.target.value }))} aria-label="Metode Proses">
                                             {PROCESS_OPTIONS.map(o => <option key={o}>{o}</option>)}
                                         </select>
                                     </div>
                                     <div>
                                         <label style={S.lbl}>Level Roast</label>
-                                        <select style={S.inp} value={regForm.roastLevel} onChange={e => setRegForm(f => ({ ...f, roastLevel: e.target.value }))}>
+                                        <select style={S.inp} value={regForm.roastLevel} onChange={e => setRegForm(f => ({ ...f, roastLevel: e.target.value }))} aria-label="Level Roast">
                                             {ROAST_OPTIONS.map(o => <option key={o}>{o}</option>)}
                                         </select>
                                     </div>

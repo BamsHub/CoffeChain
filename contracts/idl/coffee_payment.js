@@ -23,7 +23,8 @@ export const IDL = {
                 { "name": "orderId", "type": "string" },
                 { "name": "productId", "type": "string" },
                 { "name": "amountLamports", "type": "u64" },
-                { "name": "marketId", "type": "string" }
+                { "name": "marketId", "type": "string" },
+                { "name": "batchId", "type": "string" }
             ]
         },
         {
@@ -45,6 +46,7 @@ export const IDL = {
                 "fields": [
                     { "name": "orderId", "type": "string" },
                     { "name": "productId", "type": "string" },
+                    { "name": "batchId", "type": "string" },
                     { "name": "marketId", "type": "string" },
                     { "name": "buyer", "type": "publicKey" },
                     { "name": "store", "type": "publicKey" },
@@ -73,6 +75,7 @@ export const IDL = {
             "name": "PaymentConfirmed",
             "fields": [
                 { "name": "orderId", "type": "string", "index": false },
+                { "name": "batchId", "type": "string", "index": false },
                 { "name": "buyer", "type": "publicKey", "index": false },
                 { "name": "store", "type": "publicKey", "index": false },
                 { "name": "amountLamports", "type": "u64", "index": false },

@@ -100,16 +100,18 @@ export default function LandingPage() {
             .catch(() => { /* ignore */ });
     }, []);
 
-    /* ── Load Midtrans Snap.js ── */
-    useEffect(() => {
+    /* ── Load Midtrans Snap.js lazily (only when needed) ── */
+    const midtransLoadedRef = useRef(false);
+    function loadMidtransSnap() {
+        if (midtransLoadedRef.current) return;
+        midtransLoadedRef.current = true;
         const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || 'Mid-client-k6WqARMZiLSJbg2_';
         const script = document.createElement('script');
         script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
         script.setAttribute('data-client-key', clientKey);
         script.async = true;
         document.head.appendChild(script);
-        return () => { if (document.head.contains(script)) document.head.removeChild(script); };
-    }, []);
+    }
 
     /* ── Auto-connect Phantom if already approved ── */
     useEffect(() => {
@@ -421,6 +423,7 @@ export default function LandingPage() {
     }
 
     function openOrder(product, defaultPayment = 'midtrans') {
+        loadMidtransSnap(); // Lazy-load Midtrans SDK on first order
         if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
         setSelectedProduct(product);
         setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: '' });
@@ -504,7 +507,8 @@ export default function LandingPage() {
             }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 68 }}>
                     {/* Logo */}
-                    <Link href="/" style={{ textDecoration: 'none' }}>
+                    <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <img src="/logo.png" alt="CoffeeChain Logo" width={36} height={36} style={{ borderRadius: 6 }} />
                         <div>
                             <div style={{ fontWeight: 800, fontSize: 17, color: '#7ED44A', letterSpacing: '-0.5px', lineHeight: 1 }}>CoffeeChain</div>
                             <div style={{ fontSize: 9, color: 'rgba(126,212,74,0.55)', letterSpacing: 1.2, textTransform: 'uppercase' }}>Blockchain Kopi</div>
@@ -691,7 +695,7 @@ export default function LandingPage() {
                         </div>
 
                         {/* Sort */}
-                        <select value={catalogSort} onChange={e => setCatalogSort(e.target.value)}
+                        <select value={catalogSort} onChange={e => setCatalogSort(e.target.value)} aria-label="Urutkan produk"
                             style={{ padding:'8px 12px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.25)', color:'rgba(232,245,224,0.7)', fontSize:12, outline:'none', cursor:'pointer' }}>
                             <option value="newest">Terbaru</option>
                             <option value="price_asc">Harga: Rendah → Tinggi</option>
@@ -944,9 +948,12 @@ export default function LandingPage() {
             {/* ── FOOTER ── */}
             <footer style={{ padding: '32px 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }} className="lp-footer-inner">
-                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-                        <div style={{ color: '#7ED44A' }}><IconCoffee /></div>
-                        <span style={{ fontWeight: 700, color: '#7ED44A', fontSize: 15 }}>CoffeeChain</span>
+                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+                        <img src="/logo.png" alt="CoffeeChain Logo" width={32} height={32} style={{ borderRadius: 4 }} />
+                        <div>
+                            <span style={{ fontWeight: 700, color: '#7ED44A', fontSize: 15, display: 'block' }}>CoffeeChain</span>
+                            <span style={{ fontSize: 9, color: 'rgba(126,212,74,0.45)', letterSpacing: 1, textTransform: 'uppercase' }}>Blockchain Traceability</span>
+                        </div>
                     </Link>
                     <div style={{ color: 'rgba(232,245,224,0.3)', fontSize: 12 }}>© 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana</div>
                     <div className="lp-footer-links">

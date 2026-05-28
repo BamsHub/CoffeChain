@@ -27,7 +27,9 @@ export default function RootLayout({ children }) {
             <body className={inter.className}>
                 <AuthProvider>
                     <ThemeProvider>
-                        {children}
+                        <main id="main-content" aria-label="Konten utama">
+                            {children}
+                        </main>
                     </ThemeProvider>
                 </AuthProvider>
             </body>
