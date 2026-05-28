@@ -1,13 +1,41 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import {
-    connectPhantom, disconnectPhantom, getSolBalance,
-    shortenAddress, isPhantomInstalled, sendSolTransaction, rupiahToSol,
-} from '@/lib/phantom';
 import { STORE_WALLET, MEMO_SIGNER_PUBLIC } from '@/lib/contractConfig';
 import { useAuth } from '@/context/AuthContext';
-import QRButton from '@/components/BlockchainQR/BlockchainQR';
+
+const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
+    ssr: false,
+    loading: () => null,
+});
+
+function isPhantomInstalled() {
+    return typeof window !== 'undefined' && !!(window.solana && window.solana.isPhantom);
+}
+
+function shortenAddress(address, chars = 4) {
+    if (!address) return '';
+    return `${address.slice(0, chars)}...${address.slice(-chars)}`;
+}
+
+function rupiahToSol(rupiah, ratePerSol = 2_000_000) {
+    return rupiah / ratePerSol;
+}
+
+function onIdle(callback, timeout = 1200) {
+    if (typeof window === 'undefined') return undefined;
+    if ('requestIdleCallback' in window) {
+        return window.requestIdleCallback(callback, { timeout });
+    }
+    return window.setTimeout(callback, 250);
+}
+
+function cancelIdle(id) {
+    if (typeof window === 'undefined' || id == null) return;
+    if ('cancelIdleCallback' in window) window.cancelIdleCallback(id);
+    else window.clearTimeout(id);
+}
 
 /* ── SVG Icons ── */
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
@@ -81,23 +109,34 @@ export default function LandingPage() {
     const [walletMenuOpen, setWalletMenuOpen] = useState(false);
 
     useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 60);
-        window.addEventListener('scroll', handleScroll);
+        let ticking = false;
+        const handleScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                setScrolled(window.scrollY > 60);
+                ticking = false;
+            });
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     /* ── Check admin/developer session from localStorage ── */
     useEffect(() => {
-        const token = localStorage.getItem('cc_token');
-        if (!token) return;
-        fetch(`/api/auth/me?token=${token}`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
-                    setAdminUser(data.user);
-                }
-            })
-            .catch(() => { /* ignore */ });
+        const idleId = onIdle(() => {
+            const token = localStorage.getItem('cc_token');
+            if (!token) return;
+            fetch(`/api/auth/me?token=${token}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
+                        setAdminUser(data.user);
+                    }
+                })
+                .catch(() => { /* ignore */ });
+        });
+        return () => cancelIdle(idleId);
     }, []);
 
     /* ── Load Midtrans Snap.js lazily (only when needed) ── */
@@ -116,9 +155,14 @@ export default function LandingPage() {
     /* ── Auto-connect Phantom if already approved ── */
     useEffect(() => {
         if (typeof window === 'undefined') return;
+        const handleAccountChanged = (newKey) => {
+            if (newKey) { setWalletPublicKey(newKey.toString()); }
+            else { setWalletPublicKey(null); setWalletBalance(0); }
+        };
         const tryAutoConnect = async () => {
             try {
                 if (window.solana && window.solana.isPhantom && window.solana.isConnected && window.solana.publicKey) {
+                    const { getSolBalance } = await import('@/lib/phantom');
                     const pk = window.solana.publicKey.toString();
                     const bal = await getSolBalance(pk);
                     setWalletPublicKey(pk);
@@ -126,22 +170,24 @@ export default function LandingPage() {
                 }
             } catch { /* ignore */ }
         };
-        tryAutoConnect();
-        if (window.solana) {
-            window.solana.on('accountChanged', (newKey) => {
-                if (newKey) { setWalletPublicKey(newKey.toString()); }
-                else { setWalletPublicKey(null); setWalletBalance(0); }
-            });
+        const idleId = onIdle(tryAutoConnect, 1800);
+        if (window.solana?.on) {
+            window.solana.on('accountChanged', handleAccountChanged);
         }
+        return () => {
+            cancelIdle(idleId);
+            window.solana?.removeListener?.('accountChanged', handleAccountChanged);
+        };
     }, []);
 
     useEffect(() => {
+        const controller = new AbortController();
         async function load() {
             try {
                 const [prodRes, farmerRes, txRes] = await Promise.all([
-                    fetch('/api/public/products'),
-                    fetch('/api/farmers'),
-                    fetch('/api/transactions'),
+                    fetch('/api/public/products', { signal: controller.signal }),
+                    fetch('/api/farmers', { signal: controller.signal }),
+                    fetch('/api/transactions', { signal: controller.signal }),
                 ]);
                 const prodData = await prodRes.json();
                 const farmerData = await farmerRes.json();
@@ -155,7 +201,11 @@ export default function LandingPage() {
             } catch { }
             setLoading(false);
         }
-        load();
+        const idleId = onIdle(load);
+        return () => {
+            cancelIdle(idleId);
+            controller.abort();
+        };
     }, []);
 
     useEffect(() => {
@@ -181,6 +231,7 @@ export default function LandingPage() {
         if (!isPhantomInstalled()) { window.open('https://phantom.app/', '_blank'); return false; }
         setWalletConnecting(true);
         try {
+            const { connectPhantom, getSolBalance } = await import('@/lib/phantom');
             const { publicKey } = await connectPhantom();
             const balance = await getSolBalance(publicKey);
             setWalletPublicKey(publicKey);
@@ -194,6 +245,7 @@ export default function LandingPage() {
         }
     }
     async function disconnectWallet() {
+        const { disconnectPhantom } = await import('@/lib/phantom');
         await disconnectPhantom();
         setWalletPublicKey(null); setWalletBalance(0); setWalletMenuOpen(false);
     }
@@ -295,7 +347,10 @@ export default function LandingPage() {
         try {
             if (pm === 'transfer') {
                 const solAmt = rupiahToSol(totalPrice);
-                try { txSignature = await sendSolTransaction(walletPublicKey, targetWallet, solAmt); }
+                try {
+                    const { sendSolTransaction } = await import('@/lib/phantom');
+                    txSignature = await sendSolTransaction(walletPublicKey, targetWallet, solAmt);
+                }
                 catch (txErr) { alert(`Transaksi Solana gagal: ${txErr.message}`); setOrdering(false); return; }
             }
             const res = await fetch('/api/public/order', {

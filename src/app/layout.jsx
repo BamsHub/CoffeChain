@@ -1,9 +1,6 @@
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
     title: 'CoffeeChain — Blockchain Industri Kopi',
@@ -24,7 +21,7 @@ export default function RootLayout({ children }) {
                     `
                 }} />
             </head>
-            <body className={inter.className}>
+            <body>
                 <AuthProvider>
                     <ThemeProvider>
                         <main id="main-content" aria-label="Konten utama">
