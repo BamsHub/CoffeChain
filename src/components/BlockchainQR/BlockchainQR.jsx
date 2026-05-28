@@ -109,14 +109,15 @@ export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName,
 
     return (
         <div style={{
-            background: 'var(--color-bg-card, #161E16)',
-            border: '1px solid var(--color-border, rgba(74,124,40,0.25))',
+            background: 'var(--color-bg-card2, #1C261C)',
+            border: '1.5px solid rgba(74,124,40,0.55)',
             borderRadius: 14,
             padding: compact ? 14 : 20,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
         }}>
             {/* Label */}
             {!compact && (
@@ -255,13 +256,14 @@ export function BlockchainQRModal({ open, onClose, explorerUrl, traceUrl, coffee
         >
             <style>{`@keyframes qrFadeIn { from{opacity:0;transform:scale(0.94)} to{opacity:1;transform:scale(1)} }`}</style>
             <div style={{
-                background: 'var(--color-bg-card, #161E16)',
-                border: '1px solid var(--color-border, rgba(74,124,40,0.25))',
+                background: 'var(--color-bg-card2, #1C261C)',
+                border: '1.5px solid rgba(74,124,40,0.55)',
                 borderRadius: 18,
                 padding: 24,
                 width: '100%', maxWidth: 360,
                 maxHeight: '90vh', overflowY: 'auto',
                 position: 'relative',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
             }}>
                 {/* Close button */}
                 <button onClick={onClose} style={{
