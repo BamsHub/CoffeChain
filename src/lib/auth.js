@@ -1,10 +1,12 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { readDb, writeDb } from './db';
 
-if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
+// Lazy — dibaca saat runtime, bukan saat build
+function getJwtSecret() {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET environment variable is not set');
+    return new TextEncoder().encode(secret);
 }
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 /** Hash password dengan SHA-256 (Web Crypto API kompatibel dengan Cloudflare Edge) */
 export async function hashPassword(password) {
@@ -25,7 +27,7 @@ export async function createSession(userId, role) {
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('7d') // expired dalam 7 hari
-        .sign(JWT_SECRET);
+        .sign(getJwtSecret());
     return token;
 }
 
@@ -33,7 +35,7 @@ export async function createSession(userId, role) {
 export async function verifyToken(token) {
     if (!token) return null;
     try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         return {
             userId: payload.userId,
             role: payload.role,
