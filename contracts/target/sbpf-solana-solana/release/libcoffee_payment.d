@@ -1,0 +1,1 @@
+/mnt/c/Users/Bams/Desktop/nextjs/coffee-blockchain/contracts/target/sbpf-solana-solana/release/libcoffee_payment.rlib: /mnt/c/Users/Bams/Desktop/nextjs/coffee-blockchain/contracts/programs/coffee-payment/src/lib.rs

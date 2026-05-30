@@ -11,7 +11,7 @@ const WEIGHT_OPTIONS = [100, 200, 250, 500, 1000];
 
 const initialForm = {
     name: '', origin: '', variety: 'Arabika', grade: 'A', roast: 'Medium Roast',
-    description: '', stock: 50, coffeeId: '',
+    description: '', stock: 50, coffeeId: '', image: '',
     weights: [{ gram: 250, price: 75000 }],
 };
 
@@ -86,6 +86,7 @@ export default function ProductsContent() {
                     grade: form.grade, roast: form.roast, description: form.description,
                     stock: form.stock,
                     coffeeId: form.coffeeId || null,
+                    image: form.image || null,
                     weight: form.weights.map(w => w.gram),
                     pricePerUnit: form.weights.map(w => w.price),
                     submittedBy: user?.id || null,
@@ -181,8 +182,7 @@ export default function ProductsContent() {
             grade: product.grade || 'A',
             roast: product.roast || 'Medium Roast',
             description: product.description || '',
-            stock: product.stock ?? 0,
-            weights: (product.weight || [250]).map((g, i) => ({ gram: g, price: product.pricePerUnit?.[i] || 0 })),
+            stock: product.stock ?? 0,            image: product.image || '',            weights: (product.weight || [250]).map((g, i) => ({ gram: g, price: product.pricePerUnit?.[i] || 0 })),
         });
         setMsg(null);
     }
@@ -211,8 +211,7 @@ export default function ProductsContent() {
                     grade: editForm.grade,
                     roast: editForm.roast,
                     description: editForm.description,
-                    stock: Number(editForm.stock) || 0,
-                    weight: editForm.weights.map(w => w.gram),
+                    stock: Number(editForm.stock) || 0,                    image: editForm.image || null,                    weight: editForm.weights.map(w => w.gram),
                     pricePerUnit: editForm.weights.map(w => w.price),
                     // Farmer edits go back to pending for re-approval
                     ...(isFarmer ? { status: 'pending', submittedAt: new Date().toISOString() } : {}),
@@ -338,7 +337,7 @@ export default function ProductsContent() {
                         {isFarmer ? 'Produk Saya' : 'Kelola Produk'}
                     </h1>
                     <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                        {isFarmer
+                        {loading ? 'Memuat...' : isFarmer
                             ? `${products.length} produk yang kamu ajukan`
                             : `${products.length} produk terdaftar di database`}
                     </p>
@@ -365,7 +364,7 @@ export default function ProductsContent() {
                             <QRButton
                                 explorerUrl={msg.explorerUrl}
                                 coffeeId={msg.txSig?.slice(0, 8) + '...'}
-                                label="QR Bukti"
+                                label="QR Sertifikasi"
                             />
                         )}
                         {msg.type === 'ok' && msg.landingLink && (
@@ -421,6 +420,11 @@ export default function ProductsContent() {
                                 <label style={label}>Kopi ID (Opsional)</label>
                                 <input style={input} value={form.coffeeId} onChange={e => setField('coffeeId', e.target.value)} placeholder="CF-XXXXXX" />
                                 <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3, display: 'block' }}>Masukkan ID seri kopi jika sudah ada. Kosongkan jika belum.</span>
+                            </div>
+                            <div>
+                                <label style={label}>URL Foto Produk (Opsional)</label>
+                                <input style={input} value={form.image} onChange={e => setField('image', e.target.value)} placeholder="https://..." />
+                                <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3, display: 'block' }}>Tempel link foto produk.</span>
                             </div>
                         </div>
 
@@ -520,7 +524,18 @@ export default function ProductsContent() {
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
                     {filtered.map(p => (
-                        <div key={p.id} style={{ ...card, border: p.status === 'pending' ? '1px solid rgba(245,166,35,0.35)' : undefined }}>
+                        <div key={p.id} style={{ ...card, border: p.status === 'pending' ? '1px solid rgba(245,166,35,0.35)' : undefined, padding: 0, overflow: 'hidden' }}>
+                            {/* Product Image */}
+                            <div style={{ width: '100%', height: 110, background: 'rgba(74,124,40,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', borderBottom: '1px solid var(--color-border)' }}>
+                                {p.image ? (
+                                    <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} />
+                                ) : null}
+                                <div style={{ display: p.image ? 'none' : 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: 'rgba(126,212,74,0.35)' }}>
+                                    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                                    <span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600 }}>{p.variety || 'Kopi'}</span>
+                                </div>
+                            </div>
+                            <div style={{ padding: 16 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
@@ -565,7 +580,7 @@ export default function ProductsContent() {
                                             traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
                                             coffeeId={p.coffeeId}
                                             productName={p.name}
-                                            label="QR Bukti"
+                                            label="QR Sertifikasi"
                                         />
                                     </div>
                                 ) : p.status === 'pending' ? (
@@ -583,6 +598,7 @@ export default function ProductsContent() {
                                     </Link>
                                 )}
                             </div>
+                            </div>{/* end padding div */}
                         </div>
                     ))}
                 </div>
@@ -641,6 +657,10 @@ export default function ProductsContent() {
                             <div style={{ marginBottom: 14 }}>
                                 <label style={label}>Deskripsi</label>
                                 <textarea style={{ ...input, resize: 'vertical', minHeight: 72 }} value={editForm.description} onChange={e => setEditField('description', e.target.value)} />
+                            </div>
+                            <div style={{ marginBottom: 14 }}>
+                                <label style={label}>URL Foto Produk (Opsional)</label>
+                                <input style={input} value={editForm.image || ''} onChange={e => setEditField('image', e.target.value)} placeholder="https://..." />
                             </div>
                             <div style={{ marginBottom: 16 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>

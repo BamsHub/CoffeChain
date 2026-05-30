@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
 import { useTheme } from '@/context/ThemeContext';
 import { BlockchainQRCard } from '@/components/BlockchainQR/BlockchainQR';
+import QRButton from '@/components/BlockchainQR/BlockchainQR';
 
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
 const IconSearch = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
@@ -20,6 +21,14 @@ function TraceContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searched, setSearched] = useState(false);
+    const [allProducts, setAllProducts] = useState([]);
+
+    useEffect(() => {
+        fetch('/api/products')
+            .then(r => r.json())
+            .then(d => { if (d.success) setAllProducts(d.data.filter(p => p.status === 'published')); })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         const id = searchParams.get('id');
@@ -51,8 +60,8 @@ function TraceContent() {
         <div style={{ maxWidth: 700, margin: '0 auto', padding: '60px 20px 80px' }}>
             <div style={{ textAlign: 'center', marginBottom: 48, animation: 'fadeUp 0.5s ease' }}>
                 <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg,rgba(74,124,40,0.2),rgba(126,212,74,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#7ED44A' }}><IconShield /></div>
-                <h1 style={{ fontSize: 'clamp(28px,5vw,42px)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 12, letterSpacing: '-1px' }}>Verifikasi Keaslian Kopi</h1>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: 15, maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>Masukkan Coffee ID untuk melihat data traceability yang tercatat permanen di blockchain Solana</p>
+                <h1 style={{ fontSize: 'clamp(28px,5vw,42px)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 12, letterSpacing: '-1px' }}>Sertifikasi Produk CoffeeChain</h1>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: 15, maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>Masukkan Coffee ID untuk melihat sertifikasi yang tercatat permanen di blockchain Solana</p>
             </div>
             <form onSubmit={handleSearch} style={{ display: 'flex', gap: 10, marginBottom: 40, animation: 'fadeUp 0.6s ease' }}>
                 <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Masukkan Coffee ID (contoh: CF-A1B2C3)"
@@ -115,12 +124,12 @@ function TraceContent() {
                         )}
                     </div>
 
-                    {/* QR Code Bukti Blockchain */}
+                    {/* QR Code Sertifikasi */}
                     {result.txSignature && (
                         <div style={{ animation: 'fadeUp 0.5s ease' }}>
                             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>
-                                QR Code Bukti Blockchain
+                                QR Code Sertifikasi
                             </div>
                             <BlockchainQRCard
                                 explorerUrl={result.explorerUrl || getExplorerTxUrl(result.txSignature)}
@@ -134,7 +143,54 @@ function TraceContent() {
             )}
             {!loading && !result && !error && !searched && (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)', animation: 'fadeUp 0.7s ease' }}>
-                    <IconShield /><br /><p style={{ marginTop: 12, fontSize: 13 }}>Masukkan Coffee ID di atas untuk mulai verifikasi</p>
+                    <IconShield /><br /><p style={{ marginTop: 12, fontSize: 13 }}>Masukkan Coffee ID di atas untuk mulai sertifikasi</p>
+                </div>
+            )}
+
+            {/* All Products Certifications */}
+            {allProducts.length > 0 && (
+                <div style={{ marginTop: 64, animation: 'fadeUp 0.8s ease' }}>
+                    <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>Sertifikasi Produk</div>
+                        <h2 style={{ fontSize: 'clamp(18px,3.5vw,24px)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.5px' }}>Semua Sertifikasi Kopi</h2>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{allProducts.length} produk terdaftar dengan sertifikasi</p>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
+                        {allProducts.map(p => (
+                            <div key={p.id} style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
+                                <div style={{ height: 72, background: 'rgba(74,124,40,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                                    {p.image
+                                        ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(126,212,74,0.35)" strokeWidth="1.5"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg>
+                                    }
+                                </div>
+                                <div style={{ padding: 11 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                                    <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 6 }}>{p.origin} · {p.variety}</div>
+                                    {p.coffeeId && (
+                                        <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#7ED44A', background: 'rgba(74,124,40,0.1)', padding: '2px 6px', borderRadius: 4, marginBottom: 7, display: 'inline-block', border: '1px solid rgba(126,212,74,0.2)' }}>{p.coffeeId}</div>
+                                    )}
+                                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        {p.coffeeId ? (
+                                            <>
+                                                <a href={`/trace?id=${p.coffeeId}`} style={{ fontSize: 10, fontWeight: 700, padding: '4px 7px', borderRadius: 5, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.3)', color: '#7ED44A', textDecoration: 'none' }}>
+                                                    🏆 Sertifikasi
+                                                </a>
+                                                <QRButton
+                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : 'https://coffeechain.vercel.app'}/trace?id=${p.coffeeId}`}
+                                                    coffeeId={p.coffeeId}
+                                                    productName={p.name}
+                                                    label="QR"
+                                                />
+                                            </>
+                                        ) : (
+                                            <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Belum terdaftar</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>

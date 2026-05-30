@@ -1,0 +1,1 @@
+/mnt/c/Users/Bams/Desktop/nextjs/coffee-blockchain/contracts/target/sbpf-solana-solana/release/libcoffee_inventory.rlib: /mnt/c/Users/Bams/Desktop/nextjs/coffee-blockchain/contracts/programs/coffee-inventory/src/lib.rs

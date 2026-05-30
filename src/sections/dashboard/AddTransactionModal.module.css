@@ -137,6 +137,12 @@
     padding: 10px 12px;
     outline: none;
     transition: var(--transition);
+    color-scheme: dark;
+}
+
+.select option {
+    background-color: #1a2a15;
+    color: #e8f5e9;
 }
 
 .input:focus,
