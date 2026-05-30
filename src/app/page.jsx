@@ -55,7 +55,14 @@ const IconClose = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="no
 const IconCheck = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const IconWallet = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>;
 const IconTransfer = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>;
-const IconPhantomLogo = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 128 128" fill="none"><circle cx="64" cy="64" r="64" fill="#9945FF"/><path d="M64 24C42 24 24 42 24 64s18 40 40 40 40-18 40-40S86 24 64 24zm16 52a10 10 0 110-20 10 10 0 010 20zm-32 0a10 10 0 110-20 10 10 0 010 20z" fill="white"/><path d="M44 64h40" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.35"/></svg>;
+const IconPhantomLogo = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+    <rect width="100" height="100" rx="22" fill="#AB9FF2"/>
+    <path d="M50 18C33 18 22 31 22 48V82L31 74L40 82L50 74L60 82L69 74L78 82V48C78 31 67 18 50 18Z" fill="white"/>
+    <ellipse cx="40" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
+    <ellipse cx="60" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
+  </svg>
+);
 const IconBank = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>;
 const IconMobileQR = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;
 const IconClockWait = ({ size = 44 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
@@ -550,6 +557,11 @@ export default function LandingPage() {
                     .lp-how-grid { grid-template-columns:1fr; }
                     .lp-products-grid { grid-template-columns:1fr 1fr; gap:8px; }
                 }
+                @keyframes phantomFloat {
+                    0%,100% { transform:translateY(0) rotate(-2deg); }
+                    50% { transform:translateY(-10px) rotate(2deg); }
+                }
+                .phantom-float { animation:phantomFloat 3.5s ease-in-out infinite; }
             `}</style>
 
             {/* ── NAVBAR ── */}
@@ -1004,6 +1016,18 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* ── Floating Phantom Ghost ── */}
+            <div style={{ position:'fixed', bottom:28, right:28, zIndex:90, pointerEvents:'none' }}>
+                <div className="phantom-float" style={{ width:56, height:56, filter:'drop-shadow(0 4px 18px rgba(171,159,242,0.55))' }}>
+                    <svg width="56" height="56" viewBox="0 0 100 100" fill="none">
+                        <rect width="100" height="100" rx="22" fill="#AB9FF2"/>
+                        <path d="M50 18C33 18 22 31 22 48V82L31 74L40 82L50 74L60 82L69 74L78 82V48C78 31 67 18 50 18Z" fill="white"/>
+                        <ellipse cx="40" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
+                        <ellipse cx="60" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
+                    </svg>
+                </div>
+            </div>
+
             {/* ── FOOTER ── */}
             <footer style={{ padding: '32px 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }} className="lp-footer-inner">
@@ -1205,20 +1229,41 @@ export default function LandingPage() {
                                 )}
 
                                 <form onSubmit={handleOrder} className="lp-modal-grid">
+                                    {/* ── Info Pembeli + Pengiriman (1 blok) ── */}
                                     <div>
                                         <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Nama Lengkap *</label>
                                         <input type="text" required className="lp-inp" value={orderForm.buyerName}
                                             onChange={e => setOrderForm(f => ({ ...f, buyerName: e.target.value, recipientName: e.target.value }))} />
                                     </div>
-                                    {[
-                                        { label:'Email *', key:'buyerEmail', type:'email', required:true },
-                                        { label:'No. HP (opsional)', key:'buyerPhone', type:'tel', required:false },
-                                    ].map(({ label, key, type, required }) => (
-                                        <div key={key}>
-                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>{label}</label>
-                                            <input type={type} required={required} value={orderForm[key]} onChange={e => setOrderForm(f => ({ ...f, [key]: e.target.value }))} className="lp-inp" />
+                                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                                        <div>
+                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Email *</label>
+                                            <input type="email" required className="lp-inp" value={orderForm.buyerEmail} onChange={e => setOrderForm(f => ({ ...f, buyerEmail: e.target.value }))} />
                                         </div>
-                                    ))}
+                                        <div>
+                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>No. HP (opsional)</label>
+                                            <input type="tel" className="lp-inp" value={orderForm.buyerPhone} onChange={e => setOrderForm(f => ({ ...f, buyerPhone: e.target.value }))} />
+                                        </div>
+                                    </div>
+                                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                                        <div>
+                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Kode Pos</label>
+                                            <input type="text" maxLength={6} placeholder="12345" className="lp-inp" value={orderForm.shippingPostal} onChange={e => setOrderForm(f => ({ ...f, shippingPostal: e.target.value }))} />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Kota *</label>
+                                            <input type="text" placeholder="Jakarta Selatan" className="lp-inp" value={orderForm.shippingCity} onChange={e => setOrderForm(f => ({ ...f, shippingCity: e.target.value }))} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Provinsi</label>
+                                        <input type="text" placeholder="DKI Jakarta" className="lp-inp" value={orderForm.shippingProvince} onChange={e => setOrderForm(f => ({ ...f, shippingProvince: e.target.value }))} />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Alamat Lengkap *</label>
+                                        <textarea required className="lp-inp" rows={2} placeholder="Jalan, no. rumah, RT/RW, kelurahan, kecamatan..." style={{ resize:'none', height:'auto' }}
+                                            value={orderForm.shippingAddress} onChange={e => setOrderForm(f => ({ ...f, shippingAddress: e.target.value }))} />
+                                    </div>
 
                                     {selectedProduct.weight?.length > 0 && (
                                         <div>
@@ -1265,49 +1310,7 @@ export default function LandingPage() {
 
 
 
-                                                    {/* Shipping Address */}
-                                    <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:14 }}>
-                                        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:12 }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                            <span style={{ fontSize:12, fontWeight:700, color:'#F5A623' }}>Alamat Pengiriman</span>
-                                        </div>
-                                        <div style={{ display:'grid', gap:8 }}>
-                                            <div>
-                                                <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:3 }}>Alamat Lengkap *</label>
-                                                <textarea className="lp-inp" rows={2} placeholder="Jalan, no. rumah, RT/RW, kelurahan, kecamatan..." style={{ fontSize:13, resize:'none', height:'auto' }}
-                                                    value={orderForm.shippingAddress}
-                                                    onChange={e => setOrderForm(f => ({ ...f, shippingAddress: e.target.value }))} />
-                                            </div>
-                                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:3 }}>Kota *</label>
-                                                    <input className="lp-inp" type="text" placeholder="Jakarta Selatan" style={{ fontSize:13 }}
-                                                        value={orderForm.shippingCity}
-                                                        onChange={e => setOrderForm(f => ({ ...f, shippingCity: e.target.value }))} />
-                                                </div>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:3 }}>Provinsi</label>
-                                                    <input className="lp-inp" type="text" placeholder="DKI Jakarta" style={{ fontSize:13 }}
-                                                        value={orderForm.shippingProvince}
-                                                        onChange={e => setOrderForm(f => ({ ...f, shippingProvince: e.target.value }))} />
-                                                </div>
-                                            </div>
-                                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:3 }}>Kode Pos</label>
-                                                    <input className="lp-inp" type="text" maxLength={6} placeholder="12345" style={{ fontSize:13 }}
-                                                        value={orderForm.shippingPostal}
-                                                        onChange={e => setOrderForm(f => ({ ...f, shippingPostal: e.target.value }))} />
-                                                </div>
-                                                <div>
-                                                    <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:3 }}>No. HP Penerima</label>
-                                                    <input className="lp-inp" type="tel" maxLength={15} placeholder="08xxxxxxxxxx" style={{ fontSize:13 }}
-                                                        value={orderForm.shippingPhone}
-                                                        onChange={e => setOrderForm(f => ({ ...f, shippingPhone: e.target.value }))} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+
 
                                     {/* Price Summary */}
                                     <div style={{ background:'rgba(0,0,0,0.35)', borderRadius:10, padding:'14px 16px' }}>
