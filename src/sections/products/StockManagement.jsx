@@ -55,6 +55,7 @@ export default function StockManagement() {
     const [photoUrl, setPhotoUrl] = useState('');
     const [msg, setMsg] = useState(null);
     const [search, setSearch] = useState('');
+    const [detailLog, setDetailLog] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -213,7 +214,7 @@ export default function StockManagement() {
 
             const chainText = isFinal
                 ? ' dan sertifikat on-chain berhasil dibuat'
-                : ' dan tercatat on-chain';
+                : ' sebagai log audit produksi';
             const finalText = isFinal ? ' Produk jadi otomatis masuk ke Kelola Produk.' : '';
             setMsg({ type: 'ok', text: `${stage.name} untuk "${batch.name}" tersimpan${chainText}.${finalText}`, explorerUrl: data.explorerUrl });
             setStageModal(null);
@@ -358,18 +359,21 @@ export default function StockManagement() {
                                 </button>
 
                                 <div style={{ marginTop: 16, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
-                                    <div style={{ color: 'var(--color-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 8 }}>Trace Log Blockchain</div>
+                                    <div style={{ color: 'var(--color-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 8 }}>Log Audit Produksi</div>
                                     {batchLogs.length === 0 ? (
                                         <div style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>Belum ada log tahap.</div>
                                     ) : (
                                         <div style={{ display: 'grid', gap: 8 }}>
                                             {batchLogs.slice(0, 6).map(log => (
-                                                <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
+                                                <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
                                                     <span>{log.stage}. {log.stageName}</span>
+                                                    <button type="button" onClick={() => setDetailLog(log)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)', color: 'var(--color-text)', borderRadius: 7, padding: '4px 8px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                                                        Lihat data
+                                                    </button>
                                                     {log.explorerUrl ? (
-                                                        <a href={log.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#B388FF', textDecoration: 'none', fontWeight: 800 }}>On-chain</a>
+                                                        <a href={log.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#B388FF', textDecoration: 'none', fontWeight: 800 }}>Sertifikat</a>
                                                     ) : (
-                                                        <span style={{ color: '#FF8A65', fontWeight: 800 }}>Local</span>
+                                                        <span style={{ color: '#7ED44A', fontWeight: 800 }}>Local</span>
                                                     )}
                                                 </div>
                                             ))}
@@ -448,6 +452,49 @@ export default function StockManagement() {
                     </form>
                 </div>
             )}
+
+            {detailLog && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={event => { if (event.target === event.currentTarget) setDetailLog(null); }}>
+                    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 620, maxHeight: '90vh', overflow: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+                            <div>
+                                <h2 style={{ color: 'var(--color-text)', margin: 0, fontSize: 19, fontWeight: 900 }}>{detailLog.stage}. {detailLog.stageName}</h2>
+                                <p style={{ color: 'var(--color-text-muted)', margin: '5px 0 0', fontSize: 12 }}>
+                                    {detailLog.createdAt ? new Date(detailLog.createdAt).toLocaleString('id-ID') : 'Waktu tidak tersedia'} oleh {detailLog.loggedByName || 'Operator'}
+                                </p>
+                            </div>
+                            <button type="button" onClick={() => setDetailLog(null)} style={{ ...mutedButton, padding: '6px 10px' }}>Tutup</button>
+                        </div>
+
+                        {detailLog.photoUrl && (
+                            <a href={detailLog.photoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: 14 }}>
+                                <img src={detailLog.photoUrl} alt={`Bukti ${detailLog.stageName}`} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--color-border)' }} />
+                            </a>
+                        )}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
+                            {Object.entries(detailLog.data || {})
+                                .filter(([, value]) => value !== null && value !== undefined && value !== '')
+                                .map(([key, value]) => (
+                                    <div key={key} style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid var(--color-border)', borderRadius: 9, padding: 10 }}>
+                                        <div style={{ color: 'var(--color-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 4 }}>{formatLogKey(key)}</div>
+                                        <div style={{ color: 'var(--color-text)', fontSize: 13, fontWeight: 700, wordBreak: 'break-word' }}>{formatLogValue(value)}</div>
+                                    </div>
+                                ))}
+                        </div>
+
+                        {detailLog.explorerUrl ? (
+                            <a href={detailLog.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: 16 }}>
+                                Buka Sertifikat Solana
+                            </a>
+                        ) : (
+                            <div style={{ marginTop: 16, color: 'var(--color-text-muted)', fontSize: 12 }}>
+                                Tahap ini tersimpan sebagai log audit internal. Sertifikat Solana dibuat saat tahap Produk Jadi.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -470,4 +517,32 @@ function SelectField({ label, value, onChange, options, input, labelStyle }) {
             </select>
         </div>
     );
+}
+
+function formatLogKey(key) {
+    const labels = {
+        notes: 'Catatan',
+        operator: 'Operator',
+        durationMinutes: 'Durasi',
+        weightIn: 'Berat Masuk',
+        weightOut: 'Berat Keluar',
+        suhu: 'Suhu Roasting',
+        levelRoast: 'Level Roast',
+        ukuranGiling: 'Ukuran Giling',
+        gasReleaseHours: 'Pelepasan Gas',
+        productName: 'Nama Produk',
+        stock: 'Stok Produk',
+        weights: 'Berat Kemasan',
+        pricePerUnit: 'Harga',
+        description: 'Deskripsi',
+        roast: 'Roast',
+        image: 'Foto',
+    };
+    return labels[key] || key.replace(/[A-Z]/g, letter => ` ${letter}`).trim();
+}
+
+function formatLogValue(value) {
+    if (Array.isArray(value)) return value.join(', ');
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
 }
