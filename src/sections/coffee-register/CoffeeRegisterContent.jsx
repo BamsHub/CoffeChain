@@ -60,6 +60,7 @@ export default function CoffeeRegisterContent() {
     const [submitting, setSubmitting]     = useState(false);
     const [regMsg, setRegMsg]             = useState(null);
     const [previewOpen, setPreviewOpen]   = useState(false);
+    const [detailProduct, setDetailProduct] = useState(null);
 
     /* ── Log search ── */
     const [logSearch, setLogSearch]       = useState('');
@@ -400,6 +401,10 @@ export default function CoffeeRegisterContent() {
                                                     style={{ ...S.btnG, width: '100%', justifyContent: 'center', padding: '9px', fontSize: 12 }}>
                                                     <IcoShield /> Daftarkan ke Blockchain
                                                 </button>
+                                                <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
+                                                    style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', border: '1px solid rgba(126,212,74,0.25)', fontWeight: 700 }}>
+                                                    <IcoEye /> Detail Produk
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -430,6 +435,10 @@ export default function CoffeeRegisterContent() {
                                                 </div>
                                                 {/* QR + Link Bukti Blockchain */}
                                                 <div style={{ marginTop: 10, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                                                    <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
+                                                        style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'var(--color-text,#E8F5E0)', fontWeight:700, padding:'4px 10px', borderRadius:7, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(126,212,74,0.25)', cursor:'pointer' }}>
+                                                        <IcoEye /> Detail
+                                                    </button>
                                                     <a href={`/trace?id=${p.coffeeId}`} target="_blank" rel="noopener noreferrer"
                                                         style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#7ED44A', textDecoration:'none', fontWeight:700, padding:'4px 10px', borderRadius:7, background:'rgba(74,124,40,0.1)', border:'1px solid rgba(74,124,40,0.25)' }}>
                                                         <IcoLink /> Trace Link
@@ -688,6 +697,109 @@ export default function CoffeeRegisterContent() {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {detailProduct && (
+                <div className="cr-overlay" style={{ zIndex: 340 }} onClick={() => setDetailProduct(null)}>
+                    <div className="cr-modal" style={{ maxWidth: 760 }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+                            <div>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: '#E8F5E0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <IcoEye /> Detail Produk
+                                </div>
+                                <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 3 }}>
+                                    Data dari Kelola Produk untuk dicek sebelum on-chain.
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setDetailProduct(null)}
+                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: 'rgba(232,245,224,0.7)', cursor: 'pointer' }}>
+                                <IcoClose />
+                            </button>
+                        </div>
+
+                        <ProductDetailView product={detailProduct} />
+
+                        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                            {!detailProduct.coffeeId && (
+                                <button type="button" onClick={() => { openRegister(detailProduct); setDetailProduct(null); }}
+                                    style={{ ...S.btnG, flex: '1 1 220px', justifyContent: 'center' }}>
+                                    <IcoShield /> Lanjut Daftarkan
+                                </button>
+                            )}
+                            {detailProduct.coffeeId && (
+                                <a href={`/trace?id=${detailProduct.coffeeId}`} target="_blank" rel="noopener noreferrer"
+                                    style={{ ...S.btnG, flex: '1 1 220px', justifyContent: 'center', textDecoration: 'none' }}>
+                                    <IcoLink /> Buka Trace
+                                </a>
+                            )}
+                            <button type="button" onClick={() => setDetailProduct(null)}
+                                style={{ flex: '1 1 160px', padding: '10px 14px', borderRadius: 9, background: 'rgba(255,255,255,0.05)', color: '#E8F5E0', border: '1px solid rgba(255,255,255,0.12)', fontWeight: 700, cursor: 'pointer' }}>
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ProductDetailView({ product }) {
+    const weights = Array.isArray(product.weight) ? product.weight : [];
+    const prices = Array.isArray(product.pricePerUnit) ? product.pricePerUnit : [];
+    const rows = [
+        ['Nama Produk', product.name],
+        ['Asal', product.origin],
+        ['Varietas', product.variety],
+        ['Grade', product.grade],
+        ['Roast', product.roast],
+        ['Stok', `${product.stock ?? 0} unit`],
+        ['Coffee ID', product.coffeeId || 'Belum terdaftar'],
+        ['Status', product.status || 'published'],
+        ['Ukuran', weights.length ? weights.map(w => `${w}g`).join(', ') : '-'],
+        ['Harga', prices.length ? prices.map(v => `Rp ${Number(v || 0).toLocaleString('id-ID')}`).join(', ') : '-'],
+        ['Diajukan Oleh', product.submittedByName || '-'],
+        ['Role Pengaju', product.submittedByRole || '-'],
+    ];
+
+    return (
+        <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, alignItems: 'start' }}>
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(74,124,40,0.25)', background: 'rgba(74,124,40,0.08)', minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {product.image ? (
+                        <img src={product.image} alt={product.name} style={{ width: '100%', height: 220, objectFit: 'cover' }} />
+                    ) : (
+                        <div style={{ color: 'rgba(126,212,74,0.45)', display: 'grid', placeItems: 'center', gap: 6 }}>
+                            <IcoCoffee />
+                            <span style={{ fontSize: 12 }}>Belum ada foto</span>
+                        </div>
+                    )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
+                    {rows.map(([label, value]) => (
+                        <div key={label} style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(74,124,40,0.2)', borderRadius: 9, padding: 10 }}>
+                            <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
+                            <div style={{ color: '#E8F5E0', fontSize: 13, fontWeight: 700, wordBreak: 'break-word' }}>{value || '-'}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {product.description && (
+                <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(74,124,40,0.2)' }}>
+                    <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 5 }}>Tulisan/Deskripsi</div>
+                    <div style={{ color: '#E8F5E0', fontSize: 13, whiteSpace: 'pre-wrap' }}>{product.description}</div>
+                </div>
+            )}
+
+            {Array.isArray(product.tags) && product.tags.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {product.tags.map(tag => (
+                        <span key={tag} style={{ fontSize: 11, color: '#7ED44A', background: 'rgba(74,124,40,0.14)', border: '1px solid rgba(126,212,74,0.25)', borderRadius: 999, padding: '3px 9px', fontWeight: 700 }}>
+                            {tag}
+                        </span>
+                    ))}
                 </div>
             )}
         </div>
