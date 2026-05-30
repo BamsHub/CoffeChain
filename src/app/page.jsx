@@ -822,9 +822,9 @@ export default function LandingPage() {
                                         <span key={tag} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.2)', fontWeight:600 }}>{tag}</span>
                                     ))}
                                     {p.coffeeId && (
-                                        <a href={`/trace?id=${p.coffeeId}`} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(124,77,255,0.12)', color:'#b388ff', border:'1px solid rgba(124,77,255,0.25)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
+                                        <a href={`/trace?id=${p.coffeeId}`} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.3)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
                                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                            On-Chain
+                                            Sertifikasi
                                         </a>
                                     )}
                                     {p.coffeeId && (
@@ -1419,38 +1419,23 @@ export default function LandingPage() {
                             </div>
 
                             {selectedDetailProduct.coffeeId ? (
-                                <div style={{ padding:'16px', background:'rgba(124,77,255,0.05)', border:'1px solid rgba(124,77,255,0.2)', borderRadius:12 }}>
-                                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b388ff" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                        <h4 style={{ fontSize:14, fontWeight:700, color:'#b388ff' }}>On-Chain Traceability</h4>
+                                <div style={{ padding:'16px', background:'rgba(74,124,40,0.07)', border:'1px solid rgba(126,212,74,0.2)', borderRadius:12 }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                        <span style={{ fontSize:13, fontWeight:700, color:'#7ED44A' }}>On-Chain Terverifikasi</span>
                                     </div>
-                                    <div style={{ fontSize:13, color:'rgba(232,245,224,0.7)', marginBottom:6 }}>
-                                        <strong>Coffee ID:</strong> {selectedDetailProduct.coffeeId}
+                                    <div style={{ fontSize:12, color:'rgba(232,245,224,0.55)', marginBottom:12, fontFamily:'monospace' }}>
+                                        ID: {selectedDetailProduct.coffeeId}
                                     </div>
-                                    {traceLoading ? (
-                                        <div style={{ fontSize:13, color:'rgba(255,255,255,0.5)', display:'flex', alignItems:'center', gap:6 }}><span className="lp-spinner"/> Mengambil transaksi...</div>
-                                    ) : traceData?.txSignature ? (
-                                        <div style={{ fontSize:13, color:'rgba(232,245,224,0.7)' }}>
-                                            <div style={{ marginBottom:8 }}><strong>Hash Transaksi:</strong> <span style={{ fontFamily:'monospace', background:'rgba(0,0,0,0.3)', padding:'2px 6px', borderRadius:4 }}>{shortenAddress(traceData.txSignature)}</span></div>
-                                            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                                                <a href={`https://explorer.solana.com/tx/${traceData.txSignature}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 12px', background:'rgba(124,77,255,0.15)', color:'#b388ff', borderRadius:8, textDecoration:'none', fontWeight:600, fontSize:12 }}>
-                                                    Lihat di Solana Explorer
-                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                                                </a>
-                                                <QRButton
-                                                    explorerUrl={`https://explorer.solana.com/tx/${traceData.txSignature}?cluster=devnet`}
-                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${selectedDetailProduct.coffeeId}`}
-                                                    coffeeId={selectedDetailProduct.coffeeId}
-                                                    productName={selectedDetailProduct.name}
-                                                    label="QR Bukti"
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div style={{ fontSize:12, color:'#F5A623', padding:'8px', background:'rgba(245,166,35,0.1)', borderRadius:6 }}>
-                                            ⏳ Menunggu verifikasi blockchain (Pending)
-                                        </div>
-                                    )}
+                                    <a
+                                        href={`/trace?id=${selectedDetailProduct.coffeeId}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'10px 18px', background:'linear-gradient(135deg,rgba(74,124,40,0.35),rgba(126,212,74,0.15))', border:'1px solid rgba(126,212,74,0.4)', borderRadius:9, color:'#7ED44A', fontWeight:700, fontSize:13, textDecoration:'none' }}
+                                    >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>
+                                        Lihat Sertifikasi
+                                    </a>
                                 </div>
                             ) : (
                                 <div style={{ padding:'12px', background:'rgba(255,255,255,0.02)', borderRadius:12, fontSize:13, color:'rgba(255,255,255,0.3)', textAlign:'center' }}>
