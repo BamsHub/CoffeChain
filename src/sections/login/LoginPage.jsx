@@ -60,8 +60,10 @@ export default function LoginPage() {
                     setError('');
                     return;
                 }
-            } catch { /* not JSON */ }
-            setError(err.message || 'Login gagal. Periksa email dan password.');
+                setError(parsed.message || 'Login gagal. Periksa email dan password.');
+            } catch {
+                setError(err.message || 'Login gagal. Periksa email dan password.');
+            }
         } finally {
             setLoading(false);
         }

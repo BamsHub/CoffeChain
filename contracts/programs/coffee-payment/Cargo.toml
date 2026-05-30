@@ -2,7 +2,7 @@
 name = "coffee-payment"
 version = "0.1.0"
 description = "CoffeeChain — Smart Contract Pembayaran Kopi di Solana"
-edition = "2026"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]

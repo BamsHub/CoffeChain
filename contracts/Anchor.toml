@@ -5,18 +5,22 @@ seeds = false
 skip-lint = false
 
 [programs.devnet]
-coffee_payment = "CoffW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
-coffee_inventory = "InvW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
+coffee_payment = "CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52"
+coffee_inventory = "7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu"
 
-[programs.mainnet-beta]
-coffee_payment = "CoffW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
-coffee_inventory = "InvW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY"
+[programs.testnet]
+coffee_payment = "CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52"
+coffee_inventory = "7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu"
+
+[programs.mainnet]
+coffee_payment = "CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52"
+coffee_inventory = "7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "testnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-declare_id!("CoffW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY");
+declare_id!("CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52");
 
 /// =============================================================
 ///  CoffeeChain — Smart Contract Pembayaran Kopi

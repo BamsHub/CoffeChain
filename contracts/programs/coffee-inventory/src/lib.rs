@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("InvW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY");
+declare_id!("7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu");
 
 /// =============================================================
 ///  CoffeeChain — Coffee Inventory (Traceability Layer)
