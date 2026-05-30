@@ -25,6 +25,14 @@ const IcoPhantom = () => <svg width="16" height="16" viewBox="0 0 128 128" fill=
 
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled'];
 const ROAST_OPTIONS   = ['Green Bean', 'Light', 'Medium', 'Medium-Dark', 'Dark'];
+const STOCK_STAGES = [
+    { id: 1, name: 'Pembersihan & Pencampuran' },
+    { id: 2, name: 'Pemanggangan' },
+    { id: 3, name: 'Pendinginan' },
+    { id: 4, name: 'Penggilingan' },
+    { id: 5, name: 'Pelepasan Gas' },
+    { id: 6, name: 'Produk Jadi' },
+];
 
 const DEVNET_EXPLORER = (sig) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
@@ -45,6 +53,8 @@ export default function CoffeeRegisterContent() {
     const [tab, setTab]                   = useState('products');
     const [products, setProducts]         = useState([]);
     const [traces, setTraces]             = useState([]);
+    const [productionBatches, setProductionBatches] = useState([]);
+    const [productionLogs, setProductionLogs] = useState([]);
     const [loadingProd, setLoadingProd]   = useState(true);
     const [loadingTrace, setLoadingTrace] = useState(false);
 
@@ -111,7 +121,19 @@ export default function CoffeeRegisterContent() {
         setLoadingTrace(false);
     }, []);
 
-    useEffect(() => { loadProducts(); loadTraces(); }, [loadProducts, loadTraces]);
+    const loadProductionAudit = useCallback(async () => {
+        try {
+            const [batchRes, logRes] = await Promise.all([
+                fetch('/api/production-batches'),
+                fetch('/api/production-stages'),
+            ]);
+            const [batchData, logData] = await Promise.all([batchRes.json(), logRes.json()]);
+            if (batchData.success) setProductionBatches(batchData.data || []);
+            if (logData.success) setProductionLogs(logData.data || []);
+        } catch { }
+    }, []);
+
+    useEffect(() => { loadProducts(); loadTraces(); loadProductionAudit(); }, [loadProducts, loadTraces, loadProductionAudit]);
 
     /* ── Phantom Wallet Handlers ── */
     async function handleConnect() {
@@ -718,7 +740,11 @@ export default function CoffeeRegisterContent() {
                             </button>
                         </div>
 
-                        <ProductDetailView product={detailProduct} />
+                        <ProductDetailView
+                            product={detailProduct}
+                            batch={findProductBatch(detailProduct, productionBatches)}
+                            logs={getProductStageLogs(detailProduct, productionBatches, productionLogs)}
+                        />
 
                         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                             {!detailProduct.coffeeId && (
@@ -745,7 +771,7 @@ export default function CoffeeRegisterContent() {
     );
 }
 
-function ProductDetailView({ product }) {
+function ProductDetailView({ product, batch, logs = [] }) {
     const weights = Array.isArray(product.weight) ? product.weight : [];
     const prices = Array.isArray(product.pricePerUnit) ? product.pricePerUnit : [];
     const rows = [
@@ -802,6 +828,115 @@ function ProductDetailView({ product }) {
                     ))}
                 </div>
             )}
+
+            <div style={{ paddingTop: 4 }}>
+                <div style={{ color: '#E8F5E0', fontSize: 15, fontWeight: 800, marginBottom: 8 }}>Batch Produksi 1-6</div>
+                {batch ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 8, marginBottom: 12 }}>
+                        {[
+                            ['Nama Batch', batch.name],
+                            ['Asal Panen', batch.origin],
+                            ['Varietas', batch.variety],
+                            ['Grade', batch.grade],
+                            ['Berat Awal', batch.weightKg ? `${batch.weightKg} kg` : '-'],
+                            ['Tahap Saat Ini', batch.currentStage],
+                        ].map(([label, value]) => (
+                            <div key={label} style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(74,124,40,0.2)', borderRadius: 9, padding: 10 }}>
+                                <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
+                                <div style={{ color: '#E8F5E0', fontSize: 13, fontWeight: 700, wordBreak: 'break-word' }}>{value || '-'}</div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 12, marginBottom: 10 }}>
+                        Produk ini belum punya riwayat batch dari Kelola Stok.
+                    </div>
+                )}
+
+                <div style={{ display: 'grid', gap: 10 }}>
+                    {STOCK_STAGES.map(stage => {
+                        const log = logs.find(item => Number(item.stage) === stage.id);
+                        return (
+                            <div key={stage.id} style={{ border: '1px solid rgba(74,124,40,0.22)', borderRadius: 10, padding: 12, background: log ? 'rgba(74,124,40,0.08)' : 'rgba(255,255,255,0.025)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: log ? 10 : 0 }}>
+                                    <div style={{ color: '#E8F5E0', fontSize: 13, fontWeight: 800 }}>{stage.id}. {stage.name}</div>
+                                    <span style={{ fontSize: 11, color: log ? '#7ED44A' : '#FFB300', fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: log ? 'rgba(74,124,40,0.16)' : 'rgba(255,152,0,0.1)', border: `1px solid ${log ? 'rgba(126,212,74,0.25)' : 'rgba(255,152,0,0.25)'}` }}>
+                                        {log ? (log.explorerUrl ? 'Sertifikat' : 'Terisi') : 'Belum ada'}
+                                    </span>
+                                </div>
+                                {log && (
+                                    <div style={{ display: 'grid', gap: 10 }}>
+                                        {log.photoUrl && (
+                                            <a href={log.photoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                                                <img src={log.photoUrl} alt={`Bukti ${stage.name}`} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(74,124,40,0.25)' }} />
+                                            </a>
+                                        )}
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8 }}>
+                                            {Object.entries(log.data || {})
+                                                .filter(([, value]) => value !== null && value !== undefined && value !== '')
+                                                .map(([key, value]) => (
+                                                    <div key={key} style={{ background: 'rgba(0,0,0,0.12)', border: '1px solid rgba(74,124,40,0.16)', borderRadius: 8, padding: 8 }}>
+                                                        <div style={{ color: 'rgba(232,245,224,0.42)', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', marginBottom: 2 }}>{formatAuditKey(key)}</div>
+                                                        <div style={{ color: '#E8F5E0', fontSize: 12, fontWeight: 700, wordBreak: 'break-word' }}>{formatAuditValue(value)}</div>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                        {log.explorerUrl && (
+                                            <a href={log.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#b388ff', fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>
+                                                Buka Sertifikat Solana
+                                            </a>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
+}
+
+function findProductBatch(product, batches) {
+    if (!product) return null;
+    return (batches || []).find(batch =>
+        batch.productId === product.id ||
+        (product.coffeeId && batch.coffeeId === product.coffeeId)
+    ) || null;
+}
+
+function getProductStageLogs(product, batches, logs) {
+    const batch = findProductBatch(product, batches);
+    if (!batch) return [];
+    return (logs || [])
+        .filter(log => log.batchId === batch.id)
+        .sort((a, b) => Number(a.stage) - Number(b.stage));
+}
+
+function formatAuditKey(key) {
+    const labels = {
+        notes: 'Catatan',
+        operator: 'Operator',
+        durationMinutes: 'Durasi',
+        weightIn: 'Berat Masuk',
+        weightOut: 'Berat Keluar',
+        suhu: 'Suhu',
+        levelRoast: 'Level Roast',
+        ukuranGiling: 'Ukuran Giling',
+        gasReleaseHours: 'Pelepasan Gas',
+        productName: 'Nama Produk',
+        stock: 'Stok',
+        weights: 'Berat Kemasan',
+        pricePerUnit: 'Harga',
+        description: 'Deskripsi',
+        roast: 'Roast',
+        image: 'Foto',
+    };
+    return labels[key] || key.replace(/[A-Z]/g, letter => ` ${letter}`).trim();
+}
+
+function formatAuditValue(value) {
+    if (Array.isArray(value)) return value.join(', ');
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
 }
