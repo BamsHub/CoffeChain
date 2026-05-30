@@ -142,7 +142,7 @@ function TraceContent() {
     ) : null;
 
     return (
-        <div style={{ maxWidth: 700, margin: '0 auto', padding: '60px 20px 80px' }}>
+        <div style={{ maxWidth: 1040, margin: '0 auto', padding: '60px 20px 80px' }}>
             <div style={{ textAlign: 'center', marginBottom: 48, animation: 'fadeUp 0.5s ease' }}>
                 <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg,rgba(74,124,40,0.2),rgba(126,212,74,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#7ED44A' }}><IconShield /></div>
                 <h1 style={{ fontSize: 'clamp(28px,5vw,42px)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 12, letterSpacing: '-1px' }}>Sertifikasi Produk CoffeeChain</h1>
@@ -166,34 +166,42 @@ function TraceContent() {
             {!loading && result && (() => {
                 const img = allProducts.find(p => p.coffeeId === result.coffeeId)?.image;
                 return (
-                <div style={{ animation: 'fadeUp 0.4s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'row', minHeight: 420 }}>
+                <div style={{ animation: 'fadeUp 0.4s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 22, overflow: 'hidden', display: 'flex', flexDirection: 'row', minHeight: 460 }}>
 
-                    {/* ── KIRI: Foto penuh tinggi ── */}
-                    <div style={{ width: 220, flexShrink: 0, position: 'relative', background: 'rgba(10,18,10,0.95)', overflow: 'hidden' }}>
-                        {img
-                            ? <img src={img} alt={result.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(126,212,74,0.2)' }}>
-                                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg>
-                              </div>
-                        }
-                        {/* gradient kanan agar menyatu dengan konten */}
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, transparent 60%, rgba(20,30,20,0.7) 100%)' }} />
-                        {/* Coffee ID badge */}
-                        <div style={{ position: 'absolute', top: 14, left: 12, fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(0,0,0,0.65)', padding: '3px 8px', borderRadius: 5, backdropFilter: 'blur(6px)', border: '1px solid rgba(126,212,74,0.35)' }}>
-                            {result.coffeeId}
+                    {/* ── KIRI: Kotak foto ── */}
+                    <div style={{ width: 340, flexShrink: 0, padding: 20, background: 'rgba(0,0,0,0.18)', borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {/* Frame foto */}
+                        <div style={{ width: '100%', aspectRatio: '3/4', borderRadius: 14, overflow: 'hidden', border: '2px solid rgba(126,212,74,0.25)', position: 'relative', background: 'rgba(10,18,10,0.95)', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
+                            {img
+                                ? <img src={img} alt={result.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(126,212,74,0.2)' }}>
+                                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg>
+                                  </div>
+                            }
+                            {/* Coffee ID badge */}
+                            <div style={{ position: 'absolute', top: 10, left: 10, fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(0,0,0,0.72)', padding: '3px 9px', borderRadius: 5, backdropFilter: 'blur(6px)', border: '1px solid rgba(126,212,74,0.35)' }}>
+                                {result.coffeeId}
+                            </div>
+                            {/* Gradient overlay bawah */}
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 64, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }} />
+                            {/* Verified badge */}
+                            <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 20, background: result.blockchainVerified ? 'rgba(30,70,20,0.92)' : 'rgba(100,60,0,0.92)', backdropFilter: 'blur(6px)', border: `1px solid ${result.blockchainVerified ? 'rgba(126,212,74,0.5)' : 'rgba(255,180,0,0.4)'}` }}>
+                                {result.blockchainVerified ? <IconCheck /> : <IconClock />}
+                                <span style={{ fontSize: 9, fontWeight: 700, color: result.blockchainVerified ? '#b8f5a0' : '#FFD54F' }}>{result.blockchainVerified ? 'Terverifikasi' : 'Pending'}</span>
+                            </div>
                         </div>
-                        {/* Verified badge (bawah kiri) */}
-                        <div style={{ position: 'absolute', bottom: 14, left: 12, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 20, background: result.blockchainVerified ? 'rgba(30,70,20,0.9)' : 'rgba(100,60,0,0.9)', backdropFilter: 'blur(6px)', border: `1px solid ${result.blockchainVerified ? 'rgba(126,212,74,0.5)' : 'rgba(255,180,0,0.4)'}` }}>
-                            {result.blockchainVerified ? <IconCheck /> : <IconClock />}
-                            <span style={{ fontSize: 9, fontWeight: 700, color: result.blockchainVerified ? '#b8f5a0' : '#FFD54F' }}>{result.blockchainVerified ? 'Terverifikasi' : 'Pending'}</span>
+                        {/* Nama + asal di bawah foto */}
+                        <div>
+                            <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--color-text)', letterSpacing: '-0.3px', marginBottom: 3 }}>{result.name}</div>
+                            {(result.origin || result.variety) && <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{[result.origin, result.variety].filter(Boolean).join(' · ')}</div>}
                         </div>
                     </div>
 
                     {/* ── KANAN: Konten ── */}
-                    <div style={{ flex: 1, minWidth: 0, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
+                    <div style={{ flex: 1, minWidth: 0, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
                         {/* Header nama produk */}
                         <div style={{ marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid var(--color-border)' }}>
-                            <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--color-text)', letterSpacing: '-0.5px', marginBottom: 4 }}>{result.name}</div>
+                            <div style={{ fontWeight: 900, fontSize: 22, color: 'var(--color-text)', letterSpacing: '-0.5px', marginBottom: 4 }}>{result.name}</div>
                             {(result.origin || result.variety) && <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{[result.origin, result.variety].filter(Boolean).join(' · ')}</div>}
                         </div>
 
