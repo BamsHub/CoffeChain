@@ -804,15 +804,18 @@ export default function LandingPage() {
                             const outOfStock = stock <= 0;
                             const lowStock = stock > 0 && stock <= 10;
                             return (
-                            <div key={p.id} className="lp-card" onClick={() => { setSelectedDetailProduct(p); setDetailModal(true); }} style={{ cursor: 'pointer' }}>
-                                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
-                                    <div style={{ width:48, height:48, borderRadius:12, background: outOfStock ? 'rgba(100,100,100,0.1)' : 'rgba(74,124,40,0.15)', display:'flex', alignItems:'center', justifyContent:'center', color: outOfStock ? 'rgba(255,255,255,0.2)' : '#7ED44A', flexShrink:0 }}>
-                                        <IconCoffee />
-                                    </div>
-                                    <span className={`lp-stock-badge ${outOfStock ? 'lp-stock-out' : lowStock ? 'lp-stock-low' : 'lp-stock-in'}`}>
+                            <div key={p.id} className="lp-card" onClick={() => { setSelectedDetailProduct(p); setDetailModal(true); }} style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}>
+                                {/* Product photo */}
+                                <div style={{ width:'100%', height:160, position:'relative', background:'rgba(15,22,15,0.95)', overflow:'hidden', flexShrink:0 }}>
+                                    {p.image
+                                        ? <img src={p.image} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                        : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(126,212,74,0.25)' }}><IconCoffee /></div>
+                                    }
+                                    <span className={`lp-stock-badge ${outOfStock ? 'lp-stock-out' : lowStock ? 'lp-stock-low' : 'lp-stock-in'}`} style={{ position:'absolute', top:10, right:10 }}>
                                         {outOfStock ? '● Habis' : lowStock ? `● Tersisa ${stock}` : `● Stok ${stock}`}
                                     </span>
                                 </div>
+                                <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, flex:1 }}>
                                 <div>
                                     <div style={{ fontWeight:700, fontSize:15, color: outOfStock ? 'rgba(232,245,224,0.4)' : '#E8F5E0', marginBottom:2 }}>{p.name}</div>
                                     <div style={{ fontSize:12, color:'rgba(232,245,224,0.45)' }}>{p.origin}{p.variety ? ` · ${p.variety}` : ''}</div>
@@ -888,6 +891,7 @@ export default function LandingPage() {
                                             </button>
                                         </div>
                                     )}
+                                </div>
                                 </div>
                             </div>
                             );

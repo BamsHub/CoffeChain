@@ -164,27 +164,38 @@ function TraceContent() {
                 </div>
             )}
             {!loading && result && (
-                <div style={{ animation: 'fadeUp 0.4s ease' }}>
-                    {/* Blockchain status badge */}
-                    <div style={{ background: result.blockchainVerified ? 'linear-gradient(135deg,rgba(74,124,40,0.15),rgba(126,212,74,0.08))' : 'rgba(255,152,0,0.1)', border: `1px solid ${result.blockchainVerified ? 'rgba(126,212,74,0.35)' : 'rgba(255,152,0,0.3)'}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                        {result.blockchainVerified ? <IconCheck /> : <IconClock />}
-                        <div>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: result.blockchainVerified ? '#7ED44A' : '#FFB300' }}>{result.blockchainVerified ? '✅ Terverifikasi di Blockchain Solana' : '⏳ Belum Terverifikasi (Pending)'}</div>
-                            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>{result.blockchainVerified ? 'Data kopi tercatat permanen di Solana Devnet' : 'Memo transaksi belum terkirim ke Solana'}</div>
-                        </div>
-                    </div>
-
-                    {/* Detail card */}
-                    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: 24, marginBottom: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--color-border)' }}>
-                            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(74,124,40,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7ED44A' }}><IconCoffee /></div>
-                            <div>
-                                <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--color-text)' }}>{result.name}</div>
-                                <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>ID: <span style={{ color: '#7ED44A', fontWeight: 700, letterSpacing: '0.5px' }}>{result.coffeeId}</span></div>
+                <div style={{ animation: 'fadeUp 0.4s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 20, overflow: 'hidden' }}>
+                    {/* ── Foto produk + header overlay ── */}
+                    {(() => {
+                        const img = allProducts.find(p => p.coffeeId === result.coffeeId)?.image;
+                        return (
+                            <div style={{ position: 'relative', height: 200, background: 'rgba(20,30,20,0.9)', overflow: 'hidden', flexShrink: 0 }}>
+                                {img
+                                    ? <img src={img} alt={result.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(126,212,74,0.2)' }}><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg></div>
+                                }
+                                {/* gradient overlay */}
+                                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.65) 100%)' }} />
+                                {/* Coffee ID badge */}
+                                <div style={{ position: 'absolute', top: 12, left: 16, fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#7ED44A', background: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: 6, backdropFilter: 'blur(6px)', border: '1px solid rgba(126,212,74,0.3)' }}>
+                                    {result.coffeeId}
+                                </div>
+                                {/* Verified badge */}
+                                <div style={{ position: 'absolute', top: 12, right: 16, display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 20, background: result.blockchainVerified ? 'rgba(74,124,40,0.85)' : 'rgba(180,110,0,0.85)', backdropFilter: 'blur(6px)', border: `1px solid ${result.blockchainVerified ? 'rgba(126,212,74,0.5)' : 'rgba(255,180,0,0.4)'}` }}>
+                                    {result.blockchainVerified ? <IconCheck /> : <IconClock />}
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: result.blockchainVerified ? '#b8f5a0' : '#FFD54F' }}>{result.blockchainVerified ? 'Terverifikasi' : 'Pending'}</span>
+                                </div>
+                                {/* Product name */}
+                                <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
+                                    <div style={{ fontWeight: 900, fontSize: 22, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.6)', letterSpacing: '-0.5px' }}>{result.name}</div>
+                                    {(result.origin || result.variety) && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>{[result.origin, result.variety].filter(Boolean).join(' · ')}</div>}
+                                </div>
                             </div>
-                        </div>
-                        {row('Asal', result.origin)}
-                        {row('Varietas', result.variety)}
+                        );
+                    })()}
+
+                    {/* ── Detail info ── */}
+                    <div style={{ padding: '20px 24px' }}>
                         {row('Grade', result.grade)}
                         {row('Berat', result.weightKg ? `${result.weightKg} kg` : null)}
                         {row('Petani', result.farmerName)}
@@ -195,46 +206,44 @@ function TraceContent() {
                         {row('Deskripsi', result.description)}
                         {row('Status', result.status?.toUpperCase())}
                         {row('Didaftarkan', result.createdAt ? new Date(result.createdAt).toLocaleString('id-ID') : null)}
+
+                        {/* TX Signature */}
                         {result.txSignature && (
-                            <>
-                                <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)', borderRadius: 10, wordBreak: 'break-all' }}>
+                            <div style={{ marginTop: 16 }}>
+                                <div style={{ padding: '12px 14px', background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)', borderRadius: 10, wordBreak: 'break-all', marginBottom: 10 }}>
                                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6 }}>Solana TX Signature</div>
                                     <div style={{ fontSize: 12, color: '#7ED44A', fontFamily: 'monospace', fontWeight: 600 }}>{result.txSignature}</div>
                                 </div>
                                 <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, padding: '13px', borderRadius: 10, background: 'linear-gradient(135deg,#512da8,#7c4dff)', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 10, background: 'linear-gradient(135deg,#512da8,#7c4dff)', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
                                     <IconExplorer /> Lihat di Solana Explorer
                                 </a>
-                            </>
-                        )}
-                    </div>
-
-                    {/* QR Code Sertifikasi */}
-                    {result.coffeeId && (
-                        <div style={{ animation: 'fadeUp 0.5s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 14, padding: 20 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <IconQR /> QR Sertifikasi
                             </div>
-                            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                <CertQRImage url={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={150} />
-                                <div style={{ flex: 1, minWidth: 180 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 4 }}>{result.name}</div>
-                                    <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#7ED44A', marginBottom: 12 }}>{result.coffeeId}</div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.2)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                        )}
+
+                        {/* ── QR Sertifikasi (inline) ── */}
+                        {result.coffeeId && (
+                            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--color-border)' }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <IconQR /> QR Sertifikasi
+                                </div>
+                                <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                    <CertQRImage url={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={140} />
+                                    <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+                                        <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderRadius: 9, background: 'rgba(74,124,40,0.18)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                                             <IconQR /> Halaman Sertifikasi
                                         </a>
                                         {result.txSignature && (
                                             <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
-                                                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 8, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                                                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderRadius: 9, background: 'rgba(124,77,255,0.12)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                                                 <IconExplorer /> Solana Explorer
                                             </a>
                                         )}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             )}
             {!loading && !result && !error && !searched && (
