@@ -21,8 +21,21 @@ export async function GET(req) {
         const { data, error } = await query;
         if (error) throw new Error(error.message);
 
+        let rows = data || [];
+        const productIds = rows.map(row => row.product_id).filter(Boolean);
+        if (productIds.length) {
+            const { data: existingProducts, error: productErr } = await supabase
+                .from('products')
+                .select('id')
+                .in('id', productIds);
+            if (!productErr) {
+                const existingProductIds = new Set((existingProducts || []).map(product => product.id));
+                rows = rows.filter(row => !row.product_id || existingProductIds.has(row.product_id));
+            }
+        }
+
         // camelCase keys
-        const items = (data || []).map(row => ({
+        const items = rows.map(row => ({
             id: row.id,
             name: row.name,
             origin: row.origin,

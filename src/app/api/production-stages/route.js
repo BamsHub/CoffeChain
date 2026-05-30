@@ -136,7 +136,7 @@ export async function POST(req) {
             coffeeId = coffeeId || `CF-${batchId.slice(0, 4).toUpperCase()}${Date.now().toString(36).slice(-4).toUpperCase()}`;
         }
 
-        // Build memo for the final product certificate. Keep it compact so it fits into a Memo tx.
+        // Build memo for each production stage. Keep it compact so it fits into a Memo tx.
         const stageName = STAGE_NAMES[stage] || `Stage ${stage}`;
         const memoPayload = JSON.stringify({
             v: 1,
@@ -157,20 +157,17 @@ export async function POST(req) {
             ...(stage === 6 ? { productName: (stageData?.productName || batch.name || '').slice(0, 24), stock: stageData?.stock || 0 } : {}),
         });
 
-        // Only the final product is certified on-chain. Stages 1-5 stay as local production logs.
         let txSignature = null;
         let explorerUrl = null;
         let txError = null;
-        if (isFinalStage) {
-            try {
-                const result = await sendMemoTx(memoPayload);
-                txSignature = result.txSignature;
-                explorerUrl = result.explorerUrl;
-            } catch (err) {
-                txError = err.message;
-                console.error('[production-stages] Final certificate TX failed:', txError);
-                throw new Error(`Gagal membuat sertifikat on-chain: ${txError}`);
-            }
+        try {
+            const result = await sendMemoTx(memoPayload);
+            txSignature = result.txSignature;
+            explorerUrl = result.explorerUrl;
+        } catch (err) {
+            txError = err.message;
+            console.error('[production-stages] Stage TX failed:', txError);
+            throw new Error(`Gagal mencatat tahap ${stageName} ke blockchain: ${txError}`);
         }
 
         // Save stage log

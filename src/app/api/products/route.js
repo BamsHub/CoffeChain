@@ -128,9 +128,44 @@ export async function DELETE(request) {
     try {
         const { id } = await request.json();
         if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
+        const { data: product } = await supabaseAdmin
+            .from('products')
+            .select('id, coffee_id')
+            .eq('id', id)
+            .maybeSingle();
 
         const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
         if (error) throw error;
+
+        if (isUuid) {
+            const { error: batchErr } = await supabaseAdmin
+                .from('production_batches')
+                .delete()
+                .eq('product_id', id);
+            if (batchErr && !batchErr.message?.includes('does not exist')) {
+                console.warn('[products DELETE] production batch cleanup failed:', batchErr.message);
+            }
+        }
+
+        const { error: traceProductErr } = await supabaseAdmin
+            .from('coffee_traces')
+            .delete()
+            .eq('product_id', id);
+        if (traceProductErr && !traceProductErr.message?.includes('does not exist')) {
+            console.warn('[products DELETE] trace cleanup by product failed:', traceProductErr.message);
+        }
+
+        if (product?.coffee_id) {
+            const { error: traceCoffeeErr } = await supabaseAdmin
+                .from('coffee_traces')
+                .delete()
+                .eq('coffee_id', product.coffee_id);
+            if (traceCoffeeErr && !traceCoffeeErr.message?.includes('does not exist')) {
+                console.warn('[products DELETE] trace cleanup by coffee ID failed:', traceCoffeeErr.message);
+            }
+        }
 
         return Response.json({ success: true });
     } catch (err) {

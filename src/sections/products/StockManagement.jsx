@@ -213,7 +213,7 @@ export default function StockManagement() {
 
             const chainText = isFinal
                 ? ' dan sertifikat on-chain berhasil dibuat'
-                : ' sebagai log produksi lokal';
+                : ' dan tercatat on-chain';
             const finalText = isFinal ? ' Produk jadi otomatis masuk ke Kelola Produk.' : '';
             setMsg({ type: 'ok', text: `${stage.name} untuk "${batch.name}" tersimpan${chainText}.${finalText}`, explorerUrl: data.explorerUrl });
             setStageModal(null);
