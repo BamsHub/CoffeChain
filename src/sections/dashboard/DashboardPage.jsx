@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import AddTransactionModal from '@/sections/dashboard/AddTransactionModal';
+
 import DashboardCalendar from '@/sections/dashboard/DashboardCalendar';
 import FarmerDashboardPage from '@/sections/dashboard/FarmerDashboardPage';
 import { useAuth } from '@/context/AuthContext';
@@ -23,7 +23,7 @@ export default function DashboardPage({ walletPublicKey }) {
     const isFarmer = user?.role === 'farmer';
 
     const [mounted, setMounted] = useState(false);
-    const [showModal, setShowModal] = useState(false);
+
     const [transactions, setTransactions] = useState([]);
     const [stats, setStats] = useState({ total: 0, volume: 0, farmers: 0, price: 68500 });
     const [selectedDate, setSelectedDate] = useState(null);
@@ -114,12 +114,6 @@ export default function DashboardPage({ walletPublicKey }) {
         finally { setLoadingTx(false); }
     }
 
-    function handleTransactionAdded(newTx) {
-        setTransactions(prev => [newTx, ...prev]);
-        setStats(prev => ({ ...prev, total: prev.total + 1, volume: prev.volume + (newTx.weight || 0) }));
-        setShowModal(false);
-    }
-
     async function handleDeleteTx(id) {
         if (!confirm('Hapus transaksi ini?')) return;
         await fetch(`/api/transactions?id=${id}`, { method: 'DELETE' });
@@ -195,11 +189,7 @@ export default function DashboardPage({ walletPublicKey }) {
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
                         {selectedDate ? selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '27 Februari 2026'}
                     </div>
-                    {!isFarmer && (
-                        <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
-                            Tambahkan Transaksi
-                        </button>
-                    )}
+
                     {isFarmer && (
                         <div className={styles.dateChip} style={{ background: 'rgba(126,212,74,0.08)', borderColor: 'rgba(126,212,74,0.2)', color: 'var(--color-primary-light)', fontSize: 12 }}>
                             <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
@@ -324,7 +314,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                 ✕ Reset Filter
                             </button>
                         )}
-                        {!isFarmer && <button className={styles.btnPrimarySmall} onClick={() => setShowModal(true)}>+ Tambah</button>}
+
                         <a href="/transactions" className={styles.seeAll}>Lihat Semua →</a>
                     </div>
                 </div>
@@ -421,14 +411,7 @@ export default function DashboardPage({ walletPublicKey }) {
                 </div>
             </div>
 
-            {/* Add Transaction Modal — hidden from farmer */}
-            {showModal && !isFarmer && (
-                <AddTransactionModal
-                    onClose={() => setShowModal(false)}
-                    onSuccess={handleTransactionAdded}
-                    walletPublicKey={walletPublicKey}
-                />
-            )}
+
         </div>
     );
 }
