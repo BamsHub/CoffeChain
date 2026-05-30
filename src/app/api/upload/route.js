@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
@@ -22,33 +21,38 @@ export async function POST(req) {
             return NextResponse.json({ success: false, message: 'Ukuran file maksimal 5MB' }, { status: 400 });
         }
 
-        const ext = file.name.split('.').pop().toLowerCase();
-        const fileName = `product-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const ext = file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fileName = `product-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext || 'jpg'}`;
         const filePath = `products/${fileName}`;
 
-        const supabase = getSupabaseAdmin();
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const { error } = await supabase.storage
-            .from('product-images')
-            .upload(filePath, buffer, {
-                contentType: file.type,
-                upsert: false,
-            });
+        const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/product-images/${filePath}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'apikey': serviceKey,
+                'Content-Type': file.type,
+                'x-upsert': 'false',
+            },
+            body: buffer,
+        });
 
-        if (error) {
-            console.error('Supabase upload error:', error);
-            return NextResponse.json({ success: false, message: error.message || 'Gagal upload ke storage' }, { status: 500 });
+        if (!uploadRes.ok) {
+            const errText = await uploadRes.text();
+            console.error('Supabase upload error:', errText);
+            return NextResponse.json({ success: false, message: 'Gagal upload ke storage' }, { status: 500 });
         }
 
-        const { data: { publicUrl } } = supabase.storage
-            .from('product-images')
-            .getPublicUrl(filePath);
-
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${filePath}`;
         return NextResponse.json({ success: true, url: publicUrl });
     } catch (err) {
         console.error('Upload error:', err);
         return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
     }
 }
+
