@@ -163,39 +163,41 @@ function TraceContent() {
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{error}</p>
                 </div>
             )}
-            {!loading && result && (
-                <div style={{ animation: 'fadeUp 0.4s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 20, overflow: 'hidden' }}>
-                    {/* ── Foto produk + header overlay ── */}
-                    {(() => {
-                        const img = allProducts.find(p => p.coffeeId === result.coffeeId)?.image;
-                        return (
-                            <div style={{ position: 'relative', height: 200, background: 'rgba(20,30,20,0.9)', overflow: 'hidden', flexShrink: 0 }}>
-                                {img
-                                    ? <img src={img} alt={result.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(126,212,74,0.2)' }}><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg></div>
-                                }
-                                {/* gradient overlay */}
-                                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.65) 100%)' }} />
-                                {/* Coffee ID badge */}
-                                <div style={{ position: 'absolute', top: 12, left: 16, fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#7ED44A', background: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: 6, backdropFilter: 'blur(6px)', border: '1px solid rgba(126,212,74,0.3)' }}>
-                                    {result.coffeeId}
-                                </div>
-                                {/* Verified badge */}
-                                <div style={{ position: 'absolute', top: 12, right: 16, display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 20, background: result.blockchainVerified ? 'rgba(74,124,40,0.85)' : 'rgba(180,110,0,0.85)', backdropFilter: 'blur(6px)', border: `1px solid ${result.blockchainVerified ? 'rgba(126,212,74,0.5)' : 'rgba(255,180,0,0.4)'}` }}>
-                                    {result.blockchainVerified ? <IconCheck /> : <IconClock />}
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: result.blockchainVerified ? '#b8f5a0' : '#FFD54F' }}>{result.blockchainVerified ? 'Terverifikasi' : 'Pending'}</span>
-                                </div>
-                                {/* Product name */}
-                                <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
-                                    <div style={{ fontWeight: 900, fontSize: 22, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.6)', letterSpacing: '-0.5px' }}>{result.name}</div>
-                                    {(result.origin || result.variety) && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>{[result.origin, result.variety].filter(Boolean).join(' · ')}</div>}
-                                </div>
-                            </div>
-                        );
-                    })()}
+            {!loading && result && (() => {
+                const img = allProducts.find(p => p.coffeeId === result.coffeeId)?.image;
+                return (
+                <div style={{ animation: 'fadeUp 0.4s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'row', minHeight: 420 }}>
 
-                    {/* ── Detail info ── */}
-                    <div style={{ padding: '20px 24px' }}>
+                    {/* ── KIRI: Foto penuh tinggi ── */}
+                    <div style={{ width: 220, flexShrink: 0, position: 'relative', background: 'rgba(10,18,10,0.95)', overflow: 'hidden' }}>
+                        {img
+                            ? <img src={img} alt={result.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(126,212,74,0.2)' }}>
+                                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg>
+                              </div>
+                        }
+                        {/* gradient kanan agar menyatu dengan konten */}
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, transparent 60%, rgba(20,30,20,0.7) 100%)' }} />
+                        {/* Coffee ID badge */}
+                        <div style={{ position: 'absolute', top: 14, left: 12, fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(0,0,0,0.65)', padding: '3px 8px', borderRadius: 5, backdropFilter: 'blur(6px)', border: '1px solid rgba(126,212,74,0.35)' }}>
+                            {result.coffeeId}
+                        </div>
+                        {/* Verified badge (bawah kiri) */}
+                        <div style={{ position: 'absolute', bottom: 14, left: 12, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 20, background: result.blockchainVerified ? 'rgba(30,70,20,0.9)' : 'rgba(100,60,0,0.9)', backdropFilter: 'blur(6px)', border: `1px solid ${result.blockchainVerified ? 'rgba(126,212,74,0.5)' : 'rgba(255,180,0,0.4)'}` }}>
+                            {result.blockchainVerified ? <IconCheck /> : <IconClock />}
+                            <span style={{ fontSize: 9, fontWeight: 700, color: result.blockchainVerified ? '#b8f5a0' : '#FFD54F' }}>{result.blockchainVerified ? 'Terverifikasi' : 'Pending'}</span>
+                        </div>
+                    </div>
+
+                    {/* ── KANAN: Konten ── */}
+                    <div style={{ flex: 1, minWidth: 0, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
+                        {/* Header nama produk */}
+                        <div style={{ marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid var(--color-border)' }}>
+                            <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--color-text)', letterSpacing: '-0.5px', marginBottom: 4 }}>{result.name}</div>
+                            {(result.origin || result.variety) && <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{[result.origin, result.variety].filter(Boolean).join(' · ')}</div>}
+                        </div>
+
+                        {/* Detail rows */}
                         {row('Grade', result.grade)}
                         {row('Berat', result.weightKg ? `${result.weightKg} kg` : null)}
                         {row('Petani', result.farmerName)}
@@ -209,43 +211,40 @@ function TraceContent() {
 
                         {/* TX Signature */}
                         {result.txSignature && (
-                            <div style={{ marginTop: 16 }}>
-                                <div style={{ padding: '12px 14px', background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)', borderRadius: 10, wordBreak: 'break-all', marginBottom: 10 }}>
-                                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6 }}>Solana TX Signature</div>
-                                    <div style={{ fontSize: 12, color: '#7ED44A', fontFamily: 'monospace', fontWeight: 600 }}>{result.txSignature}</div>
+                            <div style={{ marginTop: 14 }}>
+                                <div style={{ padding: '10px 12px', background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)', borderRadius: 9, wordBreak: 'break-all', marginBottom: 8 }}>
+                                    <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 4 }}>Solana TX Signature</div>
+                                    <div style={{ fontSize: 11, color: '#7ED44A', fontFamily: 'monospace', fontWeight: 600 }}>{result.txSignature}</div>
                                 </div>
                                 <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 10, background: 'linear-gradient(135deg,#512da8,#7c4dff)', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#512da8,#7c4dff)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                                     <IconExplorer /> Lihat di Solana Explorer
                                 </a>
                             </div>
                         )}
 
-                        {/* ── QR Sertifikasi (inline) ── */}
+                        {/* QR + buttons */}
                         {result.coffeeId && (
-                            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--color-border)' }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <IconQR /> QR Sertifikasi
-                                </div>
-                                <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                    <CertQRImage url={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={140} />
-                                    <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
-                                        <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderRadius: 9, background: 'rgba(74,124,40,0.18)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-                                            <IconQR /> Halaman Sertifikasi
+                            <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--color-border)', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <CertQRImage url={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={100} />
+                                <div style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><IconQR /> QR Sertifikasi</div>
+                                    <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(74,124,40,0.18)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
+                                        <IconQR /> Halaman Sertifikasi
+                                    </a>
+                                    {result.txSignature && (
+                                        <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(124,77,255,0.12)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
+                                            <IconExplorer /> Solana Explorer
                                         </a>
-                                        {result.txSignature && (
-                                            <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
-                                                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderRadius: 9, background: 'rgba(124,77,255,0.12)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-                                                <IconExplorer /> Solana Explorer
-                                            </a>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
-            )}
+                );
+            })()}
             {!loading && !result && !error && !searched && (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)', animation: 'fadeUp 0.7s ease' }}>
                     <IconShield /><br /><p style={{ marginTop: 12, fontSize: 13 }}>Masukkan Coffee ID di atas untuk mulai sertifikasi</p>
