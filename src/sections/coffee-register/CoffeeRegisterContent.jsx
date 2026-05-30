@@ -20,6 +20,7 @@ const IcoCoffee  = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="n
 const IcoClose   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const IcoCheck   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const IcoEye     = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
+const IcoReject  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
 const IcoSpin    = () => <span style={{ display:'inline-block', animation:'spin 0.8s linear infinite', fontSize:14 }}>⏳</span>;
 const IcoPhantom = () => <svg width="16" height="16" viewBox="0 0 128 128" fill="none"><circle cx="64" cy="64" r="64" fill="#9945FF"/><path d="M64 24C42 24 24 42 24 64s18 40 40 40 40-18 40-40S86 24 64 24zm16 52a10 10 0 110-20 10 10 0 010 20zm-32 0a10 10 0 110-20 10 10 0 010 20z" fill="white"/><path d="M44 64h40" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.35"/></svg>;
 
@@ -43,6 +44,7 @@ const S = {
     lbl:  { fontSize:11, color:'rgba(232,245,224,0.5)', fontWeight:600, display:'block', marginBottom:5 },
     btnG: { background:'linear-gradient(135deg,#4A7C28,#7ED44A)', color:'#fff', fontWeight:700, border:'none', borderRadius:9, cursor:'pointer', padding:'10px 20px', fontSize:13, display:'inline-flex', alignItems:'center', gap:7, transition:'opacity 0.2s' },
     btnP: { background:'linear-gradient(135deg,#512da8,#9c27b0)', color:'#fff', fontWeight:700, border:'none', borderRadius:9, cursor:'pointer', padding:'10px 20px', fontSize:13, display:'inline-flex', alignItems:'center', gap:7 },
+    btnDanger: { background:'rgba(244,67,54,0.12)', color:'#ff8a80', fontWeight:700, border:'1px solid rgba(244,67,54,0.35)', borderRadius:9, cursor:'pointer', padding:'10px 20px', fontSize:13, display:'inline-flex', alignItems:'center', gap:7 },
 };
 
 /* ════════════════════════════════════════════════════════════════ */
@@ -68,6 +70,7 @@ export default function CoffeeRegisterContent() {
     const [regProduct, setRegProduct]     = useState(null);
     const [regForm, setRegForm]           = useState({ farmerName:'', harvestDate:'', processMethod:'Washed', roastLevel:'Medium', certification:'' });
     const [submitting, setSubmitting]     = useState(false);
+    const [rejectingId, setRejectingId]   = useState(null);
     const [regMsg, setRegMsg]             = useState(null);
     const [previewOpen, setPreviewOpen]   = useState(false);
     const [detailProduct, setDetailProduct] = useState(null);
@@ -244,6 +247,31 @@ export default function CoffeeRegisterContent() {
         setSubmitting(false);
     }
 
+    async function handleReject(product) {
+        if (!product?.id) return;
+        if (!window.confirm(`Tolak produk "${product.name}" dari proses register blockchain?`)) return;
+
+        setRejectingId(product.id);
+        try {
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: product.id,
+                    status: 'rejected',
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Gagal menolak produk');
+            setDetailProduct(null);
+            setRegProduct(current => current?.id === product.id ? null : current);
+            await loadProducts();
+        } catch (err) {
+            alert(err.message || 'Gagal menolak produk');
+        }
+        setRejectingId(null);
+    }
+
     /* ── Batch on-chain via server wallet ── */
     async function handleBatchOnchain() {
         if (!window.confirm(`On-chain ${unregistered.length} produk menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
@@ -260,7 +288,7 @@ export default function CoffeeRegisterContent() {
     }
 
     /* ── Derived data ── */
-    const unregistered    = products.filter(p => !p.coffeeId);
+    const unregistered    = products.filter(p => !p.coffeeId && p.status !== 'rejected');
     const registered      = products.filter(p => !!p.coffeeId);
     const filteredTraces  = traces.filter(t => {
         const q = logSearch.toLowerCase();
@@ -426,6 +454,11 @@ export default function CoffeeRegisterContent() {
                                                 <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
                                                     style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', border: '1px solid rgba(126,212,74,0.25)', fontWeight: 700 }}>
                                                     <IcoEye /> Detail Produk
+                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleReject(p); }}
+                                                    disabled={rejectingId === p.id}
+                                                    style={{ ...S.btnDanger, marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, opacity: rejectingId === p.id ? 0.65 : 1, cursor: rejectingId === p.id ? 'not-allowed' : 'pointer' }}>
+                                                    {rejectingId === p.id ? <IcoSpin /> : <IcoReject />} Tolak
                                                 </button>
                                             </div>
                                         ))}
@@ -751,6 +784,13 @@ export default function CoffeeRegisterContent() {
                                 <button type="button" onClick={() => { openRegister(detailProduct); setDetailProduct(null); }}
                                     style={{ ...S.btnG, flex: '1 1 220px', justifyContent: 'center' }}>
                                     <IcoShield /> Lanjut Daftarkan
+                                </button>
+                            )}
+                            {!detailProduct.coffeeId && (
+                                <button type="button" onClick={() => handleReject(detailProduct)}
+                                    disabled={rejectingId === detailProduct.id}
+                                    style={{ ...S.btnDanger, flex: '1 1 160px', justifyContent: 'center', opacity: rejectingId === detailProduct.id ? 0.65 : 1, cursor: rejectingId === detailProduct.id ? 'not-allowed' : 'pointer' }}>
+                                    {rejectingId === detailProduct.id ? <IcoSpin /> : <IcoReject />} Tolak
                                 </button>
                             )}
                             {detailProduct.coffeeId && (
