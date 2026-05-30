@@ -25,6 +25,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# local test scripts
+test_testnet_speed.mjs
+
 # vercel
 .vercel
 .env

@@ -5,8 +5,8 @@
 
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
-// Solana Devnet connection untuk testing
-export const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+// Solana Testnet connection untuk testing
+export const connection = new Connection('https://api.testnet.solana.com', 'confirmed');
 
 // Mainnet untuk production
 // export const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');

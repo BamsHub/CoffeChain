@@ -2,7 +2,7 @@
 // ================================================
 
 // Farmer Wallet (shared) — semua pembayaran masuk ke sini
-// Wallet Devnet milik @BamsProject
+// Wallet Testnet milik @BamsProject
 export const FARMER_WALLET = "E5NKiUEJGX8qh9PMxPpA9XWzuiGR9MvEErMtCr5KjiUs";
 
 // Store wallet = farmer wallet (1 wallet untuk semua petani)
@@ -19,10 +19,10 @@ export const IS_CONTRACT_DEPLOYED = false;
 export const COFFEE_PROGRAM_ID = "CoffW1234567890PLACEHOLDER_REPLACE_AFTER_DEPLOY";
 
 // Network
-export const SOLANA_NETWORK = "https://api.devnet.solana.com";
-export const DEPLOY_NETWORK = "devnet";
+export const SOLANA_NETWORK = "https://api.testnet.solana.com";
+export const DEPLOY_NETWORK = "testnet";
 
-// Kurs SOL/IDR (demo devnet)
+// Kurs SOL/IDR (demo testnet)
 export const SOL_PER_IDR = 1 / 2_000_000; // 1 SOL = Rp 2.000.000
 
 // Solana Explorer URL

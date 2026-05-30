@@ -32,12 +32,8 @@ export async function POST(request) {
             return Response.json({ success: false, message: 'Akun ini tidak aktif. Hubungi administrator.' }, { status: 403 });
         }
 
-        // Cek password — untuk seed data, kita bandingkan langsung atau via hash
-        const isValid = (await verifyPassword(password, user.password)) ||
-            // Fallback untuk seed data plaintext (petani123, kop123, admin123)
-            (password === 'admin123' && user.role === 'developer') ||
-            (password === 'kop123' && user.role === 'koperasi') ||
-            (password === 'petani123' && user.role === 'farmer');
+        // Verifikasi password
+        const isValid = await verifyPassword(password, user.password);
 
         if (!isValid) {
             return Response.json({ success: false, message: 'Email atau password salah' }, { status: 401 });
