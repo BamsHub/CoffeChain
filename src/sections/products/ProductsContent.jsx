@@ -21,9 +21,7 @@ export default function ProductsContent() {
     const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
 
     const [products, setProducts] = useState([]);
-    const [pendingProducts, setPendingProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('products'); // 'products' | 'pending'
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState(initialForm);
     const [saving, setSaving] = useState(false);
@@ -41,18 +39,9 @@ export default function ProductsContent() {
             const myProductsUrl = isFarmer && user?.id
                 ? `/api/products?submittedBy=${encodeURIComponent(user.id)}`
                 : '/api/products';
-            const myPendingUrl = isFarmer && user?.id
-                ? `/api/products?status=pending&submittedBy=${encodeURIComponent(user.id)}`
-                : '/api/products?status=pending';
-
-            const [allRes, pendRes] = await Promise.all([
-                fetch(myProductsUrl),
-                fetch(myPendingUrl),
-            ]);
+            const allRes = await fetch(myProductsUrl);
             const allData = await allRes.json();
-            const pendData = await pendRes.json();
             if (allData.success) setProducts(allData.data);
-            if (pendData.success) setPendingProducts(pendData.data);
         } catch { }
         setLoading(false);
     }, [isFarmer, user?.id]);
@@ -317,12 +306,7 @@ export default function ProductsContent() {
                 <Link href="/products/stock" style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
                     Kelola Stok
                 </Link>
-                {canApprove && (
-                    <button onClick={() => setActiveTab(t => t === 'pending' ? 'products' : 'pending')} style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: activeTab === 'pending' ? 'rgba(245,166,35,0.2)' : 'rgba(255,255,255,0.04)', border: `1px solid ${activeTab === 'pending' ? 'rgba(245,166,35,0.5)' : 'var(--color-border)'}`, color: activeTab === 'pending' ? '#F5A623' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        Persetujuan Produk
-                        {pendingProducts.length > 0 && <span style={{ background: '#f44336', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{pendingProducts.length}</span>}
-                    </button>
-                )}
+
                 {isFarmer && (
                     <span style={{ padding: '8px 18px', borderRadius: 9, fontSize: 12, background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.3)', color: '#F5A623' }}>
                         Produk baru memerlukan persetujuan koperasi/developer
@@ -471,8 +455,8 @@ export default function ProductsContent() {
                 <input style={{ ...input, maxWidth: 320 }} placeholder="Cari nama / asal produk..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
 
-            {/* PENDING APPROVAL PANEL — for koperasi/developer */}
-            {canApprove && activeTab === 'pending' && (
+            {/* PENDING APPROVAL PANEL — removed */}
+            {false && (
                 <div style={{ marginBottom: 24 }}>
                     <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F5A623', display: 'inline-block' }} />
@@ -512,7 +496,7 @@ export default function ProductsContent() {
             )}
 
             {/* PRODUCT LIST */}
-            {(!canApprove || activeTab === 'products') && (loading ? (
+            {(loading ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
                     {Array.from({ length: 4 }).map((_, i) => <div key={i} style={{ ...card, height: 140, opacity: 0.4 }} />)}
                 </div>
