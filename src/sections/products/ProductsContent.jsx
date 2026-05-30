@@ -31,6 +31,8 @@ export default function ProductsContent() {
     const [editForm, setEditForm] = useState(initialForm);
     const [approving, setApproving] = useState(null);
     const [verifying, setVerifying] = useState(null);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [uploadingEditPhoto, setUploadingEditPhoto] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -221,6 +223,19 @@ export default function ProductsContent() {
         setSaving(false);
     }
 
+    async function uploadPhoto(file, setter, setUploading) {
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) setter(data.url);
+            else setMsg({ type: 'err', text: data.message || 'Upload gagal' });
+        } catch { setMsg({ type: 'err', text: 'Gagal mengunggah foto' }); }
+        setUploading(false);
+    }
+
     async function handleVerifyBlockchain(product) {
         if (verifying) return;
         setVerifying(product.id);
@@ -289,7 +304,7 @@ export default function ProductsContent() {
 
     /* ── STYLES ── */
     const card = { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 };
-    const input = { width: '100%', padding: '10px 13px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
+    const input = { width: '100%', padding: '10px 13px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
     const label = { fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 5, fontWeight: 600 };
     const badge = (color) => ({ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: `${color}18`, color, border: `1px solid ${color}44`, fontWeight: 600 });
     const btnPrimary = { background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', fontWeight: 700, border: 'none', borderRadius: 9, cursor: 'pointer', padding: '10px 20px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 7 };
@@ -405,10 +420,21 @@ export default function ProductsContent() {
                                 <input style={input} value={form.coffeeId} onChange={e => setField('coffeeId', e.target.value)} placeholder="CF-XXXXXX" />
                                 <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3, display: 'block' }}>Masukkan ID seri kopi jika sudah ada. Kosongkan jika belum.</span>
                             </div>
-                            <div>
-                                <label style={label}>URL Foto Produk (Opsional)</label>
-                                <input style={input} value={form.image} onChange={e => setField('image', e.target.value)} placeholder="https://..." />
-                                <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3, display: 'block' }}>Tempel link foto produk.</span>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={label}>Foto Produk (Opsional)</label>
+                                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                    {form.image && (
+                                        <img src={form.image} alt="preview" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)', flexShrink: 0 }} />
+                                    )}
+                                    <div style={{ flex: 1, minWidth: 200 }}>
+                                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 600, cursor: uploadingPhoto ? 'wait' : 'pointer', marginBottom: 8 }}>
+                                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+                                            {uploadingPhoto ? 'Mengunggah...' : 'Upload Foto'}
+                                            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingPhoto} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, url => setField('image', url), setUploadingPhoto); }} />
+                                        </label>
+                                        <input style={{ ...input, fontSize: 12 }} value={form.image} onChange={e => setField('image', e.target.value)} placeholder="atau tempel URL foto..." />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -643,8 +669,23 @@ export default function ProductsContent() {
                                 <textarea style={{ ...input, resize: 'vertical', minHeight: 72 }} value={editForm.description} onChange={e => setEditField('description', e.target.value)} />
                             </div>
                             <div style={{ marginBottom: 14 }}>
-                                <label style={label}>URL Foto Produk (Opsional)</label>
-                                <input style={input} value={editForm.image || ''} onChange={e => setEditField('image', e.target.value)} placeholder="https://..." />
+                                <label style={label}>Foto Produk</label>
+                                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                    {editForm.image && (
+                                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                                            <img src={editForm.image} alt="preview" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                                            <button type="button" onClick={() => setEditField('image', '')} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#f44336', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+                                        </div>
+                                    )}
+                                    <div style={{ flex: 1, minWidth: 200 }}>
+                                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 600, cursor: uploadingEditPhoto ? 'wait' : 'pointer', marginBottom: 8 }}>
+                                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+                                            {uploadingEditPhoto ? 'Mengunggah...' : 'Ganti Foto'}
+                                            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingEditPhoto} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, url => setEditField('image', url), setUploadingEditPhoto); }} />
+                                        </label>
+                                        <input style={{ ...input, fontSize: 12 }} value={editForm.image || ''} onChange={e => setEditField('image', e.target.value)} placeholder="atau tempel URL foto..." />
+                                    </div>
+                                </div>
                             </div>
                             <div style={{ marginBottom: 16 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
