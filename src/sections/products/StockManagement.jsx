@@ -213,9 +213,9 @@ export default function StockManagement() {
             if (!data.success) throw new Error(data.message || 'Gagal menyimpan tahap');
 
             const chainText = isFinal
-                ? ' dan sertifikat on-chain berhasil dibuat'
+                ? ' sebagai produk jadi internal. Sertifikat dibuat setelah pembayaran on-chain'
                 : ' sebagai log audit produksi';
-            const finalText = isFinal ? ' Produk jadi otomatis masuk ke Kelola Produk.' : '';
+            const finalText = isFinal ? ' Produk tidak tampil di katalog landing page sampai tersertifikasi.' : '';
             setMsg({ type: 'ok', text: `${stage.name} untuk "${batch.name}" tersimpan${chainText}.${finalText}`, explorerUrl: data.explorerUrl });
             setStageModal(null);
             load();

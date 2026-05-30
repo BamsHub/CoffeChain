@@ -889,19 +889,11 @@ export default function LandingPage() {
                                             <IconPackage /> Stok Habis
                                         </div>
                                     ) : (
-                                        <div style={{ display:'flex', gap:6 }}>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); openOrder(p, 'midtrans'); }}
-                                                style={{ flex:1, padding:'9px 8px', fontSize:11, fontWeight:700, background:'linear-gradient(135deg,#00AEF0,#0070B8)', color:'#fff', border:'none', borderRadius:10, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:4 }}>
-                                                <IconMidtrans /> Midtrans
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); openOrder(p, 'transfer'); }}
-                                                className="lp-btn-phantom"
-                                                style={{ flex:1, padding:'9px 8px', fontSize:11, justifyContent:'center' }}>
-                                                <IconPhantomLogo /> SOL
-                                            </button>
-                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); openOrder(p, 'midtrans'); }}
+                                            style={{ width:'100%', padding:'10px 10px', fontSize:12, fontWeight:800, background:'linear-gradient(135deg,#4A7C28,#7ED44A)', color:'#fff', border:'none', borderRadius:10, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                            <IconCart /> Beli Sekarang
+                                        </button>
                                     )}
                                 </div>
                                 </div>

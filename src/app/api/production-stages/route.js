@@ -1,13 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
-import { addItem } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import {
-    Connection, Keypair, PublicKey, LAMPORTS_PER_SOL,
-    Transaction, TransactionInstruction, ComputeBudgetProgram,
-} from '@solana/web3.js';
-import { SOLANA_NETWORK, MEMO_PROGRAM_ID } from '@/lib/contractConfig';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -20,62 +13,6 @@ const STAGE_NAMES = {
     5: 'Pelepasan Gas',
     6: 'Produk Jadi',
 };
-
-function getConnection() {
-    return new Connection(SOLANA_NETWORK, { commitment: 'confirmed', confirmTransactionInitialTimeout: 60000 });
-}
-
-function getSigner() {
-    const secretKeyEnv = process.env.MEMO_SIGNER_SECRET_KEY;
-    if (!secretKeyEnv) throw new Error('MEMO_SIGNER_SECRET_KEY not configured');
-    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secretKeyEnv)));
-}
-
-async function ensureBalance(connection, publicKey) {
-    const balance = await connection.getBalance(publicKey);
-    if (balance < 0.005 * LAMPORTS_PER_SOL) {
-        try {
-            const sig = await connection.requestAirdrop(publicKey, 1 * LAMPORTS_PER_SOL);
-            await connection.confirmTransaction(sig, 'confirmed');
-        } catch (e) {
-            if (balance === 0) throw new Error('Wallet 0 SOL, airdrop gagal');
-        }
-    }
-}
-
-async function sendMemoTx(memoText) {
-    const signer = getSigner();
-    const connection = getConnection();
-    await ensureBalance(connection, signer.publicKey);
-
-    const memoEncoded = Buffer.from(memoText.slice(0, 560), 'utf8');
-    const memoInstruction = new TransactionInstruction({
-        keys: [{ pubkey: signer.publicKey, isSigner: true, isWritable: false }],
-        programId: new PublicKey(MEMO_PROGRAM_ID),
-        data: memoEncoded,
-    });
-
-    const tx = new Transaction();
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = signer.publicKey;
-    tx.lastValidBlockHeight = lastValidBlockHeight;
-    tx.add(
-        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
-        memoInstruction,
-    );
-    tx.sign(signer);
-
-    const txSignature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 5 });
-
-    await Promise.race([
-        connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, 'confirmed'),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout 20s')), 20000)),
-    ]);
-
-    return { txSignature, explorerUrl: getExplorerTxUrl(txSignature) };
-}
 
 // GET — list stage logs for a batch
 export async function GET(req) {
@@ -127,50 +64,8 @@ export async function POST(req) {
             .from('production_batches').select('*').eq('id', batchId).single();
         if (batchErr || !batch) throw new Error('Batch tidak ditemukan');
 
-        const isFinalStage = Number(stage) === 6;
         let productId = batch.product_id || null;
-        let coffeeId = batch.coffee_id || null;
-
-        if (isFinalStage) {
-            productId = productId || uuidv4();
-            coffeeId = coffeeId || `CF-${batchId.slice(0, 4).toUpperCase()}${Date.now().toString(36).slice(-4).toUpperCase()}`;
-        }
-
-        // Build memo only for the final product certificate. Keep it compact so it fits into a Memo tx.
         const stageName = STAGE_NAMES[stage] || `Stage ${stage}`;
-        const memoPayload = JSON.stringify({
-            v: 1,
-            type: 'coffee-production',
-            category: stageName,
-            stage,
-            stageName,
-            coffeeId: coffeeId || '',
-            productId: productId || '',
-            batchId: batchId.slice(0, 8),
-            batchName: (batch.name || '').slice(0, 24),
-            origin: (batch.origin || '').slice(0, 16),
-            grade: batch.grade || '',
-            weightKg: stageData?.weightIn || batch.weight_kg || 0,
-            ts: Math.floor(Date.now() / 1000),
-            ...(stage === 2 ? { suhu: stageData?.suhu || 0, levelRoast: (stageData?.levelRoast || '').slice(0, 12) } : {}),
-            ...(stage === 4 ? { ukuranGiling: (stageData?.ukuranGiling || '').slice(0, 12) } : {}),
-            ...(stage === 6 ? { productName: (stageData?.productName || batch.name || '').slice(0, 24), stock: stageData?.stock || 0 } : {}),
-        });
-
-        let txSignature = null;
-        let explorerUrl = null;
-        let txError = null;
-        if (isFinalStage) {
-            try {
-                const result = await sendMemoTx(memoPayload);
-                txSignature = result.txSignature;
-                explorerUrl = result.explorerUrl;
-            } catch (err) {
-                txError = err.message;
-                console.error('[production-stages] Final certificate TX failed:', txError);
-                throw new Error(`Gagal membuat sertifikat on-chain: ${txError}`);
-            }
-        }
 
         // Save stage log
         const logId = uuidv4();
@@ -181,15 +76,16 @@ export async function POST(req) {
             stage_name: stageName,
             data: stageData || {},
             photo_url: photoUrl || null,
-            tx_signature: txSignature,
-            explorer_url: explorerUrl,
+            tx_signature: null,
+            explorer_url: null,
             logged_by: loggedBy || null,
             logged_by_name: loggedByName || null,
         }).select().single();
 
         if (logErr) throw new Error(logErr.message);
 
-        if (isFinalStage && productId) {
+        if (Number(stage) === 6 && !productId) {
+            productId = uuidv4();
             const weights = Array.isArray(stageData?.weights) && stageData.weights.length ? stageData.weights : [250];
             const prices = Array.isArray(stageData?.pricePerUnit) && stageData.pricePerUnit.length === weights.length
                 ? stageData.pricePerUnit
@@ -210,8 +106,8 @@ export async function POST(req) {
                 stock: Number(stageData?.stock) || 0,
                 rating: 4.5,
                 sold: 0,
-                status: 'published',
-                coffee_id: coffeeId,
+                status: 'pending_certification',
+                coffee_id: null,
                 submitted_by: loggedBy || batch.farmer_id || null,
                 submitted_by_name: loggedByName || batch.farmer_name || null,
                 submitted_by_role: 'koperasi',
@@ -224,51 +120,23 @@ export async function POST(req) {
                 ({ error: productErr } = await supabase.from('products').insert(fallbackProduct));
             }
             if (productErr) throw new Error(`Gagal membuat produk jadi: ${productErr.message}`);
-
-            try {
-                await addItem('coffee_traces', {
-                    id: uuidv4(),
-                    coffeeId,
-                    name: baseProduct.name,
-                    origin: baseProduct.origin,
-                    variety: baseProduct.variety,
-                    grade: baseProduct.grade,
-                    weightKg: stageData?.weightOut || stageData?.weightIn || batch.weight_kg || null,
-                    farmerName: loggedByName || batch.farmer_name || null,
-                    farmerId: loggedBy || batch.farmer_id || null,
-                    harvestDate: batch.created_at || null,
-                    processMethod: 'Final production certificate',
-                    roastLevel: baseProduct.roast,
-                    certification: 'CoffeeChain Produk Jadi',
-                    description: baseProduct.description,
-                    txSignature,
-                    explorerUrl,
-                    status: 'verified',
-                    registeredBy: loggedBy || null,
-                    productId,
-                    createdAt: new Date().toISOString(),
-                });
-            } catch (traceErr) {
-                console.warn('[production-stages] Could not save final certificate trace:', traceErr.message);
-            }
         }
 
         // Advance batch to next stage (or stay at 6 if already done)
         const nextStage = Math.min(stage + 1, 6);
         const batchUpdate = { current_stage: nextStage, updated_at: new Date().toISOString() };
         if (productId) batchUpdate.product_id = productId;
-        if (coffeeId) batchUpdate.coffee_id = coffeeId;
         await supabase.from('production_batches')
             .update(batchUpdate)
             .eq('id', batchId);
 
         return NextResponse.json({
             success: true,
-            verified: !!txSignature,
+            verified: false,
             nextStage,
-            txSignature,
-            explorerUrl,
-            txError,
+            txSignature: null,
+            explorerUrl: null,
+            txError: null,
             data: {
                 id: log.id,
                 batchId,
@@ -276,10 +144,10 @@ export async function POST(req) {
                 stageName,
                 stageData,
                 photoUrl,
-                txSignature,
-                explorerUrl,
+                txSignature: null,
+                explorerUrl: null,
                 productId,
-                coffeeId,
+                coffeeId: null,
                 createdAt: log.created_at,
             },
         });

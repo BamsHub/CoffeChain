@@ -3,6 +3,17 @@ import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, sbSelect, ordersToSnake } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
 
+function generateCoffeeId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let id = 'CF-';
+    for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+    return id;
+}
+
+function explorerUrl(signature) {
+    return `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+}
+
 /**
  * PUBLIC API — Buat Pesanan Kopi (Rupiah & Solana)
  * POST /api/public/order
@@ -123,9 +134,45 @@ export async function POST(request) {
             await addItem('orders', order);
         }
 
+        let certifiedCoffeeId = product.coffeeId || null;
+        let certifiedExplorerUrl = txSignature ? explorerUrl(txSignature) : null;
+
+        if (isPaid && txSignature && !product.coffeeId) {
+            certifiedCoffeeId = generateCoffeeId();
+            try {
+                await addItem('coffee_traces', {
+                    id: uuidv4(),
+                    coffeeId: certifiedCoffeeId,
+                    name: product.name,
+                    origin: product.origin || null,
+                    variety: product.variety || null,
+                    grade: product.grade || null,
+                    weightKg: weight || product.weight?.[0] || null,
+                    farmerName: product.submittedByName || null,
+                    harvestDate: null,
+                    processMethod: 'Paid on-chain product certificate',
+                    roastLevel: product.roast || null,
+                    certification: 'CoffeeChain Paid On-Chain',
+                    description: product.description || null,
+                    txSignature,
+                    explorerUrl: certifiedExplorerUrl,
+                    status: 'verified',
+                    registeredBy: walletAddress || null,
+                    productId: product.id,
+                    paymentWallet: walletAddress || null,
+                    createdAt: new Date().toISOString(),
+                });
+            } catch (traceErr) {
+                console.warn('[order] Certificate trace insert failed:', traceErr?.message);
+            }
+        }
+
         // Kurangi stok setelah order berhasil dibuat
         try {
-            await updateItem('products', product.id, { stock: currentStock - quantity });
+            await updateItem('products', product.id, {
+                stock: currentStock - quantity,
+                ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: walletAddress || null } : {}),
+            });
         } catch (stockErr) {
             // Log but don't fail the order
             console.error('[order] Stock update failed:', stockErr?.message);
@@ -149,6 +196,8 @@ export async function POST(request) {
                 paymentCurrency: order.paymentCurrency,
                 walletAddress: order.walletAddress,
                 txSignature: order.txSignature,
+                coffeeId: certifiedCoffeeId,
+                explorerUrl: certifiedExplorerUrl,
                 virtualAccount: order.virtualAccount,
                 status: order.status,
                 expiresAt: order.expiresAt,

@@ -221,7 +221,7 @@ export async function POST(request) {
 
         if (productId) {
             try {
-                const updateData = { coffeeId };
+                const updateData = { coffeeId, status: 'published' };
                 if (paymentWallet) updateData.paymentWallet = paymentWallet;
                 await updateItem('products', productId, updateData);
             } catch (e) {

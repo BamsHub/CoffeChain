@@ -46,7 +46,10 @@ export async function GET(request) {
             }
         });
 
-        const result = (data || []).map(p => {
+        const result = (data || []).filter(p =>
+            p.status === 'published' &&
+            !!p.coffee_id
+        ).map(p => {
             // Normalize price_per_unit: can be JSONB array, number, or null
             const rawPrice = p.price_per_unit;
             const priceArr = Array.isArray(rawPrice)
@@ -98,4 +101,3 @@ export async function GET(request) {
         return Response.json({ success: false, message: 'Gagal memuat produk' }, { status: 500 });
     }
 }
-
