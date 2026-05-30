@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
+import { addItem } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import {
     Connection, Keypair, PublicKey, LAMPORTS_PER_SOL,
@@ -126,7 +127,16 @@ export async function POST(req) {
             .from('production_batches').select('*').eq('id', batchId).single();
         if (batchErr || !batch) throw new Error('Batch tidak ditemukan');
 
-        // Build memo for blockchain. Keep it compact so it fits into a Memo tx.
+        const isFinalStage = Number(stage) === 6;
+        let productId = batch.product_id || null;
+        let coffeeId = batch.coffee_id || null;
+
+        if (isFinalStage) {
+            productId = productId || uuidv4();
+            coffeeId = coffeeId || `CF-${batchId.slice(0, 4).toUpperCase()}${Date.now().toString(36).slice(-4).toUpperCase()}`;
+        }
+
+        // Build memo for the final product certificate. Keep it compact so it fits into a Memo tx.
         const stageName = STAGE_NAMES[stage] || `Stage ${stage}`;
         const memoPayload = JSON.stringify({
             v: 1,
@@ -134,6 +144,8 @@ export async function POST(req) {
             category: stageName,
             stage,
             stageName,
+            coffeeId: coffeeId || '',
+            productId: productId || '',
             batchId: batchId.slice(0, 8),
             batchName: (batch.name || '').slice(0, 24),
             origin: (batch.origin || '').slice(0, 16),
@@ -145,17 +157,20 @@ export async function POST(req) {
             ...(stage === 6 ? { productName: (stageData?.productName || batch.name || '').slice(0, 24), stock: stageData?.stock || 0 } : {}),
         });
 
-        // Try blockchain TX
+        // Only the final product is certified on-chain. Stages 1-5 stay as local production logs.
         let txSignature = null;
         let explorerUrl = null;
         let txError = null;
-        try {
-            const result = await sendMemoTx(memoPayload);
-            txSignature = result.txSignature;
-            explorerUrl = result.explorerUrl;
-        } catch (err) {
-            txError = err.message;
-            console.error('[production-stages] Blockchain TX failed:', txError);
+        if (isFinalStage) {
+            try {
+                const result = await sendMemoTx(memoPayload);
+                txSignature = result.txSignature;
+                explorerUrl = result.explorerUrl;
+            } catch (err) {
+                txError = err.message;
+                console.error('[production-stages] Final certificate TX failed:', txError);
+                throw new Error(`Gagal membuat sertifikat on-chain: ${txError}`);
+            }
         }
 
         // Save stage log
@@ -175,12 +190,7 @@ export async function POST(req) {
 
         if (logErr) throw new Error(logErr.message);
 
-        let productId = batch.product_id || null;
-        let coffeeId = batch.coffee_id || null;
-
-        if (Number(stage) === 6 && !productId) {
-            productId = uuidv4();
-            coffeeId = `PROD-${batchId.slice(0, 8)}-${Date.now().toString(36).slice(-5)}`;
+        if (isFinalStage && productId) {
             const weights = Array.isArray(stageData?.weights) && stageData.weights.length ? stageData.weights : [250];
             const prices = Array.isArray(stageData?.pricePerUnit) && stageData.pricePerUnit.length === weights.length
                 ? stageData.pricePerUnit
@@ -215,6 +225,33 @@ export async function POST(req) {
                 ({ error: productErr } = await supabase.from('products').insert(fallbackProduct));
             }
             if (productErr) throw new Error(`Gagal membuat produk jadi: ${productErr.message}`);
+
+            try {
+                await addItem('coffee_traces', {
+                    id: uuidv4(),
+                    coffeeId,
+                    name: baseProduct.name,
+                    origin: baseProduct.origin,
+                    variety: baseProduct.variety,
+                    grade: baseProduct.grade,
+                    weightKg: stageData?.weightOut || stageData?.weightIn || batch.weight_kg || null,
+                    farmerName: loggedByName || batch.farmer_name || null,
+                    farmerId: loggedBy || batch.farmer_id || null,
+                    harvestDate: batch.created_at || null,
+                    processMethod: 'Final production certificate',
+                    roastLevel: baseProduct.roast,
+                    certification: 'CoffeeChain Produk Jadi',
+                    description: baseProduct.description,
+                    txSignature,
+                    explorerUrl,
+                    status: 'verified',
+                    registeredBy: loggedBy || null,
+                    productId,
+                    createdAt: new Date().toISOString(),
+                });
+            } catch (traceErr) {
+                console.warn('[production-stages] Could not save final certificate trace:', traceErr.message);
+            }
         }
 
         // Advance batch to next stage (or stay at 6 if already done)

@@ -211,13 +211,11 @@ export default function StockManagement() {
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Gagal menyimpan tahap');
 
-            const chainText = data.verified
-                ? ' dan tercatat di Solana'
-                : data.txError
-                    ? `, tersimpan lokal tetapi TX blockchain gagal: ${data.txError}`
-                    : '';
+            const chainText = isFinal
+                ? ' dan sertifikat on-chain berhasil dibuat'
+                : ' sebagai log produksi lokal';
             const finalText = isFinal ? ' Produk jadi otomatis masuk ke Kelola Produk.' : '';
-            setMsg({ type: data.verified ? 'ok' : 'err', text: `${stage.name} untuk "${batch.name}" tersimpan${chainText}.${finalText}`, explorerUrl: data.explorerUrl });
+            setMsg({ type: 'ok', text: `${stage.name} untuk "${batch.name}" tersimpan${chainText}.${finalText}`, explorerUrl: data.explorerUrl });
             setStageModal(null);
             load();
         } catch (err) {
