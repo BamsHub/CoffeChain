@@ -16,7 +16,11 @@ export default function StockManagement() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/products');
+            // Farmer hanya lihat produknya sendiri
+            const url = isFarmer && user?.id
+                ? `/api/products?submittedBy=${encodeURIComponent(user.id)}`
+                : '/api/products';
+            const res = await fetch(url);
             const data = await res.json();
             if (data.success) {
                 setProducts(data.data);
@@ -27,7 +31,7 @@ export default function StockManagement() {
             }
         } catch { }
         setLoading(false);
-    }, []);
+    }, [isFarmer, user?.id]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -56,11 +60,13 @@ export default function StockManagement() {
         setSaving(null);
     }
 
-    const filtered = products.filter(p =>
-        !search ||
-        p.name?.toLowerCase().includes(search.toLowerCase()) ||
-        p.origin?.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = products.filter(p => {
+        // Double-check: farmer only sees own products
+        if (isFarmer && p.submittedBy && p.submittedBy !== (user?.id || '')) return false;
+        return !search ||
+            p.name?.toLowerCase().includes(search.toLowerCase()) ||
+            p.origin?.toLowerCase().includes(search.toLowerCase());
+    });
 
     /* ── STYLES ── */
     const card = { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 };
@@ -91,10 +97,12 @@ export default function StockManagement() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
                 <div>
                     <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>Kelola Stok</h1>
-                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Update jumlah stok untuk setiap produk langsung ke database</p>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                        {isFarmer ? 'Stok produk yang kamu ajukan' : 'Update jumlah stok untuk setiap produk langsung ke database'}
+                    </p>
                     {isFarmer && (
                         <div style={{ marginTop: 8, fontSize: 12, color: '#F5A623', fontWeight: 600, background: 'rgba(245,166,35,0.09)', border: '1px solid rgba(245,166,35,0.25)', borderRadius: 8, padding: '6px 12px', display: 'inline-block' }}>
-                            Hanya bisa melihat stok — hubungi koperasi/developer untuk ubah stok
+                            Hanya bisa melihat stok milikmu — hubungi koperasi/developer untuk ubah stok
                         </div>
                     )}
                 </div>

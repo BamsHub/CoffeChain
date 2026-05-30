@@ -1,11 +1,9 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
 import { useTheme } from '@/context/ThemeContext';
-import { BlockchainQRCard } from '@/components/BlockchainQR/BlockchainQR';
-import QRButton from '@/components/BlockchainQR/BlockchainQR';
 
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
 const IconSearch = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
@@ -13,6 +11,93 @@ const IconShield = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="n
 const IconCheck = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="2.5" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const IconExplorer = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
 const IconClock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IconQR = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>;
+const IconDownload = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+const IconCopy = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>;
+
+/* ── Inline QR generator ── */
+function CertQRImage({ url, size = 140 }) {
+    const [qrSrc, setQrSrc] = useState(null);
+    useEffect(() => {
+        if (!url) return;
+        let cancelled = false;
+        import('qrcode').then(m => m.default.toDataURL(url, {
+            width: size, margin: 1, color: { dark: '#000', light: '#fff' }, errorCorrectionLevel: 'M',
+        })).then(d => { if (!cancelled) setQrSrc(d); }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [url, size]);
+    return (
+        <div style={{ width: size, height: size, background: '#fff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 4, flexShrink: 0, boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}>
+            {qrSrc
+                ? <img src={qrSrc} alt="QR" style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }} />
+                : <span style={{ fontSize: 10, color: '#aaa' }}>QR...</span>}
+        </div>
+    );
+}
+
+/* ── 1 card sertifikasi per produk ── */
+function CertCard({ p }) {
+    const [copied, setCopied] = useState(false);
+    const certUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://coffeechain.vercel.app'}/trace?id=${p.coffeeId}`;
+
+    function handleCopy() {
+        navigator.clipboard.writeText(certUrl).then(() => {
+            setCopied(true); setTimeout(() => setCopied(false), 2000);
+        });
+    }
+    function handleDownload(qrEl) {
+        if (!qrEl) return;
+        const img = qrEl.querySelector('img');
+        if (!img) return;
+        const a = document.createElement('a'); a.href = img.src;
+        a.download = `sertifikasi-${p.coffeeId}.png`; a.click();
+    }
+
+    const qrRef = useCallback(node => { /* ref for download */ }, []);
+
+    return (
+        <div style={{ background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.25)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {/* Foto */}
+            <div style={{ width: '100%', height: 140, overflow: 'hidden', position: 'relative', background: 'rgba(74,124,40,0.07)', flexShrink: 0 }}>
+                {p.image
+                    ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(126,212,74,0.3)' }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg></div>
+                }
+                {/* Coffee ID badge overlay */}
+                <div style={{ position: 'absolute', bottom: 8, left: 8, fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(0,0,0,0.65)', padding: '3px 8px', borderRadius: 5, backdropFilter: 'blur(4px)' }}>
+                    {p.coffeeId}
+                </div>
+            </div>
+
+            {/* Konten */}
+            <div style={{ padding: '14px 16px', display: 'flex', gap: 14, alignItems: 'flex-start', flex: 1 }}>
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--color-text)', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6 }}>{p.origin} · {p.variety}</div>
+                    {p.grade && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(126,212,74,0.12)', color: '#7ED44A', border: '1px solid rgba(126,212,74,0.3)', fontWeight: 700, marginRight: 4 }}>{p.grade}</span>}
+                    {p.roast && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.1)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.25)', fontWeight: 700 }}>{p.roast}</span>}
+
+                    {/* Buttons */}
+                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <a href={`/trace?id=${p.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'linear-gradient(135deg,rgba(74,124,40,0.3),rgba(126,212,74,0.15))', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
+                            <IconQR /> Lihat Sertifikasi
+                        </a>
+                        <button onClick={handleCopy} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, background: copied ? 'rgba(76,175,80,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${copied ? 'rgba(76,175,80,0.35)' : 'var(--color-border)'}`, color: copied ? '#4CAF50' : 'var(--color-text-muted)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                            <IconCopy /> {copied ? 'Tersalin!' : 'Salin Link'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* QR Code */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }} ref={qrRef}>
+                    <CertQRImage url={certUrl} size={110} />
+                    <span style={{ fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scan QR</span>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function TraceContent() {
     const searchParams = useSearchParams();
@@ -125,18 +210,29 @@ function TraceContent() {
                     </div>
 
                     {/* QR Code Sertifikasi */}
-                    {result.txSignature && (
-                        <div style={{ animation: 'fadeUp 0.5s ease' }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>
-                                QR Code Sertifikasi
+                    {result.coffeeId && (
+                        <div style={{ animation: 'fadeUp 0.5s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 14, padding: 20 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <IconQR /> QR Sertifikasi
                             </div>
-                            <BlockchainQRCard
-                                explorerUrl={result.explorerUrl || getExplorerTxUrl(result.txSignature)}
-                                traceUrl={result.coffeeId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}` : undefined}
-                                coffeeId={result.coffeeId}
-                                productName={result.name}
-                            />
+                            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                <CertQRImage url={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={150} />
+                                <div style={{ flex: 1, minWidth: 180 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 4 }}>{result.name}</div>
+                                    <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#7ED44A', marginBottom: 12 }}>{result.coffeeId}</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.2)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                                            <IconQR /> Halaman Sertifikasi
+                                        </a>
+                                        {result.txSignature && (
+                                            <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
+                                                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 8, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                                                <IconExplorer /> Solana Explorer
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -153,42 +249,11 @@ function TraceContent() {
                     <div style={{ textAlign: 'center', marginBottom: 28 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>Sertifikasi Produk</div>
                         <h2 style={{ fontSize: 'clamp(18px,3.5vw,24px)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.5px' }}>Semua Sertifikasi Kopi</h2>
-                        <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{allProducts.length} produk terdaftar dengan sertifikasi</p>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{allProducts.filter(p => p.coffeeId).length} produk tersertifikasi di blockchain</p>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
-                        {allProducts.map(p => (
-                            <div key={p.id} style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
-                                <div style={{ height: 72, background: 'rgba(74,124,40,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--color-border)', overflow: 'hidden' }}>
-                                    {p.image
-                                        ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(126,212,74,0.35)" strokeWidth="1.5"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg>
-                                    }
-                                </div>
-                                <div style={{ padding: 11 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                                    <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 6 }}>{p.origin} · {p.variety}</div>
-                                    {p.coffeeId && (
-                                        <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#7ED44A', background: 'rgba(74,124,40,0.1)', padding: '2px 6px', borderRadius: 4, marginBottom: 7, display: 'inline-block', border: '1px solid rgba(126,212,74,0.2)' }}>{p.coffeeId}</div>
-                                    )}
-                                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-                                        {p.coffeeId ? (
-                                            <>
-                                                <a href={`/trace?id=${p.coffeeId}`} style={{ fontSize: 10, fontWeight: 700, padding: '4px 7px', borderRadius: 5, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.3)', color: '#7ED44A', textDecoration: 'none' }}>
-                                                    🏆 Sertifikasi
-                                                </a>
-                                                <QRButton
-                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : 'https://coffeechain.vercel.app'}/trace?id=${p.coffeeId}`}
-                                                    coffeeId={p.coffeeId}
-                                                    productName={p.name}
-                                                    label="QR"
-                                                />
-                                            </>
-                                        ) : (
-                                            <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Belum terdaftar</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
+                        {allProducts.filter(p => p.coffeeId).map(p => (
+                            <CertCard key={p.id} p={p} />
                         ))}
                     </div>
                 </div>
