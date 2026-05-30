@@ -19,6 +19,7 @@ const IcoLink    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="n
 const IcoCoffee  = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
 const IcoClose   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const IcoCheck   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const IcoEye     = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
 const IcoSpin    = () => <span style={{ display:'inline-block', animation:'spin 0.8s linear infinite', fontSize:14 }}>⏳</span>;
 const IcoPhantom = () => <svg width="16" height="16" viewBox="0 0 128 128" fill="none"><circle cx="64" cy="64" r="64" fill="#9945FF"/><path d="M64 24C42 24 24 42 24 64s18 40 40 40 40-18 40-40S86 24 64 24zm16 52a10 10 0 110-20 10 10 0 010 20zm-32 0a10 10 0 110-20 10 10 0 010 20z" fill="white"/><path d="M44 64h40" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.35"/></svg>;
 
@@ -30,7 +31,7 @@ const DEVNET_EXPLORER = (sig) => `https://explorer.solana.com/tx/${sig}?cluster=
 /* ── Style constants ───────────────────────────────────────────── */
 const S = {
     card: { background:'rgba(255,255,255,0.02)', border:'1px solid rgba(74,124,40,0.18)', borderRadius:14, padding:20 },
-    inp:  { width:'100%', padding:'9px 12px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.25)', color:'var(--color-text,#E8F5E0)', fontSize:13, outline:'none', boxSizing:'border-box' },
+    inp:  { width:'100%', padding:'9px 12px', borderRadius:8, background:'var(--color-input-bg,#1C261C)', border:'1px solid var(--color-input-border,rgba(74,124,40,0.25))', color:'var(--color-text,#E8F5E0)', fontSize:13, outline:'none', boxSizing:'border-box' },
     lbl:  { fontSize:11, color:'rgba(232,245,224,0.5)', fontWeight:600, display:'block', marginBottom:5 },
     btnG: { background:'linear-gradient(135deg,#4A7C28,#7ED44A)', color:'#fff', fontWeight:700, border:'none', borderRadius:9, cursor:'pointer', padding:'10px 20px', fontSize:13, display:'inline-flex', alignItems:'center', gap:7, transition:'opacity 0.2s' },
     btnP: { background:'linear-gradient(135deg,#512da8,#9c27b0)', color:'#fff', fontWeight:700, border:'none', borderRadius:9, cursor:'pointer', padding:'10px 20px', fontSize:13, display:'inline-flex', alignItems:'center', gap:7 },
@@ -58,6 +59,7 @@ export default function CoffeeRegisterContent() {
     const [regForm, setRegForm]           = useState({ farmerName:'', harvestDate:'', processMethod:'Washed', roastLevel:'Medium', certification:'' });
     const [submitting, setSubmitting]     = useState(false);
     const [regMsg, setRegMsg]             = useState(null);
+    const [previewOpen, setPreviewOpen]   = useState(false);
 
     /* ── Log search ── */
     const [logSearch, setLogSearch]       = useState('');
@@ -136,6 +138,7 @@ export default function CoffeeRegisterContent() {
             certification: '',
         });
         setRegMsg(null);
+        setPreviewOpen(false);
     }
 
     /* ── Submit: Phantom sign → Solana → save to DB ── */
@@ -604,6 +607,10 @@ export default function CoffeeRegisterContent() {
                                     Gas fee ~0.000005 SOL dari <strong style={{ color: '#9945FF' }}>wallet Phantom Anda</strong>
                                     {walletPK && <span style={{ marginLeft: 'auto', color: '#7ED44A', fontWeight: 700 }}>{walletBal.toFixed(4)} SOL</span>}
                                 </div>
+                                <button type="button" onClick={() => setPreviewOpen(true)}
+                                    style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', fontWeight: 700, border: '1px solid rgba(126,212,74,0.25)', borderRadius: 9, cursor: 'pointer', padding: '10px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                                    <IcoEye /> Lihat Semua Data
+                                </button>
                                 {walletPK ? (
                                     <button type="submit" disabled={submitting} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting ? 0.7 : 1 }}>
                                         {submitting ? <><IcoSpin /> Menunggu Phantom...</> : <><IcoPhantom /> Sign & Kirim ke Solana</>}
@@ -614,6 +621,71 @@ export default function CoffeeRegisterContent() {
                                     </button>
                                 )}
                             </form>
+                        )}
+
+                        {previewOpen && (
+                            <div className="cr-overlay" style={{ zIndex: 360, padding: 12 }} onClick={() => setPreviewOpen(false)}>
+                                <div className="cr-modal" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+                                        <div>
+                                            <div style={{ fontSize: 18, fontWeight: 800, color: '#E8F5E0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <IcoEye /> Preview Data Register
+                                            </div>
+                                            <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 3 }}>Periksa data sebelum tanda tangan Phantom.</div>
+                                        </div>
+                                        <button type="button" onClick={() => setPreviewOpen(false)}
+                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: 'rgba(232,245,224,0.7)', cursor: 'pointer' }}>
+                                            <IcoClose />
+                                        </button>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, alignItems: 'start' }}>
+                                        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(74,124,40,0.25)', background: 'rgba(74,124,40,0.08)', minHeight: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            {regProduct.image ? (
+                                                <img src={regProduct.image} alt={regProduct.name} style={{ width: '100%', height: 180, objectFit: 'cover' }} />
+                                            ) : (
+                                                <div style={{ color: 'rgba(126,212,74,0.45)', display: 'grid', placeItems: 'center', gap: 6 }}>
+                                                    <IcoCoffee />
+                                                    <span style={{ fontSize: 12 }}>Belum ada foto</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
+                                            {[
+                                                ['Nama Produk', regProduct.name],
+                                                ['Asal', regProduct.origin],
+                                                ['Varietas', regProduct.variety],
+                                                ['Grade', regProduct.grade],
+                                                ['Roast Produk', regProduct.roast],
+                                                ['Stok', `${regProduct.stock ?? 0} unit`],
+                                                ['Ukuran', Array.isArray(regProduct.weight) ? regProduct.weight.map(w => `${w}g`).join(', ') : '-'],
+                                                ['Harga', Array.isArray(regProduct.pricePerUnit) ? regProduct.pricePerUnit.map(v => `Rp ${Number(v || 0).toLocaleString('id-ID')}`).join(', ') : '-'],
+                                                ['Nama Petani', regForm.farmerName || '-'],
+                                                ['Tanggal Panen', regForm.harvestDate || '-'],
+                                                ['Metode Proses', regForm.processMethod],
+                                                ['Level Roast', regForm.roastLevel],
+                                                ['Sertifikasi', regForm.certification || '-'],
+                                            ].map(([label, value]) => (
+                                                <div key={label} style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(74,124,40,0.2)', borderRadius: 9, padding: 10 }}>
+                                                    <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
+                                                    <div style={{ color: '#E8F5E0', fontSize: 13, fontWeight: 700, wordBreak: 'break-word' }}>{value || '-'}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {regProduct.description && (
+                                        <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(74,124,40,0.2)' }}>
+                                            <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 5 }}>Deskripsi</div>
+                                            <div style={{ color: '#E8F5E0', fontSize: 13 }}>{regProduct.description}</div>
+                                        </div>
+                                    )}
+
+                                    <button type="button" onClick={() => setPreviewOpen(false)} style={{ ...S.btnG, marginTop: 16, width: '100%', justifyContent: 'center' }}>
+                                        Data Sudah Sesuai
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>

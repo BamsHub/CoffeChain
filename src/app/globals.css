@@ -112,6 +112,30 @@ input, select, textarea {
   font-family: inherit;
 }
 
+select {
+  color-scheme: dark;
+}
+
+select option {
+  background: var(--color-bg-card);
+  color: var(--color-text);
+}
+
+select option:checked,
+select option:hover {
+  background: var(--color-primary-light);
+  color: #fff;
+}
+
+[data-theme="light"] select {
+  color-scheme: light;
+}
+
+[data-theme="light"] select option {
+  background: #FEFCFA;
+  color: #1A1208;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

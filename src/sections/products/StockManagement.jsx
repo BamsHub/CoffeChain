@@ -226,7 +226,7 @@ export default function StockManagement() {
     }
 
     const card = { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 18 };
-    const input = { width: '100%', padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
+    const input = { width: '100%', padding: '10px 12px', borderRadius: 9, background: 'var(--color-input-bg)', border: '1px solid var(--color-input-border)', color: 'var(--color-text)', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
     const label = { fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 5, fontWeight: 700 };
     const button = { border: 'none', borderRadius: 9, cursor: 'pointer', padding: '10px 16px', fontSize: 13, fontWeight: 800 };
     const mutedButton = { ...button, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };

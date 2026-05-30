@@ -304,7 +304,7 @@ export default function ProductsContent() {
 
     /* ── STYLES ── */
     const card = { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 };
-    const input = { width: '100%', padding: '10px 13px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
+    const input = { width: '100%', padding: '10px 13px', borderRadius: 9, background: 'var(--color-input-bg)', border: '1px solid var(--color-input-border)', color: 'var(--color-text)', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
     const label = { fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 5, fontWeight: 600 };
     const badge = (color) => ({ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: `${color}18`, color, border: `1px solid ${color}44`, fontWeight: 600 });
     const btnPrimary = { background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', fontWeight: 700, border: 'none', borderRadius: 9, cursor: 'pointer', padding: '10px 20px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 7 };
