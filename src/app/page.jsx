@@ -1029,7 +1029,7 @@ export default function LandingPage() {
             {orderModal && selectedProduct && (
                 <div style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.85)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
                     onClick={() => { setOrderModal(false); setOrderResult(null); }}>
-                    <div style={{ background:'#0e1a0e', border:'1px solid rgba(74,124,40,0.3)', borderRadius:18, padding:'clamp(20px,4vw,32px)', maxWidth:500, width:'100%', maxHeight:'92dvh', overflowY:'auto' }}
+                    <div style={{ background:'#0e1a0e', border:'1px solid rgba(74,124,40,0.3)', borderRadius:18, padding:'clamp(20px,4vw,32px)', maxWidth:660, width:'100%', maxHeight:'92dvh', overflowY:'auto' }}
                         onClick={e => e.stopPropagation()}>
 
                         {orderResult ? (
@@ -1205,8 +1205,12 @@ export default function LandingPage() {
                                 )}
 
                                 <form onSubmit={handleOrder} className="lp-modal-grid">
+                                    <div>
+                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Nama Lengkap *</label>
+                                        <input type="text" required className="lp-inp" value={orderForm.buyerName}
+                                            onChange={e => setOrderForm(f => ({ ...f, buyerName: e.target.value, recipientName: e.target.value }))} />
+                                    </div>
                                     {[
-                                        { label:'Nama Lengkap *', key:'buyerName', type:'text', required:true },
                                         { label:'Email *', key:'buyerEmail', type:'email', required:true },
                                         { label:'No. HP (opsional)', key:'buyerPhone', type:'tel', required:false },
                                     ].map(({ label, key, type, required }) => (
@@ -1268,12 +1272,6 @@ export default function LandingPage() {
                                             <span style={{ fontSize:12, fontWeight:700, color:'#F5A623' }}>Alamat Pengiriman</span>
                                         </div>
                                         <div style={{ display:'grid', gap:8 }}>
-                                            <div>
-                                                <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:3 }}>Nama Penerima *</label>
-                                                <input className="lp-inp" type="text" placeholder="Nama lengkap penerima" style={{ fontSize:13 }}
-                                                    value={orderForm.recipientName}
-                                                    onChange={e => setOrderForm(f => ({ ...f, recipientName: e.target.value }))} />
-                                            </div>
                                             <div>
                                                 <label style={{ fontSize:11, color:'rgba(232,245,224,0.5)', display:'block', marginBottom:3 }}>Alamat Lengkap *</label>
                                                 <textarea className="lp-inp" rows={2} placeholder="Jalan, no. rumah, RT/RW, kelurahan, kecamatan..." style={{ fontSize:13, resize:'none', height:'auto' }}
