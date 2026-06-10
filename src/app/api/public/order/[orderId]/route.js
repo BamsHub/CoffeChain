@@ -1,5 +1,6 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { readDb, updateItem } from '@/lib/db';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 
 /**
  * PUBLIC API — Cek Status Pesanan
@@ -26,6 +27,10 @@ export async function GET(request, { params }) {
                 status: order.status,
                 totalPrice: order.totalPrice,
                 paymentMethod: order.paymentMethod,
+                walletAddress: order.walletAddress,
+                txSignature: order.txSignature,
+                explorerUrl: order.txSignature ? getExplorerTxUrl(order.txSignature) : null,
+                coffeeId: order.coffeeId,
                 virtualAccount: order.virtualAccount,
                 createdAt: order.createdAt,
                 expiresAt: order.expiresAt,
@@ -61,13 +66,29 @@ export async function PATCH(request, { params }) {
         order.status = 'paid';
         order.paidAt = new Date().toISOString();
 
-        // Di edge runtime, updateItem meng-override seluru DB file/item via Cloudflare KV. Helper updateItem kita butuh (tableName, item)
-        await updateItem('orders', order);
+        await updateItem('orders', order.id, {
+            txSignature,
+            status: 'paid',
+            paidAt: order.paidAt,
+        });
+
+        let coffeeId = order.coffeeId || null;
+        if (order.productId) {
+            const productsDb = await readDb('products');
+            const product = productsDb.items.find(p => p.id === order.productId);
+            coffeeId = coffeeId || product?.coffeeId || null;
+        }
 
         return Response.json({
             success: true,
             message: 'Pembayaran berhasil dikonfirmasi',
-            data: { status: order.status, txSignature: order.txSignature }
+            data: {
+                orderId: order.orderId,
+                status: order.status,
+                txSignature: order.txSignature,
+                explorerUrl: getExplorerTxUrl(order.txSignature),
+                coffeeId,
+            }
         }, { headers: { 'Access-Control-Allow-Origin': '*' } });
 
     } catch (err) {

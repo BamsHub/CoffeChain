@@ -138,8 +138,8 @@ export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName,
             {explorerUrl && traceUrl && (
                 <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.2)', padding: 3, borderRadius: 8 }}>
                     {[
-                        { url: explorerUrl, label: '⛓ Solana' },
-                        { url: traceUrl, label: '🏆 Sertifikasi' },
+                        { url: explorerUrl, label: 'Solana' },
+                        { url: traceUrl, label: 'Sertifikasi' },
                     ].map(({ url, label }) => (
                         <button key={label} onClick={() => switchUrl(url)} style={{
                             padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
@@ -196,7 +196,7 @@ export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName,
                         background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.3)',
                         color: '#7ED44A', fontSize: 12, fontWeight: 700, textDecoration: 'none',
                     }}>
-                        🏆 Halaman Sertifikasi
+                        Halaman Sertifikasi
                     </a>
                 )}
                 <button onClick={handleCopy} style={{
@@ -329,3 +329,4 @@ export default function QRButton({ explorerUrl, traceUrl, coffeeId, productName,
         </>
     );
 }
+

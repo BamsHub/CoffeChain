@@ -2,16 +2,13 @@ export const runtime = 'edge';
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, sbSelect, ordersToSnake } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let id = 'CF-';
     for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
     return id;
-}
-
-function explorerUrl(signature) {
-    return `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 }
 
 /**
@@ -135,7 +132,7 @@ export async function POST(request) {
         }
 
         let certifiedCoffeeId = product.coffeeId || null;
-        let certifiedExplorerUrl = txSignature ? explorerUrl(txSignature) : null;
+        let certifiedExplorerUrl = txSignature ? getExplorerTxUrl(txSignature) : null;
 
         if (isPaid && txSignature && !product.coffeeId) {
             certifiedCoffeeId = generateCoffeeId();

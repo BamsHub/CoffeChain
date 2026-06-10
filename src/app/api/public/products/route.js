@@ -2,6 +2,7 @@
 export const runtime = 'nodejs';
 
 import { supabaseAdmin } from '@/lib/supabase';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 
 /**
  * PUBLIC API — Katalog Produk Kopi CoffeeChain
@@ -46,10 +47,30 @@ export async function GET(request) {
             }
         });
 
-        const result = (data || []).filter(p =>
+        const publishedProducts = (data || []).filter(p =>
             p.status === 'published' &&
             !!p.coffee_id
-        ).map(p => {
+        );
+        const coffeeIds = [...new Set(publishedProducts.map(p => p.coffee_id).filter(Boolean))];
+        const traceMap = {};
+        if (coffeeIds.length) {
+            const { data: traces, error: traceErr } = await supabaseAdmin
+                .from('coffee_traces')
+                .select('coffee_id, tx_signature, explorer_url, status, created_at')
+                .in('coffee_id', coffeeIds)
+                .order('created_at', { ascending: false });
+
+            if (!traceErr) {
+                (traces || []).forEach(trace => {
+                    if (!traceMap[trace.coffee_id]) traceMap[trace.coffee_id] = trace;
+                });
+            } else {
+                console.warn('[public/products] trace lookup failed:', traceErr.message);
+            }
+        }
+
+        const result = publishedProducts.map(p => {
+            const trace = traceMap[p.coffee_id] || {};
             // Normalize price_per_unit: can be JSONB array, number, or null
             const rawPrice = p.price_per_unit;
             const priceArr = Array.isArray(rawPrice)
@@ -78,6 +99,9 @@ export async function GET(request) {
                 // Falls back to seeded static value if no orders exist yet
                 sold:           orderCountMap[p.id] ?? p.sold ?? 0,
                 coffeeId:       p.coffee_id,
+                txSignature:    trace.tx_signature || null,
+                explorerUrl:    trace.tx_signature ? getExplorerTxUrl(trace.tx_signature) : (trace.explorer_url || null),
+                traceStatus:    trace.status || null,
                 paymentWallet:  p.payment_wallet,
                 submittedByName: p.submitted_by_name,
                 createdAt:      p.created_at,

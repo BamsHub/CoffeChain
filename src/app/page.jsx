@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { STORE_WALLET, MEMO_SIGNER_PUBLIC } from '@/lib/contractConfig';
+import { STORE_WALLET, MEMO_SIGNER_PUBLIC, getExplorerTxUrl } from '@/lib/contractConfig';
 import { useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
@@ -456,12 +456,19 @@ export default function LandingPage() {
                                 if (newSig && newSig !== latestSig) {
                                     clearInterval(solanaIntervalRef.current);
                                     solanaIntervalRef.current = null;
-                                    await fetch('/api/orders', {
+                                    const confirmRes = await fetch(`/api/public/order/${encodeURIComponent(capturedOrderId)}`, {
                                         method: 'PATCH',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ orderId: capturedOrderId, status: 'paid' }),
+                                        body: JSON.stringify({ txSignature: newSig }),
                                     });
-                                    setOrderResult(prev => ({ ...prev, status: 'paid' }));
+                                    const confirmData = await confirmRes.json().catch(() => null);
+                                    setOrderResult(prev => ({
+                                        ...prev,
+                                        ...(confirmData?.data || {}),
+                                        status: 'paid',
+                                        txSignature: confirmData?.data?.txSignature || newSig,
+                                        explorerUrl: confirmData?.data?.explorerUrl || getExplorerTxUrl(newSig),
+                                    }));
                                     setShowBuyAgain(true);
                                 }
                             } catch { /* ignore poll errors */ }
@@ -859,14 +866,15 @@ export default function LandingPage() {
                                         <span key={tag} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.2)', fontWeight:600 }}>{tag}</span>
                                     ))}
                                     {p.coffeeId && (
-                                        <a href={`/trace?id=${p.coffeeId}`} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.3)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
+                                        <a href={p.explorerUrl || `/trace?id=${p.coffeeId}`} target={p.explorerUrl ? '_blank' : undefined} rel={p.explorerUrl ? 'noopener noreferrer' : undefined} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.3)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
                                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                            Sertifikasi
+                                            {p.explorerUrl ? 'Solana' : 'Sertifikasi'}
                                         </a>
                                     )}
                                     {p.coffeeId && (
                                         <div onClick={e => e.stopPropagation()}>
                                             <QRButton
+                                                explorerUrl={p.explorerUrl || (p.txSignature ? getExplorerTxUrl(p.txSignature) : undefined)}
                                                 traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
                                                 coffeeId={p.coffeeId}
                                                 productName={p.name}
@@ -1121,7 +1129,8 @@ export default function LandingPage() {
                                             : orderResult.paymentMethod === 'midtrans' ? 'Midtrans (Sandbox)'
                                             : 'Transfer Bank IDR'],
                                         ...(orderResult.walletAddress ? [['Wallet', shortenAddress(orderResult.walletAddress, 6)]] : []),
-                                        ...(orderResult.txSignature ? [['Tx Hash', `${orderResult.txSignature.slice(0,16)}...`]] : []),
+                                        ...(orderResult.txSignature ? [['Tx Hash', `${orderResult.txSignature.slice(0,18)}...${orderResult.txSignature.slice(-8)}`]] : []),
+                                        ...(orderResult.coffeeId ? [['Coffee ID', orderResult.coffeeId]] : []),
                                         ['Status', orderResult.status === 'paid' ? 'Lunas' : 'Menunggu Pembayaran'],
                                         ['Stok Tersisa', `${orderResult.stockLeft ?? '–'} unit`],
                                     ].map(([k, v]) => (
@@ -1131,6 +1140,62 @@ export default function LandingPage() {
                                         </div>
                                     ))}
                                 </div>
+
+                                {(orderResult.txSignature || orderResult.coffeeId) && (
+                                    <div style={{ background:'rgba(153,69,255,0.08)', border:'1px solid rgba(153,69,255,0.28)', borderRadius:12, padding:16, textAlign:'left', marginBottom:16 }}>
+                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:10, flexWrap:'wrap' }}>
+                                            <div style={{ display:'flex', alignItems:'center', gap:8, color:'#b388ff', fontWeight:800, fontSize:13 }}>
+                                                <IconSolana /> Riwayat Blockchain Solana
+                                            </div>
+                                            <span style={{ fontSize:11, color: orderResult.txSignature ? '#7ED44A' : '#F5A623', border:`1px solid ${orderResult.txSignature ? 'rgba(126,212,74,0.35)' : 'rgba(245,166,35,0.35)'}`, borderRadius:999, padding:'3px 8px', background: orderResult.txSignature ? 'rgba(126,212,74,0.08)' : 'rgba(245,166,35,0.08)', fontWeight:800 }}>
+                                                {orderResult.txSignature ? 'On-chain confirmed' : 'Menunggu TX'}
+                                            </span>
+                                        </div>
+                                        <div style={{ display:'grid', gap:8, fontSize:12 }}>
+                                            {orderResult.coffeeId && (
+                                                <div style={{ display:'flex', justifyContent:'space-between', gap:10 }}>
+                                                    <span style={{ color:'rgba(232,245,224,0.45)' }}>Sertifikat Coffee ID</span>
+                                                    <span style={{ color:'#7ED44A', fontFamily:'monospace', fontWeight:800 }}>{orderResult.coffeeId}</span>
+                                                </div>
+                                            )}
+                                            {orderResult.txSignature && (
+                                                <div>
+                                                    <div style={{ color:'rgba(232,245,224,0.45)', marginBottom:4 }}>Solana Signature</div>
+                                                    <div style={{ color:'#E8F5E0', fontFamily:'monospace', wordBreak:'break-all', lineHeight:1.45 }}>{orderResult.txSignature}</div>
+                                                </div>
+                                            )}
+                                            {orderResult.walletAddress && (
+                                                <div>
+                                                    <div style={{ color:'rgba(232,245,224,0.45)', marginBottom:4 }}>Wallet Pembayar</div>
+                                                    <div style={{ color:'#E8F5E0', fontFamily:'monospace', wordBreak:'break-all', lineHeight:1.45 }}>{orderResult.walletAddress}</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
+                                            {orderResult.txSignature && (
+                                                <a href={orderResult.explorerUrl || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                                    style={{ padding:'8px 12px', fontSize:12, justifyContent:'center', display:'inline-flex', textDecoration:'none' }}>
+                                                    <IconSolana /> Solana Explorer <IconArrow />
+                                                </a>
+                                            )}
+                                            {orderResult.coffeeId && (
+                                                <a href={`/trace?id=${orderResult.coffeeId}`} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                                    style={{ padding:'8px 12px', fontSize:12, justifyContent:'center', display:'inline-flex', textDecoration:'none' }}>
+                                                    <IconChain /> Trace Sertifikasi
+                                                </a>
+                                            )}
+                                            {orderResult.coffeeId && orderResult.txSignature && (
+                                                <QRButton
+                                                    explorerUrl={orderResult.explorerUrl || getExplorerTxUrl(orderResult.txSignature)}
+                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${orderResult.coffeeId}`}
+                                                    coffeeId={orderResult.coffeeId}
+                                                    productName={orderResult.productName}
+                                                    label="QR Bukti Solana"
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Solana Pay QR */}
                                 {qrDataUrl && orderResult.paymentMethod === 'qr' && (
@@ -1199,7 +1264,7 @@ export default function LandingPage() {
                                 )}
 
                                 {orderResult.txSignature && (
-                                    <a href={`https://explorer.solana.com/tx/${orderResult.txSignature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                    <a href={orderResult.explorerUrl || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
                                         style={{ padding:'10px 16px', fontSize:12, justifyContent:'center', marginBottom:12, width:'100%', display:'flex' }}>
                                         <IconSolana /> Lihat di Solana Explorer <IconArrow />
                                     </a>
@@ -1455,6 +1520,27 @@ export default function LandingPage() {
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>
                                         Lihat Sertifikasi
                                     </a>
+                                    {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
+                                        <a
+                                            href={selectedDetailProduct.explorerUrl || getExplorerTxUrl(selectedDetailProduct.txSignature)}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ marginLeft:8, display:'inline-flex', alignItems:'center', gap:7, padding:'10px 18px', background:'rgba(153,69,255,0.12)', border:'1px solid rgba(153,69,255,0.35)', borderRadius:9, color:'#b388ff', fontWeight:700, fontSize:13, textDecoration:'none' }}
+                                        >
+                                            <IconSolana /> Solana Explorer
+                                        </a>
+                                    )}
+                                    {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
+                                        <div style={{ marginTop:10 }}>
+                                            <QRButton
+                                                explorerUrl={selectedDetailProduct.explorerUrl || getExplorerTxUrl(selectedDetailProduct.txSignature)}
+                                                traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${selectedDetailProduct.coffeeId}`}
+                                                coffeeId={selectedDetailProduct.coffeeId}
+                                                productName={selectedDetailProduct.name}
+                                                label="QR Solana"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div style={{ padding:'12px', background:'rgba(255,255,255,0.02)', borderRadius:12, fontSize:13, color:'rgba(255,255,255,0.3)', textAlign:'center' }}>

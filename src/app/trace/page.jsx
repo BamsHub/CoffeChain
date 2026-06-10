@@ -234,9 +234,9 @@ function TraceContent() {
                         {/* QR + buttons */}
                         {result.coffeeId && (
                             <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--color-border)', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <CertQRImage url={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={100} />
+                                <CertQRImage url={result.txSignature ? (result.explorerUrl || getExplorerTxUrl(result.txSignature)) : `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={100} />
                                 <div style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><IconQR /> QR Sertifikasi</div>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><IconQR /> QR {result.txSignature ? 'Solana Explorer' : 'Sertifikasi'}</div>
                                     <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(74,124,40,0.18)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
                                         <IconQR /> Halaman Sertifikasi
                                     </a>
