@@ -3,10 +3,11 @@
  * Tanpa dependency @solana/wallet-adapter untuk kompatibilitas React 19
  */
 
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, TransactionInstruction } from '@solana/web3.js';
+import { SOLANA_NETWORK, MEMO_PROGRAM_ID } from '@/lib/contractConfig';
 
-// Solana Testnet connection untuk testing
-export const connection = new Connection('https://api.testnet.solana.com', 'confirmed');
+// Solana connection mengikuti konfigurasi app supaya Phantom, Explorer, dan server sama cluster-nya.
+export const connection = new Connection(SOLANA_NETWORK, 'confirmed');
 
 // Mainnet untuk production
 // export const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
@@ -55,9 +56,12 @@ export async function sendSolTransaction(fromPublicKey, toAddress, amountSol) {
     if (!window.solana) throw new Error('Phantom tidak terhubung');
     const from = new PublicKey(fromPublicKey);
     const to = new PublicKey(toAddress);
-    const lamports = amountSol * LAMPORTS_PER_SOL;
+    const lamports = Math.round(Number(amountSol) * LAMPORTS_PER_SOL);
+    if (!Number.isFinite(lamports) || lamports <= 0) {
+        throw new Error('Jumlah SOL tidak valid');
+    }
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     const transaction = new Transaction({
         recentBlockhash: blockhash,
         feePayer: from,
@@ -67,7 +71,7 @@ export async function sendSolTransaction(fromPublicKey, toAddress, amountSol) {
 
     const signed = await window.solana.signTransaction(transaction);
     const signature = await connection.sendRawTransaction(signed.serialize());
-    await connection.confirmTransaction(signature, 'confirmed');
+    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
     return signature;
 }
 
@@ -98,8 +102,6 @@ export function rupiahToSol(rupiah, ratePerSol = 2_000_000) {
     return rupiah / ratePerSol;
 }
 
-const MEMO_PROGRAM_ID_STR = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-
 /**
  * Kirim Memo transaction ke Solana menggunakan Phantom Wallet (client-side signing).
  * User membayar gas fee sendiri dari wallet mereka.
@@ -113,10 +115,10 @@ export async function sendMemoWithPhantom(walletPublicKey, memoText) {
     }
 
     const feePayer = new PublicKey(walletPublicKey);
-    const memoProgramId = new PublicKey(MEMO_PROGRAM_ID_STR);
-    const memoEncoded = Buffer.from(memoText.slice(0, 560), 'utf8');
+    const memoProgramId = new PublicKey(MEMO_PROGRAM_ID);
+    const memoEncoded = new TextEncoder().encode(memoText.slice(0, 560));
 
-    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
     const tx = new Transaction({
         recentBlockhash: blockhash,
@@ -124,7 +126,7 @@ export async function sendMemoWithPhantom(walletPublicKey, memoText) {
     });
 
     // Tambah memo instruction
-    tx.add(new (await import('@solana/web3.js')).TransactionInstruction({
+    tx.add(new TransactionInstruction({
         keys: [{ pubkey: feePayer, isSigner: true, isWritable: false }],
         programId: memoProgramId,
         data: memoEncoded,
@@ -139,7 +141,7 @@ export async function sendMemoWithPhantom(walletPublicKey, memoText) {
         maxRetries: 3,
     });
 
-    await connection.confirmTransaction(signature, 'confirmed');
+    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
     return signature;
 }
 

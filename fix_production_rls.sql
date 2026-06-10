@@ -1,47 +1,12 @@
-const { Client } = require('pg');
-
-const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
-
-if (!connectionString) {
-    console.error('Set DATABASE_URL or SUPABASE_DB_URL before running this script.');
-    process.exit(1);
-}
-
-const client = new Client({
-    connectionString,
-    ssl: { rejectUnauthorized: false }
-});
-
-const sql = `
-CREATE TABLE IF NOT EXISTS production_batches (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  origin text,
-  variety text,
-  grade text,
-  weight_kg numeric,
-  farmer_id text,
-  farmer_name text,
-  current_stage integer DEFAULT 1,
-  coffee_id text,
-  product_id uuid,
-  notes text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS production_stage_logs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  batch_id uuid REFERENCES production_batches(id) ON DELETE CASCADE,
-  stage integer NOT NULL,
-  stage_name text,
-  data jsonb,
-  photo_url text,
-  tx_signature text,
-  explorer_url text,
-  logged_by text,
-  logged_by_name text,
-  created_at timestamptz DEFAULT now()
-);
+-- ================================================================
+-- CoffeeChain production tables RLS hardening
+-- Fixes Supabase Advisor: "RLS Disabled in Public"
+--
+-- Safe to run multiple times.
+-- App routes use SUPABASE_SERVICE_ROLE_KEY through server APIs, so these
+-- policies block direct anon/authenticated browser access without breaking
+-- the existing server-side production workflow.
+-- ================================================================
 
 ALTER TABLE public.production_batches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.production_stage_logs ENABLE ROW LEVEL SECURITY;
@@ -78,9 +43,3 @@ GRANT ALL ON TABLE public.production_batches TO service_role;
 GRANT ALL ON TABLE public.production_stage_logs TO service_role;
 
 NOTIFY pgrst, 'reload schema';
-`;
-
-client.connect()
-    .then(() => client.query(sql))
-    .then(() => { console.log('Tables created OK'); client.end(); })
-    .catch(e => { console.error('Error:', e.message); client.end(); });

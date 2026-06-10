@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
@@ -25,30 +26,39 @@ export async function POST(req) {
         const fileName = `product-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext || 'jpg'}`;
         const filePath = `products/${fileName}`;
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
+        const supabase = getSupabaseAdmin();
+        const bucket = 'product-images';
 
-        const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/product-images/${filePath}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${serviceKey}`,
-                'apikey': serviceKey,
-                'Content-Type': file.type,
-                'x-upsert': 'false',
-            },
-            body: buffer,
-        });
-
-        if (!uploadRes.ok) {
-            const errText = await uploadRes.text();
-            console.error('Supabase upload error:', errText);
-            return NextResponse.json({ success: false, message: 'Gagal upload ke storage' }, { status: 500 });
+        const { error: bucketErr } = await supabase.storage.getBucket(bucket);
+        if (bucketErr) {
+            const { error: createBucketErr } = await supabase.storage.createBucket(bucket, {
+                public: true,
+                fileSizeLimit: MAX_SIZE,
+                allowedMimeTypes: allowedTypes,
+            });
+            if (createBucketErr && !createBucketErr.message?.toLowerCase().includes('already exists')) {
+                console.error('Supabase bucket create error:', createBucketErr.message);
+                return NextResponse.json({ success: false, message: `Gagal menyiapkan storage: ${createBucketErr.message}` }, { status: 500 });
+            }
         }
 
-        const publicUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${filePath}`;
+        const { error: uploadErr } = await supabase.storage.from(bucket).upload(filePath, buffer, {
+            contentType: file.type,
+            upsert: false,
+        });
+
+        if (uploadErr) {
+            console.error('Supabase upload error:', uploadErr.message);
+            return NextResponse.json({ success: false, message: `Gagal upload ke storage: ${uploadErr.message}` }, { status: 500 });
+        }
+
+        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        const publicUrl = publicData?.publicUrl;
+        if (!publicUrl) {
+            return NextResponse.json({ success: false, message: 'Upload berhasil tapi public URL tidak tersedia' }, { status: 500 });
+        }
         return NextResponse.json({ success: true, url: publicUrl });
     } catch (err) {
         console.error('Upload error:', err);

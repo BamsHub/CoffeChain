@@ -100,6 +100,7 @@ export default function LandingPage() {
     const [traceData, setTraceData] = useState(null);
     const [traceLoading, setTraceLoading] = useState(false);
     const solanaIntervalRef = useRef(null);
+    const snapPaymentActiveRef = useRef(false);
 
     /* ── Katalog Search & Filter ── */
     const [catalogSearch, setCatalogSearch] = useState('');
@@ -284,6 +285,11 @@ export default function LandingPage() {
 
         /* ── Midtrans Snap Payment ── */
         if (pm === 'midtrans') {
+            if (snapPaymentActiveRef.current) {
+                alert('Popup pembayaran Midtrans masih aktif. Selesaikan atau tutup popup pembayaran dulu.');
+                return;
+            }
+            snapPaymentActiveRef.current = true;
             setOrdering(true);
             try {
                 const res = await fetch('/api/midtrans/create-transaction', {
@@ -306,13 +312,20 @@ export default function LandingPage() {
                 });
                 const data = await res.json();
                 if (data.success && data.snapToken) {
-                    setOrdering(false);
                     if (!window.snap) {
+                        snapPaymentActiveRef.current = false;
+                        setOrdering(false);
                         alert('Midtrans Snap belum siap. Refresh halaman dan coba lagi.');
                         return;
                     }
-                    window.snap.pay(data.snapToken, {
+                    const finishSnapPayment = () => {
+                        snapPaymentActiveRef.current = false;
+                        setOrdering(false);
+                    };
+                    try {
+                        window.snap.pay(data.snapToken, {
                         onSuccess: (result) => {
+                            finishSnapPayment();
                             setOrderResult({ ...data.data, status: 'paid' });
                             setProducts(prev => prev.map(p =>
                                 p.id === selectedProduct.id
@@ -322,6 +335,7 @@ export default function LandingPage() {
                             setShowBuyAgain(true);
                         },
                         onPending: (result) => {
+                            finishSnapPayment();
                             setOrderResult({ ...data.data, status: 'pending' });
                             setProducts(prev => prev.map(p =>
                                 p.id === selectedProduct.id
@@ -330,17 +344,25 @@ export default function LandingPage() {
                             ));
                         },
                         onError: (result) => {
+                            finishSnapPayment();
                             alert('Pembayaran Midtrans gagal: ' + (result.status_message || 'Terjadi kesalahan'));
                         },
                         onClose: () => {
+                            finishSnapPayment();
                             setOrderResult({ ...data.data, status: 'pending' });
                         },
-                    });
+                        });
+                    } catch (snapErr) {
+                        finishSnapPayment();
+                        alert(snapErr.message || 'Popup Midtrans gagal dibuka. Coba lagi.');
+                    }
                 } else {
+                    snapPaymentActiveRef.current = false;
                     alert(data.message || 'Gagal membuat transaksi Midtrans');
                     setOrdering(false);
                 }
             } catch (err) {
+                snapPaymentActiveRef.current = false;
                 alert(err.message || 'Terjadi kesalahan. Coba lagi.');
                 setOrdering(false);
             }
