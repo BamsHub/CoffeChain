@@ -1,6 +1,7 @@
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { Analytics } from '@vercel/analytics/react';
 
 export const metadata = {
     title: 'CoffeeChain — Blockchain Industri Kopi',
@@ -27,9 +28,11 @@ export default function RootLayout({ children }) {
                         <main id="main-content" aria-label="Konten utama">
                             {children}
                         </main>
+                        <Analytics />
                     </ThemeProvider>
                 </AuthProvider>
             </body>
         </html>
     );
 }
+
