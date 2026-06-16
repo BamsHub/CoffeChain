@@ -150,6 +150,8 @@ export default function LandingPage() {
 
     /* ── Check admin/developer session from localStorage ── */
     useEffect(() => {
+        // Load Midtrans Snap immediately on mount to prevent race conditions
+        loadMidtransSnap();
         const idleId = onIdle(() => {
             const token = localStorage.getItem('cc_token');
             if (!token) return;
@@ -165,14 +167,15 @@ export default function LandingPage() {
         return () => cancelIdle(idleId);
     }, []);
 
-    /* ── Load Midtrans Snap.js lazily (only when needed) ── */
+    /* ── Load Midtrans Snap.js ── */
     const midtransLoadedRef = useRef(false);
     function loadMidtransSnap() {
         if (midtransLoadedRef.current) return;
         midtransLoadedRef.current = true;
         const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || 'Mid-client-k6WqARMZiLSJbg2_';
+        const snapUrl = process.env.NEXT_PUBLIC_MIDTRANS_SNAP_URL || 'https://app.sandbox.midtrans.com/snap/snap.js';
         const script = document.createElement('script');
-        script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+        script.src = snapUrl;
         script.setAttribute('data-client-key', clientKey);
         script.async = true;
         document.head.appendChild(script);
@@ -353,10 +356,18 @@ export default function LandingPage() {
                 });
                 const data = await res.json();
                 if (data.success && data.snapToken) {
+                    // Jika window.snap belum siap, tunggu sebentar (maks 2 detik)
+                    if (!window.snap) {
+                        let retries = 4;
+                        while (retries > 0 && !window.snap) {
+                            await new Promise(r => setTimeout(r, 500));
+                            retries--;
+                        }
+                    }
                     if (!window.snap) {
                         snapPaymentActiveRef.current = false;
                         setOrdering(false);
-                        alert('Midtrans Snap belum siap. Refresh halaman dan coba lagi.');
+                        alert('Midtrans Snap belum siap. Hubungan internet Anda lambat atau script diblokir. Refresh halaman dan coba lagi.');
                         return;
                     }
                     const refreshAfterSnap = (baseOrder, delay = 1200) => {

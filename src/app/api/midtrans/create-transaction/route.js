@@ -54,7 +54,7 @@ export async function POST(request) {
 
         const host = request.headers.get('host') || 'coffe-chain.vercel.app';
         const proto = request.headers.get('x-forwarded-proto') || 'https';
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
+        const appUrl = `${proto}://${host}`;
 
         const midtransPayload = {
             transaction_details: {
