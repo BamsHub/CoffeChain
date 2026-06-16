@@ -22,6 +22,7 @@ export default function RegisterPage() {
     const [registerResult, setRegisterResult] = useState(null);
     const [resendMsg, setResendMsg] = useState('');
     const [resending, setResending] = useState(false);
+    const [resendVerifyLink, setResendVerifyLink] = useState('');
     const [showPass, setShowPass] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -114,6 +115,36 @@ export default function RegisterPage() {
                             {registerResult.message}
                         </p>
                     )}
+
+                    {registerResult?.verificationLink && (
+                        <div style={{
+                            marginTop: 18,
+                            marginBottom: 10,
+                            padding: 16,
+                            borderRadius: 10,
+                            background: 'rgba(126,212,74,0.08)',
+                            border: '1px solid rgba(126,212,74,0.3)',
+                            textAlign: 'center'
+                        }}>
+                            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 10, lineHeight: 1.5 }}>
+                                Anda dapat mengaktifkan akun secara instan dengan mengklik link verifikasi manual di bawah ini:
+                            </p>
+                            <a href={registerResult.verificationLink} style={{
+                                display: 'inline-block',
+                                background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-success))',
+                                color: '#ffffff',
+                                textDecoration: 'none',
+                                fontWeight: 800,
+                                padding: '10px 18px',
+                                borderRadius: 8,
+                                fontSize: 13,
+                                boxShadow: '0 4px 12px rgba(126,212,74,0.2)'
+                            }}>
+                                🔑 Verifikasi Akun Sekarang
+                            </a>
+                        </div>
+                    )}
+
                     <p className={styles.successHint}>
                         Tidak ada email? Cek folder <strong>Spam / Junk</strong>, atau{' '}
                         <button
@@ -122,6 +153,7 @@ export default function RegisterPage() {
                             onClick={async () => {
                                 setResending(true);
                                 setResendMsg('');
+                                setResendVerifyLink('');
                                 try {
                                     const res = await fetch('/api/auth/resend-verification', {
                                         method: 'POST',
@@ -130,6 +162,9 @@ export default function RegisterPage() {
                                     });
                                     const data = await res.json();
                                     setResendMsg(data.message || (data.success ? 'Link verifikasi baru telah dikirim.' : 'Gagal mengirim ulang.'));
+                                    if (data.success && data.verificationLink) {
+                                        setResendVerifyLink(data.verificationLink);
+                                    }
                                 } catch {
                                     setResendMsg('Gagal mengirim ulang. Coba lagi.');
                                 } finally {
@@ -144,6 +179,32 @@ export default function RegisterPage() {
                         <p className={styles.successHint} style={{ color: resendMsg.toLowerCase().includes('gagal') ? '#F5A623' : '#7ED44A' }}>
                             {resendMsg}
                         </p>
+                    )}
+                    {resendVerifyLink && (
+                        <div style={{
+                            marginTop: 14,
+                            padding: 12,
+                            borderRadius: 8,
+                            background: 'rgba(126,212,74,0.08)',
+                            border: '1px solid rgba(126,212,74,0.3)',
+                            textAlign: 'center'
+                        }}>
+                            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                                Link verifikasi manual baru Anda:
+                            </p>
+                            <a href={resendVerifyLink} style={{
+                                display: 'inline-block',
+                                background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-success))',
+                                color: '#ffffff',
+                                textDecoration: 'none',
+                                fontWeight: 800,
+                                padding: '8px 14px',
+                                borderRadius: 6,
+                                fontSize: 12
+                            }}>
+                                🔑 Aktifkan Akun Instan
+                            </a>
+                        </div>
                     )}
                     <Link href="/login" className={styles.backToLogin}>
                         ← Kembali ke Login

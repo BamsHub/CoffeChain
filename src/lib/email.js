@@ -83,8 +83,13 @@ async function sendWithGmailSmtp(message) {
     if (!user || !pass) return null;
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: { user, pass },
+        tls: {
+            rejectUnauthorized: false
+        }
     });
 
     const info = await transporter.sendMail(message);
@@ -111,9 +116,15 @@ export async function verifyEmailTransport() {
     if (!user || !pass) return { ok: false, provider: null, message: 'GMAIL_USER/GMAIL_APP_PASSWORD belum diisi' };
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: { user, pass },
+        tls: {
+            rejectUnauthorized: false
+        }
     });
     await transporter.verify();
     return { ok: true, provider: 'gmail-smtp' };
 }
+

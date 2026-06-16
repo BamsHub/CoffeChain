@@ -16,6 +16,7 @@ export default function LoginPage() {
     const [resendEmail, setResendEmail] = useState('');
     const [resendLoading, setResendLoading] = useState(false);
     const [resendMsg, setResendMsg] = useState('');
+    const [manualVerifyLink, setManualVerifyLink] = useState('');
 
     const { login, user } = useAuth();
     const router = useRouter();
@@ -27,6 +28,7 @@ export default function LoginPage() {
     async function handleResendVerification() {
         setResendLoading(true);
         setResendMsg('');
+        setManualVerifyLink('');
         try {
             const res = await fetch('/api/auth/resend-verification', {
                 method: 'POST',
@@ -35,6 +37,9 @@ export default function LoginPage() {
             });
             const data = await res.json();
             setResendMsg(data.message || (data.success ? 'Email verifikasi dikirim!' : 'Gagal mengirim.'));
+            if (data.success && data.verificationLink) {
+                setManualVerifyLink(data.verificationLink);
+            }
         } catch {
             setResendMsg('Koneksi gagal. Coba lagi.');
         } finally {
@@ -135,6 +140,32 @@ export default function LoginPage() {
                                 <button type="button" className={styles.resendBtn} onClick={handleResendVerification} disabled={resendLoading}>
                                     {resendLoading ? 'Mengirim...' : '🔄 Kirim ulang email verifikasi'}
                                 </button>
+                            )}
+                            {manualVerifyLink && (
+                                <div style={{
+                                    marginTop: 12,
+                                    padding: 10,
+                                    borderRadius: 6,
+                                    background: 'rgba(126,212,74,0.08)',
+                                    border: '1px solid rgba(126,212,74,0.25)',
+                                    textAlign: 'center'
+                                }}>
+                                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+                                        Link verifikasi manual instan:
+                                    </p>
+                                    <a href={manualVerifyLink} style={{
+                                        display: 'inline-block',
+                                        background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-success))',
+                                        color: '#ffffff',
+                                        textDecoration: 'none',
+                                        fontWeight: 'bold',
+                                        padding: '6px 12px',
+                                        borderRadius: 6,
+                                        fontSize: 11
+                                    }}>
+                                        🔑 Verifikasi Akun Sekarang
+                                    </a>
+                                </div>
                             )}
                         </div>
                     )}

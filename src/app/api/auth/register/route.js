@@ -140,12 +140,15 @@ export async function POST(request) {
             await sendVerificationEmail(normalizedEmail, cleanName, verifyToken);
         } catch (emailErr) {
             console.error('Email send error:', emailErr);
-            // Tetap berhasil daftar, tapi beri tahu email gagal
+            // Tetap berhasil daftar, tetapi sertakan link verifikasi langsung agar tidak stuck
+            const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app').replace(/\/$/, '');
+            const verificationLink = `${appUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
             const { password: _, ...safeUser } = newUser;
             return Response.json({
                 success: true,
                 emailSent: false,
-                message: 'Akun dibuat, tapi email verifikasi gagal dikirim. Hubungi admin.',
+                message: 'Akun dibuat, tetapi email gagal dikirim karena kendala SMTP server. Silakan verifikasi akun secara langsung menggunakan link di bawah.',
+                verificationLink: verificationLink,
                 user: safeUser,
             }, { status: 201 });
         }

@@ -68,9 +68,21 @@ export async function POST(request) {
             throw new Error(`Gagal menyimpan token verifikasi: ${insertTokenErr.message}`);
         }
 
-        await sendVerificationEmail(normalizedEmail, user.name, verifyToken);
+        try {
+            await sendVerificationEmail(normalizedEmail, user.name, verifyToken);
+        } catch (emailErr) {
+            console.error('Email send error:', emailErr);
+            const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app').replace(/\/$/, '');
+            const verificationLink = `${appUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+            return Response.json({
+                success: true,
+                emailSent: false,
+                message: 'Pengiriman email gagal karena kendala SMTP server. Silakan verifikasi akun secara langsung menggunakan link di bawah.',
+                verificationLink: verificationLink,
+            });
+        }
 
-        return Response.json({ success: true, message: 'Link verifikasi baru telah dikirim ke email Anda.' });
+        return Response.json({ success: true, emailSent: true, message: 'Link verifikasi baru telah dikirim ke email Anda.' });
     } catch (err) {
         console.error('Resend verification error:', err);
         return Response.json({ success: false, message: 'Server error' }, { status: 500 });
