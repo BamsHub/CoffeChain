@@ -1,5 +1,6 @@
 export const runtime = 'edge';
 import { readDb } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
 
 /**
  * GET /api/users
@@ -9,6 +10,12 @@ import { readDb } from '@/lib/db';
  */
 export async function GET(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session || !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
         const roleFilter = searchParams.get('role');
 

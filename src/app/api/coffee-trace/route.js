@@ -4,6 +4,7 @@ export const maxDuration = 60; // Vercel: allow up to 60s for Solana TX
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyToken } from '@/lib/auth';
 import {
     Connection, Keypair, PublicKey, LAMPORTS_PER_SOL,
     Transaction, TransactionInstruction,
@@ -103,6 +104,12 @@ async function sendMemoTx(memoData) {
 
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const {
             productId, name, origin, variety, grade, weightKg,
@@ -111,6 +118,25 @@ export async function POST(request) {
             // ── Phantom-signed TX: jika disediakan, skip server wallet ──
             phantomTxSignature, phantomWalletAddress,
         } = body;
+
+        // Security check: if role is farmer, verify ownership of product or matching farmerId
+        if (session.role === 'farmer') {
+            if (productId) {
+                const { data: product, error: checkErr } = await supabaseAdmin
+                    .from('products')
+                    .select('submitted_by')
+                    .eq('id', productId)
+                    .maybeSingle();
+                if (checkErr || !product) {
+                    return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+                }
+                if (product.submitted_by !== session.userId) {
+                    return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+                }
+            } else if (farmerId && farmerId !== session.userId) {
+                return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+        }
 
         if (!name || !origin) {
             return Response.json({ success: false, message: 'Nama dan asal kopi wajib diisi' }, { status: 400 });

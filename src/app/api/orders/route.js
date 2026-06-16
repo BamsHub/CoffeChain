@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { readDb, addItem } from '@/lib/db';
 import { sbSelect, sbInsert, sbUpdate, ordersToSnake, ordersToCamel } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyToken } from '@/lib/auth';
 
 // Helper: ambil orders dari Supabase + JSON (merge keduanya)
 async function getOrders(userId) {
@@ -25,8 +26,20 @@ async function getOrders(userId) {
 // GET — riwayat order
 export async function GET(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
+        const userId = searchParams.get('userId') || session.userId;
+
+        // Security check: users can only fetch their own orders unless they are cooperative or developer
+        if (userId !== session.userId && !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         const orders = await getOrders(userId);
         return Response.json({ success: true, data: orders });
     } catch (e) {
@@ -45,13 +58,24 @@ export async function POST(request) {
             return Response.json({ success: false, message: 'Data order tidak lengkap' }, { status: 400 });
         }
 
+        const targetUserId = userId || 'guest';
+
+        // Security check: if registering order for a logged-in user account, verify JWT token
+        if (targetUserId !== 'guest') {
+            const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+            const session = await verifyToken(token);
+            if (!session || session.userId !== targetUserId) {
+                return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+        }
+
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
         const virtualAccount = `88800${Math.floor(Math.random() * 9000000000 + 1000000000)}`;
 
         const order = {
             id: uuidv4(),
             orderId,
-            userId: userId || 'guest',
+            userId: targetUserId,
             userName: userName || 'Guest',
             productId,
             productName,

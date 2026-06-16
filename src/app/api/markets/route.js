@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { readDb, writeDb, addItem, updateItem } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyToken } from '@/lib/auth';
 
 export async function GET(request) {
     try {
@@ -35,6 +36,12 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session || !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         const body = await request.json();
         const { name, region, description, icon, type, farmerIds, coverColor, createdBy } = body;
         if (!name || !region) return Response.json({ success: false, message: 'Nama dan region wajib diisi' }, { status: 400 });
@@ -69,6 +76,12 @@ export async function POST(request) {
 
 export async function PATCH(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session || !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         const body = await request.json();
         const { id, ...updates } = body;
         if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
@@ -86,6 +99,12 @@ export async function PATCH(request) {
 
 export async function DELETE(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session || !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         if (!id) return Response.json({ success: false }, { status: 400 });

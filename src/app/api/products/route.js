@@ -3,6 +3,8 @@ export const runtime = 'nodejs';
 
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyToken } from '@/lib/auth';
+import { readDb } from '@/lib/db';
 
 // ── Key converters ───────────────────────────────────────────────
 function toSnake(str) {
@@ -47,6 +49,12 @@ export async function GET(request) {
 // ── POST /api/products ───────────────────────────────────────────
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const {
             name, origin, grade, variety, roast,
@@ -69,7 +77,20 @@ export async function POST(request) {
             return Response.json({ success: false, message: 'Berat dan harga harus array dengan panjang sama' }, { status: 400 });
         }
 
-        const isFarmer = submittedByRole === 'farmer';
+        let targetSubmittedBy = submittedBy;
+        let targetSubmittedByName = submittedByName;
+        let targetSubmittedByRole = submittedByRole;
+        if (session.role === 'farmer') {
+            targetSubmittedBy = session.userId;
+            targetSubmittedByRole = 'farmer';
+            const dbUsers = await readDb('users');
+            const user = dbUsers.items.find(u => u.id === session.userId);
+            if (user) {
+                targetSubmittedByName = user.name;
+            }
+        }
+
+        const isFarmer = targetSubmittedByRole === 'farmer';
         const now = new Date().toISOString();
         const prodId = `prod-${uuidv4().slice(0, 8)}`;
 
@@ -95,9 +116,9 @@ export async function POST(request) {
         const optionalFields = {
             status: isFarmer ? 'pending' : 'published',
             coffee_id: coffeeId || null,
-            submitted_by: submittedBy || null,
-            submitted_by_name: submittedByName || null,
-            submitted_by_role: submittedByRole || null,
+            submitted_by: targetSubmittedBy || null,
+            submitted_by_name: targetSubmittedByName || null,
+            submitted_by_role: targetSubmittedByRole || null,
             submitted_at: now,
         };
 
@@ -133,15 +154,30 @@ export async function POST(request) {
 // ── DELETE /api/products ─────────────────────────────────────────
 export async function DELETE(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await request.json();
         if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
-        const { data: product } = await supabaseAdmin
+        const { data: product, error: findErr } = await supabaseAdmin
             .from('products')
-            .select('id, coffee_id')
+            .select('id, coffee_id, submitted_by')
             .eq('id', id)
             .maybeSingle();
+
+        if (findErr || !product) {
+            return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+        }
+
+        // Security check: if role is farmer, verify ownership of product
+        if (session.role === 'farmer' && product.submitted_by !== session.userId) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
 
         const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
         if (error) throw error;
@@ -184,9 +220,47 @@ export async function DELETE(request) {
 // ── PATCH /api/products ──────────────────────────────────────────
 export async function PATCH(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { id, ...updates } = body;
         if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
+
+        // Get existing product to verify ownership/status update permission
+        const { data: product, error: findErr } = await supabaseAdmin
+            .from('products')
+            .select('submitted_by, status')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (findErr || !product) {
+            return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+        }
+
+        // Security check: only koperasi or developer can approve/reject products
+        if ('status' in updates && updates.status !== product.status) {
+            if (!['koperasi', 'developer'].includes(session.role)) {
+                return Response.json({ success: false, message: 'Forbidden: Hanya koperasi atau developer yang dapat menyetujui produk' }, { status: 403 });
+            }
+        }
+
+        // Security check: if role is farmer, verify ownership of product for edits
+        if (session.role === 'farmer') {
+            if (product.submitted_by !== session.userId) {
+                return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+            // Prevent farmer from modifying approval-related status fields
+            const forbiddenFields = ['approved_by', 'approved_by_name', 'approved_at', 'rejected_reason'];
+            for (const f of forbiddenFields) {
+                if (f in updates) {
+                    return Response.json({ success: false, message: `Forbidden: Petani tidak dapat mengubah field ${f}` }, { status: 403 });
+                }
+            }
+        }
 
         // Build snake_case update object with allowed fields only
         const fieldMap = {

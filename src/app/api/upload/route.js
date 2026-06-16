@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { verifyToken } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req) {
     try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const formData = await req.formData();
         const file = formData.get('file');
 
@@ -88,4 +95,3 @@ export async function POST(req) {
         return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
     }
 }
-

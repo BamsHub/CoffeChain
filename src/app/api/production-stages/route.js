@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { readDb } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -50,6 +52,12 @@ export async function GET(req) {
 // POST — log a stage and advance batch to next stage
 export async function POST(req) {
     try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await req.json();
         const { batchId, stage, stageData, photoUrl, loggedBy, loggedByName } = body;
 
@@ -69,6 +77,11 @@ export async function POST(req) {
         const { data: batch, error: batchErr } = await supabase
             .from('production_batches').select('*').eq('id', batchId).single();
         if (batchErr || !batch) throw new Error('Batch tidak ditemukan');
+
+        // Security check: if role is farmer, verify ownership of the batch
+        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
 
         if (Number(batch.current_stage) !== Number(stage)) {
             return NextResponse.json({
@@ -96,6 +109,17 @@ export async function POST(req) {
             }
         }
 
+        let targetLoggedBy = loggedBy;
+        let targetLoggedByName = loggedByName;
+        if (session.role === 'farmer') {
+            targetLoggedBy = session.userId;
+            const dbUsers = await readDb('users');
+            const user = dbUsers.items.find(u => u.id === session.userId);
+            if (user) {
+                targetLoggedByName = user.name;
+            }
+        }
+
         let productId = batch.product_id || null;
         const stageName = STAGE_NAMES[stage] || `Stage ${stage}`;
 
@@ -110,8 +134,8 @@ export async function POST(req) {
             photo_url: photoUrl || null,
             tx_signature: null,
             explorer_url: null,
-            logged_by: loggedBy || null,
-            logged_by_name: loggedByName || null,
+            logged_by: targetLoggedBy || null,
+            logged_by_name: targetLoggedByName || null,
         }).select().single();
 
         if (logErr) throw new Error(logErr.message);
@@ -140,9 +164,9 @@ export async function POST(req) {
                 sold: 0,
                 status: 'pending_certification',
                 coffee_id: null,
-                submitted_by: loggedBy || batch.farmer_id || null,
-                submitted_by_name: loggedByName || batch.farmer_name || null,
-                submitted_by_role: 'koperasi',
+                submitted_by: targetLoggedBy || batch.farmer_id || null,
+                submitted_by_name: targetLoggedByName || batch.farmer_name || null,
+                submitted_by_role: session.role || 'farmer',
                 submitted_at: new Date().toISOString(),
             };
 

@@ -2,21 +2,33 @@ import { NextResponse } from 'next/server';
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyToken } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
 // GET — list all batches (or filter by stage / farmerId)
 export async function GET(req) {
     try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const stage = searchParams.get('stage');
         const farmerId = searchParams.get('farmerId');
+
+        let targetFarmerId = farmerId;
+        if (session.role === 'farmer') {
+            targetFarmerId = session.userId;
+        }
 
         const supabase = getSupabaseAdmin();
         let query = supabase.from('production_batches').select('*').order('created_at', { ascending: false });
 
         if (stage) query = query.eq('current_stage', Number(stage));
-        if (farmerId) query = query.eq('farmer_id', farmerId);
+        if (targetFarmerId) query = query.eq('farmer_id', targetFarmerId);
 
         const { data, error } = await query;
         if (error) throw new Error(error.message);
@@ -61,10 +73,27 @@ export async function GET(req) {
 // POST — create new batch (starts at stage 1)
 export async function POST(req) {
     try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await req.json();
         const { name, origin, variety, grade, weightKg, farmerId, farmerName, notes } = body;
 
         if (!name) return NextResponse.json({ success: false, message: 'Nama batch wajib diisi' }, { status: 400 });
+
+        let targetFarmerId = farmerId;
+        let targetFarmerName = farmerName;
+        if (session.role === 'farmer') {
+            targetFarmerId = session.userId;
+            const dbUsers = await readDb('users');
+            const user = dbUsers.items.find(u => u.id === session.userId);
+            if (user) {
+                targetFarmerName = user.name;
+            }
+        }
 
         const supabase = getSupabaseAdmin();
         const { data, error } = await supabase.from('production_batches').insert({
@@ -74,8 +103,8 @@ export async function POST(req) {
             variety: variety || null,
             grade: grade || null,
             weight_kg: weightKg || null,
-            farmer_id: farmerId || null,
-            farmer_name: farmerName || null,
+            farmer_id: targetFarmerId || null,
+            farmer_name: targetFarmerName || null,
             current_stage: 1,
             notes: notes || null,
         }).select().single();
@@ -91,12 +120,30 @@ export async function POST(req) {
 // PATCH — update batch (advance stage, attach coffeeId, etc.)
 export async function PATCH(req) {
     try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await req.json();
         const { id, currentStage, coffeeId, productId, ...rest } = body;
 
         if (!id) return NextResponse.json({ success: false, message: 'id wajib' }, { status: 400 });
 
         const supabase = getSupabaseAdmin();
+
+        // Security check: if role is farmer, verify ownership
+        if (session.role === 'farmer') {
+            const { data: batch, error: checkErr } = await supabase.from('production_batches').select('farmer_id').eq('id', id).single();
+            if (checkErr || !batch) {
+                return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
+            }
+            if (batch.farmer_id !== session.userId) {
+                return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+        }
+
         const updates = { updated_at: new Date().toISOString() };
         if (currentStage !== undefined) updates.current_stage = currentStage;
         if (coffeeId !== undefined) updates.coffee_id = coffeeId;
@@ -118,11 +165,29 @@ export async function PATCH(req) {
 // DELETE
 export async function DELETE(req) {
     try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await req.json();
         const { id } = body;
         if (!id) return NextResponse.json({ success: false, message: 'id wajib' }, { status: 400 });
 
         const supabase = getSupabaseAdmin();
+
+        // Security check: if role is farmer, verify ownership
+        if (session.role === 'farmer') {
+            const { data: batch, error: checkErr } = await supabase.from('production_batches').select('farmer_id').eq('id', id).single();
+            if (checkErr || !batch) {
+                return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
+            }
+            if (batch.farmer_id !== session.userId) {
+                return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+        }
+
         const { error } = await supabase.from('production_batches').delete().eq('id', id);
         if (error) throw new Error(error.message);
 

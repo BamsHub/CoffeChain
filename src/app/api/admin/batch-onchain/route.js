@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 menit untuk batch
 
 import { supabaseAdmin } from '@/lib/supabase';
+import { verifyToken } from '@/lib/auth';
 
 /**
  * POST /api/admin/batch-onchain
@@ -12,6 +13,12 @@ import { supabaseAdmin } from '@/lib/supabase';
  */
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session || !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         // 1. Ambil semua produk
         const { data: products, error: fetchErr } = await supabaseAdmin
             .from('products')
@@ -113,8 +120,14 @@ export async function POST(request) {
 }
 
 /** GET — cek berapa produk yang belum terverifikasi on-chain */
-export async function GET() {
+export async function GET(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session || !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         const { data: products, error } = await supabaseAdmin
             .from('products')
             .select('id, name, origin, coffee_id');

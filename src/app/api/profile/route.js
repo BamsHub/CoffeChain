@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { readDb, updateItem } from '@/lib/db';
 import { sbSelect, sbUpdate, usersToSnake, usersToCamel } from '@/lib/sdb';
+import { verifyToken } from '@/lib/auth';
 
 async function findUser(userId) {
     // Coba Supabase
@@ -13,9 +14,20 @@ async function findUser(userId) {
 
 export async function GET(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
-        if (!userId) return Response.json({ success: false, message: 'userId required' }, { status: 400 });
+        const userId = searchParams.get('userId') || session.userId;
+
+        // Security check: users can only fetch their own profile unless they are cooperative or developer
+        if (userId !== session.userId && !['koperasi', 'developer'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
         const user = await findUser(userId);
         if (!user) return Response.json({ success: false, message: 'User not found' }, { status: 404 });
         const { password, ...safeUser } = user;
@@ -27,9 +39,20 @@ export async function GET(request) {
 
 export async function PATCH(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { userId, name, bio, location, phone, language, avatar, photoBase64, wallet } = body;
-        if (!userId) return Response.json({ success: false, message: 'userId required' }, { status: 400 });
+        const targetUserId = userId || session.userId;
+
+        // Security check: users can only update their own profile unless they are a developer
+        if (targetUserId !== session.userId && session.role !== 'developer') {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
 
         const camelUpdates = {};
         if (name !== undefined) camelUpdates.name = name;
@@ -43,10 +66,10 @@ export async function PATCH(request) {
 
         // Coba Supabase
         const snakeUpdates = usersToSnake(camelUpdates);
-        const sbResult = await sbUpdate('users', userId, snakeUpdates);
+        const sbResult = await sbUpdate('users', targetUserId, snakeUpdates);
         if (!sbResult) {
             // Fallback JSON
-            await updateItem('users', userId, camelUpdates);
+            await updateItem('users', targetUserId, camelUpdates);
         }
         return Response.json({ success: true, message: 'Profil diperbarui' });
     } catch (e) {
