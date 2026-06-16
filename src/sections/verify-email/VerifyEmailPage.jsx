@@ -81,7 +81,7 @@ function VerifyEmailContent() {
 
             {status === 'success' && (
                 <Link href="/login" className={styles.btn} style={{ background: 'linear-gradient(135deg,#4A7C28,#7ED44A)' }}>
-                    🔑 Masuk ke Dashboard
+                    🔑 Masuk & Login Ulang
                 </Link>
             )}
             {(status === 'error' || status === 'expired' || status === 'no-token') && (
