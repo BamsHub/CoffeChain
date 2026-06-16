@@ -68,12 +68,15 @@ export async function POST(request) {
             throw new Error(`Gagal menyimpan token verifikasi: ${insertTokenErr.message}`);
         }
 
+        const host = request.headers.get('host') || 'coffe-chain.vercel.app';
+        const proto = request.headers.get('x-forwarded-proto') || 'https';
+        const dynamicAppUrl = `${proto}://${host}`;
+
         try {
-            await sendVerificationEmail(normalizedEmail, user.name, verifyToken);
+            await sendVerificationEmail(normalizedEmail, user.name, verifyToken, dynamicAppUrl);
         } catch (emailErr) {
             console.error('Email send error:', emailErr);
-            const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app').replace(/\/$/, '');
-            const verificationLink = `${appUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+            const verificationLink = `${dynamicAppUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
             return Response.json({
                 success: true,
                 emailSent: false,

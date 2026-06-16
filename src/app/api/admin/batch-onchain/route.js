@@ -43,7 +43,9 @@ export async function POST(request) {
             });
         }
 
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app';
+        const host = request.headers.get('host') || 'coffe-chain.vercel.app';
+        const proto = request.headers.get('x-forwarded-proto') || 'https';
+        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
         const results = [];
 
         for (const p of toProcess) {

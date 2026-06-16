@@ -136,13 +136,16 @@ export async function POST(request) {
         });
 
         // Kirim email verifikasi
+        const host = request.headers.get('host') || 'coffe-chain.vercel.app';
+        const proto = request.headers.get('x-forwarded-proto') || 'https';
+        const dynamicAppUrl = `${proto}://${host}`;
+
         try {
-            await sendVerificationEmail(normalizedEmail, cleanName, verifyToken);
+            await sendVerificationEmail(normalizedEmail, cleanName, verifyToken, dynamicAppUrl);
         } catch (emailErr) {
             console.error('Email send error:', emailErr);
             // Tetap berhasil daftar, tetapi sertakan link verifikasi langsung agar tidak stuck
-            const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app').replace(/\/$/, '');
-            const verificationLink = `${appUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+            const verificationLink = `${dynamicAppUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
             const { password: _, ...safeUser } = newUser;
             return Response.json({
                 success: true,

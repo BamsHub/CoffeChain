@@ -1,7 +1,8 @@
 import nodemailer from 'nodemailer';
 
-function getAppUrl() {
-    return (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app').replace(/\/$/, '');
+function getAppUrl(appUrl) {
+    if (appUrl) return appUrl.replace(/\/$/, '');
+    return (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-chain.vercel.app').replace(/\/$/, '');
 }
 
 function getFromAddress() {
@@ -17,8 +18,8 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function buildVerificationMessage(toEmail, name, token) {
-    const verifyUrl = `${getAppUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+function buildVerificationMessage(toEmail, name, token, appUrl) {
+    const verifyUrl = `${getAppUrl(appUrl)}/verify-email?token=${encodeURIComponent(token)}`;
     const safeName = name || 'Pengguna CoffeeChain';
     const safeHtmlName = escapeHtml(safeName);
 
@@ -96,8 +97,8 @@ async function sendWithGmailSmtp(message) {
     return { provider: 'gmail-smtp', id: info.messageId || null };
 }
 
-export async function sendVerificationEmail(toEmail, name, token) {
-    const message = buildVerificationMessage(toEmail, name, token);
+export async function sendVerificationEmail(toEmail, name, token, appUrl) {
+    const message = buildVerificationMessage(toEmail, name, token, appUrl);
 
     const resendResult = await sendWithResend(message);
     if (resendResult) return { ...resendResult, to: toEmail };
