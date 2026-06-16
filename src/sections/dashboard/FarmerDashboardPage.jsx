@@ -270,10 +270,7 @@ export default function FarmerDashboardPage({ walletPublicKey }) {
                             ? selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
                             : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>
-                    <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-                        Catat Penjualan
-                    </button>
+
                 </div>
             </div>
 
@@ -380,9 +377,7 @@ export default function FarmerDashboardPage({ walletPublicKey }) {
                                 ✕ Reset Filter
                             </button>
                         )}
-                        <button className={styles.btnPrimarySmall} onClick={() => setShowModal(true)}>
-                            + Catat Penjualan
-                        </button>
+
                     </div>
                 </div>
 
@@ -396,12 +391,7 @@ export default function FarmerDashboardPage({ walletPublicKey }) {
                         <div style={{ color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 8 }}>
                             {selectedDate ? 'Tidak ada penjualan pada tanggal ini.' : 'Belum ada entri penjualan.'}
                         </div>
-                        {!selectedDate && (
-                            <button className={styles.btnPrimary} onClick={() => setShowModal(true)}
-                                style={{ marginTop: 8, fontSize: 13 }}>
-                                + Catat Penjualan Pertama
-                            </button>
-                        )}
+
                     </div>
                 ) : (
                     <div className={styles.tableWrapper}>
