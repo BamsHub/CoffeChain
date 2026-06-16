@@ -1,112 +1,153 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
-const farmerGuides = [
-    {
-        title: '1. Mulai dari Dashboard Petani',
-        items: [
-            'Pantau ringkasan statistik (Total Produk, Total Stok, Transaksi Bulan Ini, dan Revenue Bulan Ini) dari menu Dashboard.',
-            'Gunakan Area Chart untuk melihat tren penjualan harian Anda selama 7 hari terakhir.',
-            'Gunakan Widget Kalender untuk memfilter penjualan pada tanggal tertentu secara instan.',
-        ],
-    },
-    {
-        title: '2. Kelola Produk & Stok (Alur Pipeline)',
-        items: [
-            'Buka menu Kelola Produk, lalu pilih tab Kelola Stok untuk memulai pencatatan batch kopi baru.',
-            'Klik tombol "+ Buat Batch Baru" untuk mencatat detail panen (Nama, Asal Daerah, Varietas, Grade, Berat awal kg, dan Catatan).',
-            'Alur produksi terdiri dari 6 Tahap Wajib: Pembersihan -> Pemanggangan -> Pendinginan -> Penggilingan -> Pelepasan Gas -> Produk Jadi.',
-            'Klik "Catat Tahap" di setiap tahapan, isi parameter (operator, durasi, suhu, berat masuk/keluar), dan wajib unggah foto bukti.',
-            'Saat tahap 6 (Produk Jadi) diselesaikan, sistem otomatis mendaftarkan produk baru di menu Kelola Produk dengan status "Pending".',
-        ],
-    },
-    {
-        title: '3. Memantau Transaksi & Pendapatan',
-        items: [
-            'Setiap transaksi penjualan dicatat secara terpisah di database lokal melalui Supabase Realtime.',
-            'Buka menu Transaksi untuk melihat riwayat order dari pembeli di landing page yang sudah lunas (Paid) atau masih pending.',
-            'Buka menu Dompet untuk melihat saldo SOL, IDR equivalent, dan riwayat transaksi Phantom Wallet Anda.',
-        ],
-    },
-];
-
-const developerGuides = [
-    {
-        title: '1. Kontrol Administrator & Koperasi',
-        items: [
-            'Review Produk: Menampilkan semua produk pending yang diajukan petani. Admin dapat menekan "✓ Setujui" (mengubah status jadi published ke landing page) atau "✕ Tolak" dengan memasukkan alasan.',
-            'Pencatatan Transaksi Off-Chain/On-Chain: Di menu Transaksi, admin dapat menekan tombol "+ Tambah Transaksi DB" untuk mencatat perdagangan kopi fisik.',
-            'Registrasi Blockchain Massal: Di menu Register Kopi, admin/koperasi memiliki tombol "On-chain semua via Server Wallet" untuk mendaftarkan semua produk published ke Solana sekaligus.',
-        ],
-    },
-    {
-        title: '2. Alur Integrasi Midtrans Payment Gateway',
-        items: [
-            'Pemicu Snap: Ketika pembeli mengklik "Beli Sekarang" di landing page dan memilih metode IDR Bank Transfer/QRIS, backend memicu request Snap ke Midtrans.',
-            'Endpoint Webhook: Endpoint `/api/midtrans/notification` menerima callback realtime dari Midtrans untuk mengupdate status pembayaran (settlement/pending/expired).',
-            'Status Check: Tombol "Cek Status Midtrans" memanggil `/api/midtrans/status` untuk mencocokkan status order.',
-            'Auto Blockchain Write: Ketika pembayaran berstatus "Paid", backend otomatis mengirimkan memo transaksi ke Solana Testnet dan menyimpan `tx_signature` pada order database.',
-        ],
-    },
-    {
-        title: '3. Integrasi & Deployment Solana Testnet',
-        items: [
-            'Konfigurasi Jaringan: Terpusat di `src/lib/contractConfig.js` dengan RPC endpoint Testnet Solana.',
-            'Program Memo: Menggunakan alamat program memo Solana standard untuk mencatat hash audit produk secara permanen.',
-            'Verifikasi Publik: Siapa saja dapat memindai QR Code di sertifikat/kemasan kopi untuk diarahkan ke `/trace?id=CF-XXXXX` guna memverifikasi keabsahan data produksi langsung dari Solana Explorer.',
-        ],
-    },
-];
-
-const buttonRegistry = [
-    {
-        section: 'Landing Page & Pembelian',
-        buttons: [
-            { name: 'Beli Sekarang', desc: 'Membuka modal pembelian kopi untuk memilih berat, mengisi data pembeli, dan metode pembayaran.', type: 'Public / Pembeli' },
-            { name: 'Lihat Detail (Katalog)', desc: 'Membuka modal detail produk yang berisi deskripsi, sertifikat kualitas, data blockchain, dan status kelulusan uji lab.', type: 'Public / Pembeli' },
-            { name: 'Hubungkan Phantom Wallet', desc: 'Menghubungkan ekstensi Phantom Wallet di browser ke aplikasi untuk memproses pembayaran SOL.', type: 'Public / Pembeli' },
-            { name: 'Bayar Sekarang (Order)', desc: 'Mengirim data pembelian ke database dan memicu popup Midtrans Snap atau transaksi Phantom SOL.', type: 'Public / Pembeli' },
-        ]
-    },
-    {
-        section: 'Autentikasi & Akun',
-        buttons: [
-            { name: 'Daftar & Kirim Verifikasi Email', desc: 'Memvalidasi data register, mendaftarkan akun ke DB dengan status pending, dan mengirim token verifikasi via email.', type: 'Form Register' },
-            { name: 'Kirim Ulang Email Verifikasi', desc: 'Mengirim kembali link aktivasi jika email belum terverifikasi atau token kedaluwarsa.', type: 'Form Login' },
-            { name: 'Masuk ke Dashboard', desc: 'Memvalidasi kredensial login dan mengarahkan user sesuai role masing-masing.', type: 'Form Login' },
-        ]
-    },
-    {
-        section: 'Kelola Produk & Stok Kopi',
-        buttons: [
-            { name: '+ Buat Batch Baru', desc: 'Membuka form pembuatan batch baru untuk memulai pencatatan alur produksi kopi.', type: 'Petani' },
-            { name: 'Catat Tahap', desc: 'Membuka modal input data parameter per tahap produksi (operator, suhu, durasi, dll.) serta upload foto.', type: 'Petani' },
-            { name: 'Simpan Tahap', desc: 'Menyimpan data tahap produksi ke database dan memajukan progress batch.', type: 'Petani' },
-            { name: '✓ Setujui (Approval)', desc: 'Menyetujui produk pending milik petani agar dipublikasikan ke halaman katalog landing page.', type: 'Developer / Koperasi' },
-            { name: '✕ Tolak (Approval)', desc: 'Menolak produk pending petani dengan memberikan alasan penolakan tertulis.', type: 'Developer / Koperasi' },
-        ]
-    },
-    {
-        section: 'Registrasi Blockchain (On-Chain)',
-        buttons: [
-            { name: 'Daftarkan ke Blockchain', desc: 'Menandatangani payload metadata kopi menggunakan Phantom Wallet milik user untuk dicatat ke Solana.', type: 'Developer / Koperasi' },
-            { name: 'On-chain semua via Server Wallet', desc: 'Otomatis mendaftarkan seluruh produk published yang belum ter-chain secara massal menggunakan wallet server.', type: 'Developer / Koperasi' },
-            { name: 'Lihat di Solana Explorer', desc: 'Membuka tautan transaksi on-chain di Solana Explorer (cluster Testnet) untuk pembuktian hash.', type: 'Semua User / Publik' },
-        ]
-    }
-];
-
 export default function DocumentationPage() {
-    const { user } = useAuth();
+    const { user, getToken } = useAuth();
     const [activeTab, setActiveTab] = useState('guides'); // guides | buttons | testing
     
+    // DB documentation state
+    const [guides, setGuides] = useState({ farmerGuides: [], developerGuides: [] });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [errorMsg, setErrorMsg] = useState(null);
+    const [successMsg, setSuccessMsg] = useState(null);
+
+    // Editing states
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTarget, setEditTarget] = useState('farmer'); // farmer | developer
+    const [editGuides, setEditGuides] = useState([]); // Array being edited
+
     const role = user?.role || 'farmer';
     const isDeveloper = role === 'developer' || role === 'koperasi';
-    const guides = isDeveloper ? developerGuides : farmerGuides;
     const roleLabel = isDeveloper ? 'Developer / Koperasi' : 'Petani';
+
+    // Fetch guides on mount
+    useEffect(() => {
+        fetchGuides();
+    }, []);
+
+    async function fetchGuides() {
+        setLoading(true);
+        setErrorMsg(null);
+        try {
+            const res = await fetch('/api/documentation');
+            const data = await res.json();
+            if (data.success) {
+                setGuides({
+                    farmerGuides: data.farmerGuides || [],
+                    developerGuides: data.developerGuides || [],
+                });
+            } else {
+                setErrorMsg('Gagal memuat dokumentasi dari database.');
+            }
+        } catch (err) {
+            setErrorMsg('Gagal terhubung ke API dokumentasi.');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Initialize editing mode
+    function startEditing(target) {
+        setEditTarget(target);
+        // Create a deep copy of the selected guides array
+        const source = target === 'farmer' ? guides.farmerGuides : guides.developerGuides;
+        setEditGuides(JSON.parse(JSON.stringify(source)));
+        setIsEditing(true);
+        setSuccessMsg(null);
+        setErrorMsg(null);
+    }
+
+    function cancelEditing() {
+        setIsEditing(false);
+        setEditGuides([]);
+    }
+
+    // Form item updates
+    function updateSectionTitle(sectionIndex, newTitle) {
+        const updated = [...editGuides];
+        updated[sectionIndex].title = newTitle;
+        setEditGuides(updated);
+    }
+
+    function updateItemText(sectionIndex, itemIndex, newText) {
+        const updated = [...editGuides];
+        updated[sectionIndex].items[itemIndex] = newText;
+        setEditGuides(updated);
+    }
+
+    function deleteItem(sectionIndex, itemIndex) {
+        const updated = [...editGuides];
+        updated[sectionIndex].items.splice(itemIndex, 1);
+        setEditGuides(updated);
+    }
+
+    function addItem(sectionIndex) {
+        const updated = [...editGuides];
+        updated[sectionIndex].items.push('Baris panduan baru...');
+        setEditGuides(updated);
+    }
+
+    function deleteSection(sectionIndex) {
+        const updated = [...editGuides];
+        updated.splice(sectionIndex, 1);
+        setEditGuides(updated);
+    }
+
+    function addSection() {
+        setEditGuides([
+            ...editGuides,
+            { title: 'Kategori Panduan Baru', items: ['Baris panduan pertama...'] }
+        ]);
+    }
+
+    // Save changes to Supabase
+    async function saveGuides() {
+        setSaving(true);
+        setErrorMsg(null);
+        setSuccessMsg(null);
+        try {
+            const token = getToken();
+            const res = await fetch('/api/documentation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: token ? `Bearer ${token}` : '',
+                },
+                body: JSON.stringify({
+                    id: editTarget === 'farmer' ? 'farmer_guides' : 'developer_guides',
+                    content: editGuides,
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSuccessMsg(`Dokumentasi ${editTarget === 'farmer' ? 'Petani' : 'Developer'} berhasil disimpan!`);
+                setIsEditing(false);
+                // Refresh local data
+                await fetchGuides();
+            } else {
+                setErrorMsg(data.message || 'Gagal menyimpan dokumentasi.');
+            }
+        } catch (err) {
+            setErrorMsg('Terjadi kesalahan koneksi saat menyimpan.');
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    const featureMap = [
+        ['Dashboard', 'Ringkasan aktivitas, visualisasi grafik penjualan, widget kalender penanggalan, dan live feed transaksi blockchain.'],
+        ['Kelola Stok', 'Pelacakan alur rantai pasok produksi kopi dari tahap 1-6 dengan pencatatan parameter wajib dan upload foto bukti.'],
+        ['Kelola Produk', 'Pencatatan varietas kopi, tingkat sangrai, status verifikasi on-chain, serta persetujuan (approval) produk petani.'],
+        ['Register Kopi', 'Registrasi metadata kopi secara permanen ke Solana Memo program, melahirkan Coffee ID serta QR Trace.'],
+        ['Pembayaran', 'Integrasi otomatis Midtrans Snap Gateway (bank transfer & QRIS) serta direct payment SOL wallet Phantom.'],
+        ['Trace Publik', 'Validasi transparansi asal-usul kopi, pelacakan histori tahap produksi, dan verifikasi hash transaksi Solana Explorer.'],
+        ['Dompet', 'Penyedia fungsionalitas kirim/terima saldo SOL, salin address public key, dan memantau explorer address.'],
+        ['Transaksi', 'Riwayat order pesanan dari landing page, detail status bayar, data kontak pembeli, dan filter per tanggal.'],
+    ];
 
     const cardStyle = {
         background: 'var(--color-bg-card)',
@@ -130,8 +171,22 @@ export default function DocumentationPage() {
         boxShadow: activeTab === tabId ? '0 4px 12px rgba(126, 212, 74, 0.2)' : 'none',
     });
 
+    const activeGuides = isDeveloper ? guides.developerGuides : guides.farmerGuides;
+
     return (
         <div style={{ padding: 'clamp(16px,3vw,32px)', maxWidth: 1200, margin: '0 auto' }}>
+            {/* Notification Messages */}
+            {successMsg && (
+                <div style={{ background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.3)', color: '#81C784', padding: '12px 18px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 800 }}>
+                    ✅ {successMsg}
+                </div>
+            )}
+            {errorMsg && (
+                <div style={{ background: 'rgba(244,67,54,0.15)', border: '1px solid rgba(244,67,54,0.3)', color: '#E57373', padding: '12px 18px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 800 }}>
+                    ⚠️ {errorMsg}
+                </div>
+            )}
+
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 28 }}>
                 <div>
@@ -152,6 +207,109 @@ export default function DocumentationPage() {
                 </div>
             </div>
 
+            {/* Admin Editing Toolbar */}
+            {isDeveloper && !isEditing && (
+                <div style={{ ...cardStyle, background: 'rgba(74, 124, 40, 0.05)', border: '1px dashed var(--color-border)', marginBottom: 24, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                        <strong style={{ color: 'var(--color-text)', fontSize: 14 }}>🛠️ Mode Editor Admin</strong>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 2 }}>Anda memiliki wewenang untuk mengedit panduan manual secara langsung ke database.</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => startEditing('farmer')} style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--color-primary-light)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                            ✏️ Edit Panduan Petani
+                        </button>
+                        <button onClick={() => startEditing('developer')} style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--color-secondary)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                            ✏️ Edit Panduan Developer
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Editing Canvas */}
+            {isEditing && (
+                <div style={{ ...cardStyle, background: 'var(--color-bg-card2)', border: '2px solid var(--color-primary-light)', marginBottom: 28 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 14, marginBottom: 20 }}>
+                        <div>
+                            <h2 style={{ color: 'var(--color-text)', fontSize: 18, fontWeight: 900 }}>
+                                ✍️ Mengedit Panduan: <span style={{ color: 'var(--color-logo-sub)' }}>{editTarget === 'farmer' ? 'Petani' : 'Developer & Koperasi'}</span>
+                            </h2>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>Pastikan tidak memasukkan data kode rahasia, token, atau informasi kredensial berbahaya.</p>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={saveGuides} disabled={saving} style={{ padding: '8px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}>
+                                {saving ? 'Menyimpan...' : '💾 Simpan Perubahan'}
+                            </button>
+                            <button onClick={cancelEditing} disabled={saving} style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text-secondary)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: 20 }}>
+                        {editGuides.map((section, sidx) => (
+                            <div key={sidx} style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 10, padding: 16 }}>
+                                <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
+                                    <input 
+                                        type="text" 
+                                        value={section.title} 
+                                        onChange={(e) => updateSectionTitle(sidx, e.target.value)}
+                                        style={{ 
+                                            flex: 1, 
+                                            background: 'var(--color-input-bg)', 
+                                            border: '1px solid var(--color-input-border)', 
+                                            color: 'var(--color-text)', 
+                                            padding: '8px 12px', 
+                                            borderRadius: 6, 
+                                            fontSize: 14, 
+                                            fontWeight: 800 
+                                        }} 
+                                        placeholder="Judul Kategori Panduan"
+                                    />
+                                    <button onClick={() => deleteSection(sidx)} style={{ background: '#E57373', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
+                                        🗑️ Hapus Kategori
+                                    </button>
+                                </div>
+
+                                <div style={{ display: 'grid', gap: 8 }}>
+                                    {section.items.map((item, iidx) => (
+                                        <div key={iidx} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                            <span style={{ color: 'var(--color-logo-sub)', marginTop: 8, fontSize: 12 }}>✓</span>
+                                            <textarea 
+                                                value={item} 
+                                                onChange={(e) => updateItemText(sidx, iidx, e.target.value)}
+                                                rows={2}
+                                                style={{ 
+                                                    flex: 1, 
+                                                    background: 'var(--color-input-bg)', 
+                                                    border: '1px solid var(--color-input-border)', 
+                                                    color: 'var(--color-text-secondary)', 
+                                                    padding: '8px 10px', 
+                                                    borderRadius: 6, 
+                                                    fontSize: 13, 
+                                                    fontFamily: 'inherit',
+                                                    resize: 'vertical'
+                                                }}
+                                                placeholder="Isi butir panduan..."
+                                            />
+                                            <button onClick={() => deleteItem(sidx, iidx)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#FF8A80', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
+                                                ✕ Hapus
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={() => addItem(sidx)} style={{ marginTop: 12, background: 'rgba(126,212,74,0.1)', border: '1px dashed rgba(126,212,74,0.3)', color: 'var(--color-logo-sub)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
+                                    ➕ Tambah Item Panduan
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button onClick={addSection} style={{ marginTop: 18, width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px dashed var(--color-border)', color: 'var(--color-text)', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                        ➕ Tambah Kategori Baru
+                    </button>
+                </div>
+            )}
+
             {/* Navigation Tabs */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap', borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
                 <button style={tabBtnStyle('guides')} onClick={() => setActiveTab('guides')}>
@@ -168,34 +326,41 @@ export default function DocumentationPage() {
             {/* Tab 1: Guides */}
             {activeTab === 'guides' && (
                 <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 24 }}>
-                        {guides.map((section, idx) => (
-                            <section key={idx} style={cardStyle}>
-                                <h3 style={{ color: 'var(--color-text)', fontSize: 17, fontWeight: 900, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 10 }}>
-                                    {section.title}
-                                </h3>
-                                <div style={{ display: 'grid', gap: 12 }}>
-                                    {section.items.map((item, i) => (
-                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 1fr', gap: 10, alignItems: 'start' }}>
-                                            <span style={{ 
-                                                width: 20, 
-                                                height: 20, 
-                                                borderRadius: '50%', 
-                                                background: 'rgba(126,212,74,0.12)', 
-                                                border: '1px solid rgba(126,212,74,0.3)', 
-                                                color: 'var(--color-logo-sub)', 
-                                                display: 'grid', 
-                                                placeItems: 'center', 
-                                                fontSize: 11, 
-                                                fontWeight: 900 
-                                            }}>✓</span>
-                                            <span style={{ color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.6 }}>{item}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
-                    </div>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-text-muted)' }}>
+                            <div style={{ display: 'inline-block', width: 30, height: 30, border: '3px solid rgba(126,212,74,0.2)', borderTopColor: 'var(--color-logo-sub)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 12 }} />
+                            <div>Memuat panduan dokumentasi...</div>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 24 }}>
+                            {activeGuides.map((section, idx) => (
+                                <section key={idx} style={cardStyle}>
+                                    <h3 style={{ color: 'var(--color-text)', fontSize: 17, fontWeight: 900, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 10 }}>
+                                        {section.title}
+                                    </h3>
+                                    <div style={{ display: 'grid', gap: 12 }}>
+                                        {section.items.map((item, i) => (
+                                            <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 1fr', gap: 10, alignItems: 'start' }}>
+                                                <span style={{ 
+                                                    width: 20, 
+                                                    height: 20, 
+                                                    borderRadius: '50%', 
+                                                    background: 'rgba(126,212,74,0.12)', 
+                                                    border: '1px solid rgba(126,212,74,0.3)', 
+                                                    color: 'var(--color-logo-sub)', 
+                                                    display: 'grid', 
+                                                    placeItems: 'center', 
+                                                    fontSize: 11, 
+                                                    fontWeight: 900 
+                                                }}>✓</span>
+                                                <span style={{ color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.6 }}>{item}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -328,7 +493,7 @@ export default function DocumentationPage() {
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Fungsi hashing SHA-256 memverifikasi kecocokan password internal.</li>
                                         <li>API `/api/auth/verify-email?token=xxx` memproses query parameter token dari database Supabase secara real-time.</li>
-                                        <li>Setting `NEXT_PUBLIC_APP_URL` dikonfigurasi ke domain Vercel untuk menghindari fallback tautan localhost.</li>
+                                        <li>Setting domain dikonfigurasi ke domain Vercel untuk menghindari fallback tautan localhost.</li>
                                     </ul>
                                 </div>
                             </div>
@@ -486,6 +651,14 @@ export default function DocumentationPage() {
                     <DocLink href="/trace" label="Trace Publik" />
                 </div>
             </div>
+
+            {/* Spinner CSS animation */}
+            <style jsx global>{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }
