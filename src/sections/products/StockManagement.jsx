@@ -172,6 +172,10 @@ export default function StockManagement() {
         if (!stageModal) return;
 
         const { batch, stage } = stageModal;
+        if (!photoUrl) {
+            setMsg({ type: 'err', text: 'Upload bukti foto wajib sebelum menyimpan tahap produksi.' });
+            return;
+        }
         setSaving(true);
         setMsg(null);
         try {

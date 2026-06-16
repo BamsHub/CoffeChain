@@ -1,6 +1,7 @@
-export const runtime = 'edge';
-import { readDb, writeDb } from '@/lib/db';
+export const runtime = 'nodejs';
+import { readDb } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
+import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request) {
@@ -20,15 +21,25 @@ export async function POST(request) {
             return Response.json({ success: true, message: 'Jika email terdaftar, link verifikasi baru telah dikirim.' });
         }
 
-        if (user.emailVerified) {
+        const alreadyVerified = user.emailVerified === true || (user.emailVerified === undefined && user.active === true);
+        if (alreadyVerified) {
             return Response.json({ success: false, message: 'Email sudah diverifikasi sebelumnya. Silakan login.' }, { status: 400 });
         }
 
         // Rate limiting sederhana: cek apakah token sudah dikirim dalam 5 menit terakhir
-        const tokenDb = await readDb('verification_tokens');
-        const existingToken = tokenDb.items.find(t => t.email === email.toLowerCase());
+        const normalizedEmail = email.toLowerCase().trim();
+        const { data: existingToken, error: tokenLookupErr } = await supabaseAdmin
+            .from('verification_tokens')
+            .select('*')
+            .eq('email', normalizedEmail)
+            .maybeSingle();
+
+        if (tokenLookupErr) {
+            throw new Error(`Gagal membaca token verifikasi: ${tokenLookupErr.message}`);
+        }
+
         if (existingToken) {
-            const timeSinceCreated = Date.now() - new Date(existingToken.createdAt).getTime();
+            const timeSinceCreated = Date.now() - new Date(existingToken.created_at).getTime();
             if (timeSinceCreated < 5 * 60 * 1000) { // 5 menit
                 const waitSeconds = Math.ceil((5 * 60 * 1000 - timeSinceCreated) / 1000);
                 return Response.json({
@@ -42,18 +53,22 @@ export async function POST(request) {
         const array = new Uint8Array(32);
         crypto.getRandomValues(array);
         const verifyToken = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-        tokenDb.items = tokenDb.items.filter(t => t.email !== email.toLowerCase());
-        tokenDb.items.push({
+
+        await supabaseAdmin.from('verification_tokens').delete().eq('email', normalizedEmail);
+        const { error: insertTokenErr } = await supabaseAdmin.from('verification_tokens').insert({
             id: uuidv4(),
             token: verifyToken,
-            userId: user.id,
-            email: email.toLowerCase(),
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            user_id: user.id,
+            email: normalizedEmail,
+            created_at: new Date().toISOString(),
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         });
-        await writeDb('verification_tokens', tokenDb);
 
-        await sendVerificationEmail(email, user.name, verifyToken);
+        if (insertTokenErr) {
+            throw new Error(`Gagal menyimpan token verifikasi: ${insertTokenErr.message}`);
+        }
+
+        await sendVerificationEmail(normalizedEmail, user.name, verifyToken);
 
         return Response.json({ success: true, message: 'Link verifikasi baru telah dikirim ke email Anda.' });
     } catch (err) {

@@ -23,9 +23,26 @@ CREATE TABLE IF NOT EXISTS users (
   language TEXT DEFAULT 'Indonesia',
   photo_base64 TEXT,
   active BOOLEAN DEFAULT true,
+  email_verified BOOLEAN DEFAULT true,
+  email_verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_login TIMESTAMPTZ
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified    BOOLEAN DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS verification_tokens (
+  id TEXT PRIMARY KEY,
+  token TEXT UNIQUE NOT NULL,
+  user_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_token ON verification_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email);
 
 -- ── PRODUCTS ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
@@ -88,6 +105,19 @@ CREATE TABLE IF NOT EXISTS orders (
   quantity INTEGER DEFAULT 1,
   total_price BIGINT,
   payment_method TEXT,
+  buyer_email TEXT,
+  buyer_phone TEXT,
+  sol_amount NUMERIC,
+  payment_currency TEXT DEFAULT 'IDR',
+  wallet_address TEXT,
+  coffee_id TEXT,
+  source TEXT,
+  recipient_name TEXT,
+  shipping_address TEXT,
+  shipping_city TEXT,
+  shipping_province TEXT,
+  shipping_postal TEXT,
+  shipping_phone TEXT,
   virtual_account TEXT,
   tx_signature TEXT,
   status TEXT DEFAULT 'pending',
@@ -95,6 +125,23 @@ CREATE TABLE IF NOT EXISTS orders (
   expires_at TIMESTAMPTZ,
   paid_at TIMESTAMPTZ
 );
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS buyer_email       TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS buyer_phone       TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS sol_amount        NUMERIC;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_currency  TEXT DEFAULT 'IDR';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS wallet_address    TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coffee_id         TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS source            TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS recipient_name    TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address  TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_city     TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_province TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_postal   TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_phone    TEXT;
+CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status   ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_coffee_id ON orders(coffee_id);
 
 -- ── TRANSACTIONS ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS transactions (
@@ -246,6 +293,55 @@ CREATE POLICY "Allow anon write all" ON market     FOR ALL USING (true) WITH CHE
 CREATE POLICY "Allow anon write all" ON markets    FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon write all" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon write all" ON sessions   FOR ALL USING (true) WITH CHECK (true);
+
+-- PRODUCTION PIPELINE
+CREATE TABLE IF NOT EXISTS production_batches (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  origin TEXT,
+  variety TEXT,
+  grade TEXT,
+  weight_kg NUMERIC,
+  farmer_id TEXT,
+  farmer_name TEXT,
+  current_stage INTEGER DEFAULT 1,
+  coffee_id TEXT,
+  product_id UUID,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS production_stage_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  batch_id UUID REFERENCES production_batches(id) ON DELETE CASCADE,
+  stage INTEGER NOT NULL,
+  stage_name TEXT,
+  data JSONB,
+  photo_url TEXT,
+  tx_signature TEXT,
+  explorer_url TEXT,
+  logged_by TEXT,
+  logged_by_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_batches_farmer_id ON production_batches(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_production_batches_stage     ON production_batches(current_stage);
+CREATE INDEX IF NOT EXISTS idx_production_stage_logs_batch  ON production_stage_logs(batch_id);
+CREATE INDEX IF NOT EXISTS idx_production_stage_logs_stage  ON production_stage_logs(stage);
+
+ALTER TABLE verification_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE production_batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE production_stage_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "verification_tokens_service_role_all" ON verification_tokens;
+DROP POLICY IF EXISTS "production_batches_service_role_all" ON production_batches;
+DROP POLICY IF EXISTS "production_stage_logs_service_role_all" ON production_stage_logs;
+
+CREATE POLICY "verification_tokens_service_role_all" ON verification_tokens FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "production_batches_service_role_all" ON production_batches FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "production_stage_logs_service_role_all" ON production_stage_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- ── SALES ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sales (

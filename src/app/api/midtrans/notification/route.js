@@ -1,6 +1,9 @@
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 import { supabaseAdmin } from '@/lib/supabase';
+import { normalizeMidtransStatus, getPaidAtForStatus } from '@/lib/midtrans';
+import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
 import crypto from 'crypto';
 
 /**
@@ -33,18 +36,8 @@ export async function POST(request) {
         }
 
         // Tentukan status order
-        let newStatus = 'pending';
-        let paidAt = null;
-
-        if (
-            transaction_status === 'settlement' ||
-            (transaction_status === 'capture' && fraud_status === 'accept')
-        ) {
-            newStatus = 'paid';
-            paidAt = new Date().toISOString();
-        } else if (['cancel', 'deny', 'expire'].includes(transaction_status)) {
-            newStatus = 'expired';
-        }
+        const newStatus = normalizeMidtransStatus(transaction_status, fraud_status);
+        const paidAt = getPaidAtForStatus(newStatus);
 
         // Update order di Supabase (primary DB on Vercel)
         const { data: orders } = await supabaseAdmin
@@ -61,6 +54,10 @@ export async function POST(request) {
                 .from('orders')
                 .update(updatePayload)
                 .eq('order_id', order_id);
+
+            if (newStatus === 'paid') {
+                await ensureMidtransSolanaTrace(order_id, body);
+            }
 
             console.log(`[midtrans-notification] Order ${order_id} updated to: ${newStatus}`);
         } else {

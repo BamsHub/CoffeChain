@@ -341,10 +341,10 @@ export default function ProductsContent() {
                             : `${products.length} produk terdaftar di database`}
                     </p>
                 </div>
-                <button style={btnPrimary} onClick={() => { setShowForm(s => !s); setMsg(null); }}>
+                <Link href="/products/stock" style={{ ...btnPrimary, textDecoration: 'none' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    {showForm ? 'Batal' : (isFarmer ? 'Ajukan Produk' : 'Tambah Produk')}
-                </button>
+                    Tambah Lewat Pipeline Stok
+                </Link>
             </div>
 
             {/* Toast */}
@@ -529,7 +529,7 @@ export default function ProductsContent() {
             ) : filtered.length === 0 ? (
                 <div style={{ ...card, textAlign: 'center', padding: '48px 0', color: 'var(--color-text-muted)' }}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: 12, opacity: 0.4 }}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-                    <p style={{ fontSize: 14 }}>{isFarmer ? 'Belum ada produk. Klik "Ajukan Produk" untuk menambahkan.' : 'Belum ada produk. Klik "Tambah Produk" untuk mulai.'}</p>
+                    <p style={{ fontSize: 14 }}>Belum ada produk. Tambahkan batch di Kelola Stok agar melewati upload bukti dan audit tahap produksi.</p>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>

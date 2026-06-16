@@ -127,6 +127,7 @@ export async function POST(request) {
             paymentCurrency: 'IDR',
             walletAddress: null,
             txSignature: null,
+            coffeeId: product.coffeeId || null,
             virtualAccount: null,
             status: 'pending',
             source: 'midtrans_payment',
@@ -165,6 +166,7 @@ export async function POST(request) {
                 totalPrice: order.totalPrice,
                 paymentMethod: 'midtrans',
                 status: 'pending',
+                coffeeId: order.coffeeId,
                 stockLeft: currentStock - quantity,
             },
         }, { status: 201 });

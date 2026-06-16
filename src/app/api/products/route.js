@@ -52,8 +52,15 @@ export async function POST(request) {
             name, origin, grade, variety, roast,
             weight, pricePerUnit, description, stock,
             image, rating, sold, coffeeId,
-            submittedBy, submittedByName, submittedByRole,
+            submittedBy, submittedByName, submittedByRole, source,
         } = body;
+
+        if (source !== 'production_pipeline') {
+            return Response.json({
+                success: false,
+                message: 'Produk baru wajib dibuat lewat Kelola Stok agar melewati upload bukti dan audit tahap produksi.',
+            }, { status: 409 });
+        }
 
         if (!name || !origin || !weight || !pricePerUnit) {
             return Response.json({ success: false, message: 'Nama, asal, berat, dan harga wajib diisi' }, { status: 400 });

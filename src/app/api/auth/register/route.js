@@ -1,10 +1,56 @@
-export const runtime = 'edge';
-import { readDb, addItem, writeDb } from '@/lib/db';
+export const runtime = 'nodejs';
+import { readDb, addItem } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
+import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
+function isDuplicateAuthError(error) {
+    return /already|registered|exists|duplicate/i.test(error?.message || '');
+}
+
+function isMissingColumnError(error) {
+    return /column|schema cache|email_verified/i.test(error?.message || '');
+}
+
+async function findAuthUserByEmail(email) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (error) return null;
+    return (data?.users || []).find(user => user.email?.toLowerCase() === email.toLowerCase()) || null;
+}
+
+async function insertAppUser(user) {
+    try {
+        return await addItem('users', user);
+    } catch (error) {
+        if (!isMissingColumnError(error)) throw error;
+
+        const { emailVerified, emailVerifiedAt, ...fallbackUser } = user;
+        return addItem('users', fallbackUser);
+    }
+}
+
+async function saveVerificationToken(tokenRecord) {
+    const { error: deleteErr } = await supabaseAdmin
+        .from('verification_tokens')
+        .delete()
+        .eq('email', tokenRecord.email);
+
+    if (deleteErr) {
+        throw new Error(`Tabel verification_tokens belum siap: ${deleteErr.message}`);
+    }
+
+    const { error: insertErr } = await supabaseAdmin
+        .from('verification_tokens')
+        .insert(tokenRecord);
+
+    if (insertErr) {
+        throw new Error(`Gagal menyimpan token verifikasi: ${insertErr.message}`);
+    }
+}
+
 export async function POST(request) {
+    let createdAuthUserId = null;
     try {
         const body = await request.json();
         const { name, email, password, region } = body;
@@ -22,50 +68,76 @@ export async function POST(request) {
             return Response.json({ success: false, message: 'Format email tidak valid' }, { status: 400 });
         }
 
-        // Cek email sudah ada
+        const normalizedEmail = email.toLowerCase().trim();
+        const cleanName = name.trim();
+        const cleanRegion = region?.trim() || '';
+
+        // Cek email sudah ada di tabel aplikasi
         const db = await readDb('users');
-        if (db.items.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+        if (db.items.find(u => u.email.toLowerCase() === normalizedEmail)) {
             return Response.json({ success: false, message: 'Email sudah terdaftar' }, { status: 409 });
         }
 
-        const userId = uuidv4();
+        let authUser = null;
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email: normalizedEmail,
+            password,
+            email_confirm: false,
+            user_metadata: {
+                name: cleanName,
+                role: 'farmer',
+                region: cleanRegion,
+            },
+        });
+
+        if (authError) {
+            if (!isDuplicateAuthError(authError)) {
+                return Response.json({ success: false, message: `Gagal membuat user Supabase Auth: ${authError.message}` }, { status: 500 });
+            }
+            authUser = await findAuthUserByEmail(normalizedEmail);
+            if (!authUser) {
+                return Response.json({ success: false, message: 'Email sudah terdaftar di Supabase Auth' }, { status: 409 });
+            }
+        } else {
+            authUser = authData?.user || null;
+            createdAuthUserId = authUser?.id || null;
+        }
+
+        const userId = authUser?.id || uuidv4();
         const newUser = {
             id: userId,
-            name: name.trim(),
-            email: email.toLowerCase().trim(),
+            name: cleanName,
+            email: normalizedEmail,
             password: await hashPassword(password),
             role: 'farmer',
-            region: region?.trim() || '',
+            region: cleanRegion,
             wallet: '',
-            avatar: name.substring(0, 2).toUpperCase(),
+            avatar: cleanName.substring(0, 2).toUpperCase(),
             createdAt: new Date().toISOString(),
             lastLogin: null,
             active: false,        // Aktif setelah verifikasi email
             emailVerified: false,
+            emailVerifiedAt: null,
         };
 
-        await addItem('users', newUser);
+        await insertAppUser(newUser);
 
         // Buat token verifikasi (berlaku 24 jam)
         const array = new Uint8Array(32);
         crypto.getRandomValues(array);
         const verifyToken = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-        const tokenDb = await readDb('verification_tokens');
-        // Hapus token lama untuk email yang sama
-        tokenDb.items = tokenDb.items.filter(t => t.email !== email.toLowerCase());
-        tokenDb.items.push({
+        await saveVerificationToken({
             id: uuidv4(),
             token: verifyToken,
-            userId,
-            email: email.toLowerCase(),
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            user_id: userId,
+            email: normalizedEmail,
+            created_at: new Date().toISOString(),
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         });
-        await writeDb('verification_tokens', tokenDb);
 
         // Kirim email verifikasi
         try {
-            await sendVerificationEmail(email, name.trim(), verifyToken);
+            await sendVerificationEmail(normalizedEmail, cleanName, verifyToken);
         } catch (emailErr) {
             console.error('Email send error:', emailErr);
             // Tetap berhasil daftar, tapi beri tahu email gagal
@@ -82,12 +154,19 @@ export async function POST(request) {
         return Response.json({
             success: true,
             emailSent: true,
-            message: `Akun berhasil dibuat! Email verifikasi dikirim ke ${email}`,
+            message: `Akun berhasil dibuat! Email verifikasi dikirim ke ${normalizedEmail}`,
             user: safeUser,
         }, { status: 201 });
 
     } catch (err) {
         console.error('Register error:', err);
+        if (createdAuthUserId) {
+            try {
+                await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId);
+            } catch (cleanupErr) {
+                console.error('Register cleanup error:', cleanupErr);
+            }
+        }
         return Response.json({ success: false, message: 'Server error. Coba lagi.' }, { status: 500 });
     }
 }

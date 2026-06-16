@@ -37,6 +37,21 @@ function cancelIdle(id) {
     else window.clearTimeout(id);
 }
 
+function formatMidtransStatus(status) {
+    const labels = {
+        settlement: 'Settlement',
+        capture: 'Capture',
+        pending: 'Pending',
+        deny: 'Ditolak',
+        cancel: 'Dibatalkan',
+        expire: 'Kedaluwarsa',
+        failure: 'Gagal',
+        not_available: 'Belum tersedia',
+        unknown: 'Tidak diketahui',
+    };
+    return labels[status] || status || 'Belum tersedia';
+}
+
 /* ── SVG Icons ── */
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
 const IconChain = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
@@ -88,6 +103,7 @@ export default function LandingPage() {
     const [orderForm, setOrderForm] = useState({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: '', paymentMethod: 'transfer' });
     const [orderResult, setOrderResult] = useState(null);
     const [ordering, setOrdering] = useState(false);
+    const [checkingMidtrans, setCheckingMidtrans] = useState(false);
     const [loading, setLoading] = useState(true);
     const [scrolled, setScrolled] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState(null);
@@ -318,6 +334,11 @@ export default function LandingPage() {
                         alert('Midtrans Snap belum siap. Refresh halaman dan coba lagi.');
                         return;
                     }
+                    const refreshAfterSnap = (baseOrder, delay = 1200) => {
+                        window.setTimeout(() => {
+                            refreshMidtransStatus(baseOrder.orderId, baseOrder, true);
+                        }, delay);
+                    };
                     const finishSnapPayment = () => {
                         snapPaymentActiveRef.current = false;
                         setOrdering(false);
@@ -326,22 +347,36 @@ export default function LandingPage() {
                         window.snap.pay(data.snapToken, {
                         onSuccess: (result) => {
                             finishSnapPayment();
-                            setOrderResult({ ...data.data, status: 'paid' });
+                            const nextOrder = {
+                                ...data.data,
+                                status: 'paid',
+                                midtransStatus: result.transaction_status || 'capture',
+                                midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
+                            };
+                            setOrderResult(nextOrder);
                             setProducts(prev => prev.map(p =>
                                 p.id === selectedProduct.id
                                     ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
                                     : p
                             ));
                             setShowBuyAgain(true);
+                            refreshAfterSnap(nextOrder);
                         },
                         onPending: (result) => {
                             finishSnapPayment();
-                            setOrderResult({ ...data.data, status: 'pending' });
+                            const nextOrder = {
+                                ...data.data,
+                                status: 'pending',
+                                midtransStatus: result.transaction_status || 'pending',
+                                midtransStatusMessage: result.status_message || 'Menunggu pembayaran',
+                            };
+                            setOrderResult(nextOrder);
                             setProducts(prev => prev.map(p =>
                                 p.id === selectedProduct.id
                                     ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
                                     : p
                             ));
+                            refreshAfterSnap(nextOrder);
                         },
                         onError: (result) => {
                             finishSnapPayment();
@@ -349,7 +384,14 @@ export default function LandingPage() {
                         },
                         onClose: () => {
                             finishSnapPayment();
-                            setOrderResult({ ...data.data, status: 'pending' });
+                            const nextOrder = {
+                                ...data.data,
+                                status: 'pending',
+                                midtransStatus: 'pending',
+                                midtransStatusMessage: 'Popup ditutup. Cek status untuk melihat status terbaru dari Midtrans.',
+                            };
+                            setOrderResult(nextOrder);
+                            refreshAfterSnap(nextOrder, 1800);
                         },
                         });
                     } catch (snapErr) {
@@ -489,6 +531,29 @@ export default function LandingPage() {
             }
         } catch (err) { alert(err.message || 'Terjadi kesalahan. Coba lagi.'); }
         setOrdering(false);
+    }
+
+    async function refreshMidtransStatus(orderId = orderResult?.orderId, baseOrder = null, silent = false) {
+        if (!orderId) return;
+        setCheckingMidtrans(true);
+        try {
+            const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Gagal mengecek status Midtrans');
+
+            setOrderResult(prev => ({
+                ...(prev || baseOrder || {}),
+                ...data.data,
+                status: data.data.status || prev?.status || baseOrder?.status || 'pending',
+                midtransStatus: data.data.midtransStatus,
+                midtransStatusMessage: data.data.midtransStatusMessage,
+            }));
+            if (data.data.status === 'paid') setShowBuyAgain(true);
+        } catch (err) {
+            if (!silent) alert(err.message || 'Gagal mengecek status Midtrans');
+        } finally {
+            setCheckingMidtrans(false);
+        }
     }
 
     async function confirmQrPayment() {
@@ -1132,6 +1197,10 @@ export default function LandingPage() {
                                         ...(orderResult.txSignature ? [['Tx Hash', `${orderResult.txSignature.slice(0,18)}...${orderResult.txSignature.slice(-8)}`]] : []),
                                         ...(orderResult.coffeeId ? [['Coffee ID', orderResult.coffeeId]] : []),
                                         ['Status', orderResult.status === 'paid' ? 'Lunas' : 'Menunggu Pembayaran'],
+                                        ...(orderResult.paymentMethod === 'midtrans' ? [
+                                            ['Status Midtrans', formatMidtransStatus(orderResult.midtransStatus)],
+                                            ...(orderResult.midtransStatusMessage ? [['Pesan Midtrans', orderResult.midtransStatusMessage]] : []),
+                                        ] : []),
                                         ['Stok Tersisa', `${orderResult.stockLeft ?? '–'} unit`],
                                     ].map(([k, v]) => (
                                         <div key={k} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, padding:'7px 0', borderBottom:'1px solid rgba(74,124,40,0.1)' }}>
@@ -1140,6 +1209,13 @@ export default function LandingPage() {
                                         </div>
                                     ))}
                                 </div>
+
+                                {orderResult.paymentMethod === 'midtrans' && (
+                                    <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
+                                        style={{ width:'100%', padding:'11px 16px', borderRadius:10, border:'1px solid rgba(0,174,240,0.35)', background:'rgba(0,174,240,0.12)', color:'#00AEF0', fontWeight:800, cursor:checkingMidtrans ? 'wait' : 'pointer', marginBottom:16 }}>
+                                        {checkingMidtrans ? 'Mengecek Status...' : 'Cek Status Midtrans'}
+                                    </button>
+                                )}
 
                                 {(orderResult.txSignature || orderResult.coffeeId) && (
                                     <div style={{ background:'rgba(153,69,255,0.08)', border:'1px solid rgba(153,69,255,0.28)', borderRadius:12, padding:16, textAlign:'left', marginBottom:16 }}>

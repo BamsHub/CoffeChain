@@ -56,6 +56,12 @@ export async function POST(req) {
         if (!batchId || !stage) {
             return NextResponse.json({ success: false, message: 'batchId dan stage wajib' }, { status: 400 });
         }
+        if (Number(stage) < 1 || Number(stage) > 6) {
+            return NextResponse.json({ success: false, message: 'Stage tidak valid' }, { status: 400 });
+        }
+        if (!photoUrl) {
+            return NextResponse.json({ success: false, message: 'Bukti foto wajib diupload sebelum menyimpan tahap produksi' }, { status: 400 });
+        }
 
         const supabase = getSupabaseAdmin();
 
@@ -63,6 +69,32 @@ export async function POST(req) {
         const { data: batch, error: batchErr } = await supabase
             .from('production_batches').select('*').eq('id', batchId).single();
         if (batchErr || !batch) throw new Error('Batch tidak ditemukan');
+
+        if (Number(batch.current_stage) !== Number(stage)) {
+            return NextResponse.json({
+                success: false,
+                message: `Batch masih berada di tahap ${batch.current_stage}. Selesaikan tahap aktif secara berurutan.`,
+            }, { status: 409 });
+        }
+
+        const { data: existingLogs, error: existingErr } = await supabase
+            .from('production_stage_logs')
+            .select('stage')
+            .eq('batch_id', batchId);
+        if (existingErr) throw new Error(existingErr.message);
+
+        const loggedStages = new Set((existingLogs || []).map(item => Number(item.stage)));
+        if (loggedStages.has(Number(stage))) {
+            return NextResponse.json({ success: false, message: 'Tahap ini sudah pernah disimpan' }, { status: 409 });
+        }
+        for (let requiredStage = 1; requiredStage < Number(stage); requiredStage++) {
+            if (!loggedStages.has(requiredStage)) {
+                return NextResponse.json({
+                    success: false,
+                    message: `Tahap ${requiredStage} harus diselesaikan dulu sebelum tahap ${stage}`,
+                }, { status: 409 });
+            }
+        }
 
         let productId = batch.product_id || null;
         const stageName = STAGE_NAMES[stage] || `Stage ${stage}`;
