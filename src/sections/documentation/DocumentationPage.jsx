@@ -328,7 +328,7 @@ export default function DocumentationPage() {
                 <div>
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-text-muted)' }}>
-                            <div style={{ display: 'inline-block', width: 30, height: 30, border: '3px solid rgba(126,212,74,0.2)', borderTopColor: 'var(--color-logo-sub)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 12 }} />
+                            <div className="animate-spin" style={{ display: 'inline-block', width: 30, height: 30, border: '3px solid rgba(126,212,74,0.2)', borderTopColor: 'var(--color-logo-sub)', borderRadius: '50%', marginBottom: 12 }} />
                             <div>Memuat panduan dokumentasi...</div>
                         </div>
                     ) : (
@@ -651,14 +651,6 @@ export default function DocumentationPage() {
                     <DocLink href="/trace" label="Trace Publik" />
                 </div>
             </div>
-
-            {/* Spinner CSS animation */}
-            <style jsx global>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }
