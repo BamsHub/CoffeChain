@@ -1,45 +1,15 @@
-export const runtime = 'edge';
 import { readDb, addItem } from '@/lib/db';
-import { sbSelect, sbInsert, sbUpdate, ordersToSnake, ordersToCamel } from '@/lib/sdb';
+import { sbSelect, sbInsert, sbUpdate, ordersToSnake } from '@/lib/sdb';
+import { getOrders } from '@/lib/orders';
 import { v4 as uuidv4 } from 'uuid';
-import { verifyToken } from '@/lib/auth';
 
-// Helper: ambil orders dari Supabase + JSON (merge keduanya)
-async function getOrders(userId) {
-    // Coba Supabase
-    const sbData = await sbSelect('orders', userId ? { user_id: userId } : {});
-    // Baca JSON
-    const db = await readDb('orders');
-    const jsonOrders = userId ? db.items.filter(o => o.userId === userId) : db.items;
-
-    if (sbData !== null && sbData.length > 0) {
-        const sbOrders = sbData.map(ordersToCamel);
-        // Gabungkan: tambahkan JSON orders yang tidak ada di Supabase (by orderId)
-        const sbIds = new Set(sbOrders.map(o => o.orderId || o.id));
-        const uniqueJson = jsonOrders.filter(o => !sbIds.has(o.orderId) && !sbIds.has(o.id));
-        return [...sbOrders, ...uniqueJson].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
-    // Fallback or merge: return JSON when Supabase empty/unavailable
-    return jsonOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-}
+export { getOrders };
 
 // GET — riwayat order
 export async function GET(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
-        const session = await verifyToken(token);
-        if (!session) {
-            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
-
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId') || session.userId;
-
-        // Security check: users can only fetch their own orders unless they are cooperative or developer
-        if (userId !== session.userId && !['koperasi', 'developer'].includes(session.role)) {
-            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-        }
-
+        const userId = searchParams.get('userId');
         const orders = await getOrders(userId);
         return Response.json({ success: true, data: orders });
     } catch (e) {
@@ -58,24 +28,13 @@ export async function POST(request) {
             return Response.json({ success: false, message: 'Data order tidak lengkap' }, { status: 400 });
         }
 
-        const targetUserId = userId || 'guest';
-
-        // Security check: if registering order for a logged-in user account, verify JWT token
-        if (targetUserId !== 'guest') {
-            const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
-            const session = await verifyToken(token);
-            if (!session || session.userId !== targetUserId) {
-                return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-            }
-        }
-
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
         const virtualAccount = `88800${Math.floor(Math.random() * 9000000000 + 1000000000)}`;
 
         const order = {
             id: uuidv4(),
             orderId,
-            userId: targetUserId,
+            userId: userId || 'guest',
             userName: userName || 'Guest',
             productId,
             productName,
@@ -91,10 +50,8 @@ export async function POST(request) {
             paidAt: null,
         };
 
-        // Coba Supabase dulu
         const sbResult = await sbInsert('orders', ordersToSnake(order));
         if (!sbResult) {
-            // Fallback JSON
             await addItem('orders', order);
         }
         return Response.json({ success: true, data: order }, { status: 201 });
@@ -112,7 +69,8 @@ export async function PATCH(request) {
         if (status === 'paid') updates.paidAt = new Date().toISOString();
         if (txSignature) updates.txSignature = txSignature;
 
-        // Coba Supabase — cari by order_id
+        let updated = null;
+
         const sbOrders = await sbSelect('orders', {});
         if (sbOrders !== null) {
             const target = sbOrders.find(o => o.order_id === orderId || o.id === orderId);
@@ -120,19 +78,23 @@ export async function PATCH(request) {
                 const sbUpdates = { status };
                 if (status === 'paid') sbUpdates.paid_at = new Date().toISOString();
                 if (txSignature) sbUpdates.tx_signature = txSignature;
-                await sbUpdate('orders', target.id, sbUpdates);
-                return Response.json({ success: true, data: { ...ordersToCamel(target), ...updates } });
+                const sbRow = await sbUpdate('orders', target.id, sbUpdates);
+                if (sbRow) updated = { ...ordersToCamel(target), ...updates };
             }
         }
 
-        // Fallback JSON
         const db = await readDb('orders');
         const idx = db.items.findIndex(o => o.orderId === orderId || o.id === orderId);
-        if (idx < 0) return Response.json({ success: false, message: 'Order tidak ditemukan' }, { status: 404 });
-        Object.assign(db.items[idx], updates);
-        const { writeDb } = await import('@/lib/db');
-        await writeDb('orders', db);
-        return Response.json({ success: true, data: db.items[idx] });
+        if (idx >= 0) {
+            Object.assign(db.items[idx], updates);
+            const { writeDb } = await import('@/lib/db');
+            await writeDb('orders', db);
+            updated = db.items[idx];
+        } else if (!updated) {
+            return Response.json({ success: false, message: 'Order tidak ditemukan' }, { status: 404 });
+        }
+
+        return Response.json({ success: true, data: updated });
     } catch (e) {
         console.error('/api/orders PATCH:', e);
         return Response.json({ success: false, message: e.message }, { status: 500 });
