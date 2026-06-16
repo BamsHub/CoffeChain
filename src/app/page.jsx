@@ -73,10 +73,18 @@ const IconWallet = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="n
 const IconTransfer = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>;
 const IconPhantomLogo = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-    <rect width="100" height="100" rx="22" fill="#AB9FF2"/>
-    <path d="M50 18C33 18 22 31 22 48V82L31 74L40 82L50 74L60 82L69 74L78 82V48C78 31 67 18 50 18Z" fill="white"/>
-    <ellipse cx="40" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
-    <ellipse cx="60" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
+    <circle cx="50" cy="50" r="50" fill="#1A1A1A"/>
+    <g transform="translate(15, 20) scale(0.7)">
+      <path d="M15 12.5h60l-12.5 12.5H2.5L15 12.5z" fill="url(#solana-g)"/>
+      <path d="M2.5 32.5h60l12.5 12.5H15L2.5 32.5z" fill="url(#solana-g)"/>
+      <path d="M15 52.5h60l-12.5 12.5H2.5L15 52.5z" fill="url(#solana-g)"/>
+    </g>
+    <defs>
+      <linearGradient id="solana-g" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#9945FF" />
+        <stop offset="100%" stopColor="#14F195" />
+      </linearGradient>
+    </defs>
   </svg>
 );
 const IconBank = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>;
@@ -1142,14 +1150,13 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ── Floating Phantom Ghost ── */}
+            {/* ── Floating Coffee Bean ── */}
             <div style={{ position:'fixed', bottom:28, right:28, zIndex:90, pointerEvents:'none' }}>
-                <div className="phantom-float" style={{ width:56, height:56, filter:'drop-shadow(0 4px 18px rgba(171,159,242,0.55))' }}>
+                <div className="phantom-float" style={{ width:56, height:56, filter:'drop-shadow(0 4px 18px rgba(126,212,74,0.35))' }}>
                     <svg width="56" height="56" viewBox="0 0 100 100" fill="none">
-                        <rect width="100" height="100" rx="22" fill="#AB9FF2"/>
-                        <path d="M50 18C33 18 22 31 22 48V82L31 74L40 82L50 74L60 82L69 74L78 82V48C78 31 67 18 50 18Z" fill="white"/>
-                        <ellipse cx="40" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
-                        <ellipse cx="60" cy="52" rx="5" ry="6" fill="#AB9FF2"/>
+                        <rect width="100" height="100" rx="22" fill="#2D5016"/>
+                        <path d="M35 65 C 20 50, 35 25, 55 25 C 75 25, 80 50, 65 65 C 50 80, 40 75, 35 65 Z" fill="#D3A27F" />
+                        <path d="M32 68 C 42 62, 46 54, 50 50 C 54 46, 58 38, 68 32" stroke="#5C3A21" strokeWidth="4" strokeLinecap="round" fill="none" />
                     </svg>
                 </div>
             </div>

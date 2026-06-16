@@ -22,7 +22,22 @@ const IcoCheck   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="n
 const IcoEye     = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
 const IcoReject  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
 const IcoSpin    = () => <span style={{ display:'inline-block', animation:'spin 0.8s linear infinite', fontSize:14 }}>⏳</span>;
-const IcoPhantom = () => <svg width="16" height="16" viewBox="0 0 128 128" fill="none"><circle cx="64" cy="64" r="64" fill="#9945FF"/><path d="M64 24C42 24 24 42 24 64s18 40 40 40 40-18 40-40S86 24 64 24zm16 52a10 10 0 110-20 10 10 0 010 20zm-32 0a10 10 0 110-20 10 10 0 010 20z" fill="white"/><path d="M44 64h40" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.35"/></svg>;
+const IcoPhantom = () => (
+  <svg width="16" height="16" viewBox="0 0 100 100" fill="none">
+    <circle cx="50" cy="50" r="50" fill="#1A1A1A"/>
+    <g transform="translate(15, 20) scale(0.7)">
+      <path d="M15 12.5h60l-12.5 12.5H2.5L15 12.5z" fill="url(#solana-ico-g)"/>
+      <path d="M2.5 32.5h60l12.5 12.5H15L2.5 32.5z" fill="url(#solana-ico-g)"/>
+      <path d="M15 52.5h60l-12.5 12.5H2.5L15 52.5z" fill="url(#solana-ico-g)"/>
+    </g>
+    <defs>
+      <linearGradient id="solana-ico-g" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#9945FF" />
+        <stop offset="100%" stopColor="#14F195" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
 
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled'];
 const ROAST_OPTIONS   = ['Green Bean', 'Light', 'Medium', 'Medium-Dark', 'Dark'];
