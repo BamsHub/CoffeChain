@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { connectPhantom, disconnectPhantom, getSolBalance, shortenAddress, isPhantomInstalled } from '@/lib/phantom';
+import { getExplorerAddressUrl } from '@/lib/contractConfig';
 import styles from './WalletConnect.module.css';
 
 export default function WalletConnect({ onConnect, onDisconnect }) {
@@ -113,7 +114,7 @@ export default function WalletConnect({ onConnect, onDisconnect }) {
                     </div>
                     <div className={styles.dropdownActions}>
                         <a
-                            href={`https://explorer.solana.com/address/${walletState.publicKey}?cluster=devnet`}
+                            href={getExplorerAddressUrl(walletState.publicKey)}
                             target="_blank"
                             rel="noreferrer"
                             className={styles.dropdownItem}

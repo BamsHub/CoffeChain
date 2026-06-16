@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { normalizeExplorerUrl } from '@/lib/contractConfig';
 
 const STAGES = [
     { id: 1, name: 'Pembersihan/Pencampuran', short: 'Pembersihan', tone: '#7ED44A' },
@@ -263,7 +264,7 @@ export default function StockManagement() {
                 <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: msg.type === 'ok' ? 'rgba(76,175,80,0.12)' : 'rgba(244,67,54,0.12)', border: `1px solid ${msg.type === 'ok' ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.35)'}`, color: msg.type === 'ok' ? '#4CAF50' : '#ff6b6b', fontSize: 13, fontWeight: 700, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <span>{msg.text}</span>
                     {msg.explorerUrl && (
-                        <a href={msg.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#B388FF', textDecoration: 'none' }}>
+                        <a href={normalizeExplorerUrl(msg.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ color: '#B388FF', textDecoration: 'none' }}>
                             Lihat Solana Explorer
                         </a>
                     )}
@@ -375,7 +376,7 @@ export default function StockManagement() {
                                                         Lihat data
                                                     </button>
                                                     {log.explorerUrl ? (
-                                                        <a href={log.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#B388FF', textDecoration: 'none', fontWeight: 800 }}>Sertifikat</a>
+                                                        <a href={normalizeExplorerUrl(log.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ color: '#B388FF', textDecoration: 'none', fontWeight: 800 }}>Sertifikat</a>
                                                     ) : (
                                                         <span style={{ color: '#7ED44A', fontWeight: 800 }}>Local</span>
                                                     )}
@@ -488,7 +489,7 @@ export default function StockManagement() {
                         </div>
 
                         {detailLog.explorerUrl ? (
-                            <a href={detailLog.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: 16 }}>
+                            <a href={normalizeExplorerUrl(detailLog.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: 16 }}>
                                 Buka Sertifikat Solana
                             </a>
                         ) : (

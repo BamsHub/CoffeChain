@@ -9,7 +9,7 @@ import {
     isPhantomInstalled, connectPhantom, disconnectPhantom,
     getSolBalance, shortenAddress, sendMemoWithPhantom,
 } from '@/lib/phantom';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
+import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import QRButton, { BlockchainQRCard } from '@/components/BlockchainQR/BlockchainQR';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
@@ -34,8 +34,6 @@ const STOCK_STAGES = [
     { id: 5, name: 'Pelepasan Gas' },
     { id: 6, name: 'Produk Jadi' },
 ];
-
-const DEVNET_EXPLORER = (sig) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 /* ── Style constants ───────────────────────────────────────────── */
 const S = {
@@ -234,7 +232,7 @@ export default function CoffeeRegisterContent() {
                     text: `"${regProduct.name}" berhasil terdaftar di Solana Blockchain!`,
                     coffeeId:    data.data?.coffeeId,
                     txSig:       phantomTxSignature,
-                    explorerUrl: DEVNET_EXPLORER(phantomTxSignature),
+                    explorerUrl: getExplorerTxUrl(phantomTxSignature),
                 });
                 await Promise.all([loadProducts(), loadTraces()]);
                 setTimeout(() => { setRegProduct(null); setRegMsg(null); }, 4500);
@@ -316,7 +314,7 @@ export default function CoffeeRegisterContent() {
                         <IcoShield /> Register Kopi ke Blockchain
                     </h1>
                     <p style={{ fontSize: 13, color: 'rgba(232,245,224,0.45)' }}>
-                        Daftarkan produk ke Solana Devnet via <strong style={{ color: '#9945FF' }}>Phantom Wallet</strong>
+                        Daftarkan produk ke Solana Testnet via <strong style={{ color: '#9945FF' }}>Phantom Wallet</strong>
                     </p>
                 </div>
 
@@ -545,12 +543,12 @@ export default function CoffeeRegisterContent() {
                                     {t.txSignature ? (
                                         <>
                                             <span style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', padding: '3px 9px', borderRadius: 7, background: 'rgba(74,124,40,0.15)', border: '1px solid rgba(126,212,74,0.25)' }}>✅ Verified</span>
-                                            <a href={t.explorerUrl || DEVNET_EXPLORER(t.txSignature)} target="_blank" rel="noopener noreferrer"
+                                            <a href={normalizeExplorerUrl(t.explorerUrl) || getExplorerTxUrl(t.txSignature)} target="_blank" rel="noopener noreferrer"
                                                 style={{ fontSize: 11, color: '#b388ff', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, background: 'rgba(124,77,255,0.1)', border: '1px solid rgba(124,77,255,0.25)' }}>
                                                 <IcoLink /> Explorer
                                             </a>
                                             <QRButton
-                                                explorerUrl={t.explorerUrl || DEVNET_EXPLORER(t.txSignature)}
+                                                explorerUrl={normalizeExplorerUrl(t.explorerUrl) || getExplorerTxUrl(t.txSignature)}
                                                 traceUrl={t.coffeeId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${t.coffeeId}` : undefined}
                                                 coffeeId={t.coffeeId}
                                                 productName={t.name}
@@ -596,6 +594,12 @@ export default function CoffeeRegisterContent() {
                             ))}
                         </div>
 
+                        <PipelineAuditPanel
+                            batch={findProductBatch(regProduct, productionBatches)}
+                            logs={getProductStageLogs(regProduct, productionBatches, productionLogs)}
+                            compact
+                        />
+
                         {/* Status message */}
                         {regMsg && (
                             <div style={{ marginBottom: 16 }}>
@@ -609,7 +613,7 @@ export default function CoffeeRegisterContent() {
                                     {(regMsg.txSig || regMsg.coffeeId) && (
                                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
                                             {regMsg.txSig && (
-                                                <a href={regMsg.explorerUrl} target="_blank" rel="noopener noreferrer"
+                                                <a href={normalizeExplorerUrl(regMsg.explorerUrl)} target="_blank" rel="noopener noreferrer"
                                                     style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#b388ff', textDecoration: 'none', fontWeight: 700, padding: '5px 12px', borderRadius: 7, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)' }}>
                                                     <IcoLink /> Solana Explorer
                                                 </a>
@@ -627,7 +631,7 @@ export default function CoffeeRegisterContent() {
                                 {regMsg.type === 'success' && (regMsg.txSig || regMsg.coffeeId) && (
                                     <div style={{ marginTop: 16 }}>
                                         <BlockchainQRCard
-                                            explorerUrl={regMsg.explorerUrl || (regMsg.txSig ? `https://explorer.solana.com/tx/${regMsg.txSig}?cluster=devnet` : undefined)}
+                                            explorerUrl={normalizeExplorerUrl(regMsg.explorerUrl) || (regMsg.txSig ? getExplorerTxUrl(regMsg.txSig) : undefined)}
                                             traceUrl={regMsg.coffeeId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${regMsg.coffeeId}` : undefined}
                                             coffeeId={regMsg.coffeeId}
                                             productName={regProduct?.name}
@@ -922,7 +926,7 @@ function ProductDetailView({ product, batch, logs = [] }) {
                                                 ))}
                                         </div>
                                         {log.explorerUrl && (
-                                            <a href={log.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#b388ff', fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>
+                                            <a href={normalizeExplorerUrl(log.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ color: '#b388ff', fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>
                                                 Buka Sertifikat Solana
                                             </a>
                                         )}
@@ -932,6 +936,78 @@ function ProductDetailView({ product, batch, logs = [] }) {
                         );
                     })}
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function PipelineAuditPanel({ batch, logs = [], compact = false }) {
+    return (
+        <div style={{ paddingTop: compact ? 0 : 4, marginBottom: compact ? 18 : 0 }}>
+            <div style={{ color: '#E8F5E0', fontSize: compact ? 13 : 15, fontWeight: 800, marginBottom: 8 }}>
+                Pipeline Produksi 1-6
+            </div>
+            {batch ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8, marginBottom: 12 }}>
+                    {[
+                        ['Batch', batch.name],
+                        ['Asal Panen', batch.origin],
+                        ['Varietas', batch.variety],
+                        ['Grade', batch.grade],
+                        ['Berat Awal', batch.weightKg ? `${batch.weightKg} kg` : '-'],
+                        ['Tahap Saat Ini', batch.currentStage],
+                    ].map(([label, value]) => (
+                        <div key={label} style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(74,124,40,0.2)', borderRadius: 9, padding: 9 }}>
+                            <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
+                            <div style={{ color: '#E8F5E0', fontSize: 12, fontWeight: 700, wordBreak: 'break-word' }}>{value || '-'}</div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 12, marginBottom: 10 }}>
+                    Produk ini belum punya riwayat batch dari Kelola Stok.
+                </div>
+            )}
+
+            <div style={{ display: 'grid', gap: 8, maxHeight: compact ? 320 : undefined, overflow: compact ? 'auto' : undefined, paddingRight: compact ? 4 : 0 }}>
+                {STOCK_STAGES.map(stage => {
+                    const log = logs.find(item => Number(item.stage) === stage.id);
+                    return (
+                        <div key={stage.id} style={{ border: '1px solid rgba(74,124,40,0.22)', borderRadius: 10, padding: compact ? 10 : 12, background: log ? 'rgba(74,124,40,0.08)' : 'rgba(255,255,255,0.025)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: log ? 8 : 0 }}>
+                                <div style={{ color: '#E8F5E0', fontSize: 12, fontWeight: 800 }}>{stage.id}. {stage.name}</div>
+                                <span style={{ fontSize: 10, color: log ? '#7ED44A' : '#FFB300', fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: log ? 'rgba(74,124,40,0.16)' : 'rgba(255,152,0,0.1)', border: `1px solid ${log ? 'rgba(126,212,74,0.25)' : 'rgba(255,152,0,0.25)'}` }}>
+                                    {log ? (log.photoUrl ? 'Foto lengkap' : 'Terisi') : 'Belum ada'}
+                                </span>
+                            </div>
+                            {log && (
+                                <div style={{ display: 'grid', gap: 8 }}>
+                                    {log.photoUrl && (
+                                        <a href={log.photoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                                            <img src={log.photoUrl} alt={`Bukti ${stage.name}`} style={{ width: '100%', maxHeight: compact ? 120 : 180, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(74,124,40,0.25)' }} />
+                                        </a>
+                                    )}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 7 }}>
+                                        {Object.entries(log.data || {})
+                                            .filter(([, value]) => value !== null && value !== undefined && value !== '')
+                                            .slice(0, compact ? 6 : undefined)
+                                            .map(([key, value]) => (
+                                                <div key={key} style={{ background: 'rgba(0,0,0,0.12)', border: '1px solid rgba(74,124,40,0.16)', borderRadius: 8, padding: 8 }}>
+                                                    <div style={{ color: 'rgba(232,245,224,0.42)', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', marginBottom: 2 }}>{formatAuditKey(key)}</div>
+                                                    <div style={{ color: '#E8F5E0', fontSize: 12, fontWeight: 700, wordBreak: 'break-word' }}>{formatAuditValue(value)}</div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                    {log.explorerUrl && (
+                                        <a href={normalizeExplorerUrl(log.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ color: '#b388ff', fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>
+                                            Buka Sertifikat Solana
+                                        </a>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

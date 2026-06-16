@@ -5,6 +5,7 @@
  * Mendukung tema gelap dan terang via CSS variables.
  */
 import { useEffect, useState, useCallback } from 'react';
+import { normalizeExplorerUrl } from '@/lib/contractConfig';
 
 /* ── Icons ── */
 const IcoDownload = () => (
@@ -66,13 +67,14 @@ async function generateQR(url) {
  *   - compact:     Tampilan ringkas (hanya QR kecil + tautan)
  */
 export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName, compact = false }) {
+    const safeExplorerUrl = normalizeExplorerUrl(explorerUrl);
     const [qrData, setQrData] = useState(null);
-    const [activeUrl, setActiveUrl] = useState(explorerUrl || traceUrl || '');
+    const [activeUrl, setActiveUrl] = useState(safeExplorerUrl || traceUrl || '');
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const target = explorerUrl || traceUrl;
+        const target = safeExplorerUrl || traceUrl;
         if (!target) return;
         setActiveUrl(target);
         setLoading(true);
@@ -80,7 +82,7 @@ export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName,
             setQrData(data);
             setLoading(false);
         });
-    }, [explorerUrl, traceUrl]);
+    }, [safeExplorerUrl, traceUrl]);
 
     function switchUrl(url) {
         if (url === activeUrl) return;
@@ -135,10 +137,10 @@ export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName,
             )}
 
             {/* URL Switcher Tabs */}
-            {explorerUrl && traceUrl && (
+            {safeExplorerUrl && traceUrl && (
                 <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.2)', padding: 3, borderRadius: 8 }}>
                     {[
-                        { url: explorerUrl, label: 'Solana' },
+                        { url: safeExplorerUrl, label: 'Solana' },
                         { url: traceUrl, label: 'Sertifikasi' },
                     ].map(({ url, label }) => (
                         <button key={label} onClick={() => switchUrl(url)} style={{
@@ -179,8 +181,8 @@ export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName,
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {explorerUrl && (
-                    <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={{
+                {safeExplorerUrl && (
+                    <a href={safeExplorerUrl} target="_blank" rel="noopener noreferrer" style={{
                         display: 'inline-flex', alignItems: 'center', gap: 5,
                         padding: '6px 12px', borderRadius: 7,
                         background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)',

@@ -37,7 +37,7 @@ export async function POST(request) {
 
         // Tentukan status order
         const newStatus = normalizeMidtransStatus(transaction_status, fraud_status);
-        const paidAt = getPaidAtForStatus(newStatus);
+        const paidAt = getPaidAtForStatus(newStatus, body);
 
         // Update order di Supabase (primary DB on Vercel)
         const { data: orders } = await supabaseAdmin

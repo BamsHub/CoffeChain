@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import AddTransactionModal from '@/sections/dashboard/AddTransactionModal';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 import styles from './TransactionsPage.module.css';
 
 // Solana Explorer URL builder
@@ -10,7 +11,7 @@ function explorerUrl(hashOrSig) {
     if (!hashOrSig || hashOrSig.startsWith('0x') || hashOrSig.includes('...')) return null;
     // Jika ini adalah signature Solana asli (base58, panjang > 50 char)
     if (hashOrSig.length >= 60) {
-        return `https://explorer.solana.com/tx/${hashOrSig}?cluster=devnet`;
+        return getExplorerTxUrl(hashOrSig);
     }
     return null;
 }

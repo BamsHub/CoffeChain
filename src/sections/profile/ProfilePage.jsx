@@ -141,7 +141,7 @@ function PhantomModal({ onClose, user, onUpdate }) {
                         )}
                     </div>
                     <p style={{ fontSize: 11, color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 8 }}>
-                        Pastikan ekstensi Phantom sudah terinstall dan diset ke Devnet untuk testing
+                        Pastikan ekstensi Phantom sudah terinstall dan diset ke Testnet untuk testing
                     </p>
                 </div>
             </div>
@@ -505,7 +505,7 @@ export default function ProfilePage() {
                                         { icon: <ShoppingBag size={20} />, title: 'Produk Baru Ditambahkan', desc: 'Notifikasi saat koperasi/developer menambah produk kopi baru', key: 'notif_product' },
                                         { icon: <CreditCard size={20} />, title: 'Status Pembayaran', desc: 'Konfirmasi pembayaran berhasil atau gagal', key: 'notif_payment' },
                                         { icon: <TrendingUp size={20} />, title: 'Perubahan Harga Pasar', desc: 'Update harga kopi terbaru setiap hari', key: 'notif_price' },
-                                        { icon: <LinkIcon size={20} />, title: 'Transaksi Blockchain', desc: 'Notifikasi transaksi on-chain pada Solana Devnet', key: 'notif_blockchain' },
+                                        { icon: <LinkIcon size={20} />, title: 'Transaksi Blockchain', desc: 'Notifikasi transaksi on-chain pada Solana Testnet', key: 'notif_blockchain' },
                                         { icon: <Mail size={20} />, title: 'Email Digest Mingguan', desc: 'Ringkasan aktivitas minggu ini via email', key: 'notif_email' },
                                     ].map(item => (
                                         <div key={item.key} className={styles.notifRow}>

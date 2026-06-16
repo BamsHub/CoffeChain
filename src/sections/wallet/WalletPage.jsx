@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { connectPhantom, disconnectPhantom, getSolBalance, shortenAddress, isPhantomInstalled } from '@/lib/phantom';
 import { simulateCoffeeTransaction } from '@/lib/solana';
+import { getExplorerAddressUrl } from '@/lib/contractConfig';
 import styles from './WalletPage.module.css';
 
 const demoTxHistory = [
@@ -125,7 +126,7 @@ export default function WalletPage() {
                             <div className={styles.walletIconBox}>
                                 <div style={{ fontSize: 36 }}><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></div>
                                 <div className={styles.phantomLabel}>Phantom</div>
-                                <div className={styles.netLabel}>Devnet</div>
+                                <div className={styles.netLabel}>Testnet</div>
                             </div>
                         </div>
                         <div className={styles.walletAddrRow}>
@@ -135,7 +136,7 @@ export default function WalletPage() {
                         <div className={styles.balanceActions}>
                             <button className={styles.actionBtn} onClick={() => setTab('send')}>⬆ Kirim</button>
                             <button className={styles.actionBtn} onClick={() => setTab('receive')}>⬇ Terima</button>
-                            <a href={`https://explorer.solana.com/address/${wallet.publicKey}?cluster=devnet`} target="_blank" rel="noreferrer" className={styles.actionBtn}>🔍 Explorer</a>
+                            <a href={getExplorerAddressUrl(wallet.publicKey)} target="_blank" rel="noreferrer" className={styles.actionBtn}>🔍 Explorer</a>
                         </div>
                     </div>
 
@@ -155,7 +156,7 @@ export default function WalletPage() {
                                 { l: 'Saldo SOL', v: `${wallet.balance.toFixed(4)} SOL`, c: '#c084fc', bg: 'rgba(147,51,234,0.1)' },
                                 { l: 'Nilai IDR', v: `Rp ${(balanceIdr / 1000000).toFixed(2)} Jt`, c: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
                                 { l: 'Total Tx', v: txHistory.length.toString(), c: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
-                                { l: 'Jaringan', v: 'Solana Devnet', c: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
+                                { l: 'Jaringan', v: 'Solana Testnet', c: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
                             ].map((s, i) => (
                                 <div key={i} className={styles.overviewCard} style={{ background: s.bg, borderColor: s.c + '33' }}>
                                     <div className={styles.overviewVal} style={{ color: s.c }}>{s.v}</div>

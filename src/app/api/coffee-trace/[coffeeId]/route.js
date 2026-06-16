@@ -17,10 +17,37 @@ export async function GET(request, { params }) {
             }, { status: 404 });
         }
 
+        const [productsDb, batchesDb, logsDb] = await Promise.all([
+            readDb('products'),
+            readDb('production_batches'),
+            readDb('production_stage_logs'),
+        ]);
+        const product = productsDb.items.find(item =>
+            item.id === trace.productId ||
+            item.coffeeId === trace.coffeeId ||
+            item.coffeeId === coffeeId
+        ) || null;
+        const batch = batchesDb.items.find(item =>
+            item.productId === product?.id ||
+            item.productId === trace.productId ||
+            item.coffeeId === trace.coffeeId ||
+            item.coffeeId === coffeeId
+        ) || null;
+        const pipelineLogs = batch
+            ? logsDb.items
+                .filter(item => item.batchId === batch.id)
+                .sort((a, b) => Number(a.stage) - Number(b.stage))
+            : [];
+
         return Response.json({
             success: true,
             data: {
                 ...trace,
+                product,
+                pipeline: {
+                    batch,
+                    logs: pipelineLogs,
+                },
                 explorerUrl: trace.txSignature ? getExplorerTxUrl(trace.txSignature) : null,
                 blockchainVerified: !!trace.txSignature,
             },

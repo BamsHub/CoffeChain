@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, ordersToSnake } from '@/lib/sdb';
+import { getMidtransSnapBaseUrl } from '@/lib/midtrans';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -90,7 +91,7 @@ export async function POST(request) {
             };
         }
 
-        const midtransRes = await fetch('https://app.sandbox.midtrans.com/snap/v1/transactions', {
+        const midtransRes = await fetch(`${getMidtransSnapBaseUrl()}/snap/v1/transactions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

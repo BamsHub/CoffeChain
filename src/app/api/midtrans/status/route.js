@@ -2,7 +2,13 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { getMidtransApiBaseUrl, getMidtransAuthHeader, normalizeMidtransStatus, getPaidAtForStatus } from '@/lib/midtrans';
+import {
+    describeMidtransStatus,
+    getMidtransApiBaseUrl,
+    getMidtransAuthHeader,
+    getPaidAtForStatus,
+    normalizeMidtransStatus,
+} from '@/lib/midtrans';
 import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
 
 async function getOrderId(request) {
@@ -39,14 +45,22 @@ async function handleStatus(request) {
             .maybeSingle();
 
         if (!statusRes.ok) {
-            const statusMessage = midtransData.status_message || midtransData.error_messages?.join(', ') || 'Status Midtrans belum tersedia';
+            const isSnapNotSelected = statusRes.status === 404 && localOrder?.payment_method === 'midtrans';
+            const statusMessage = isSnapNotSelected
+                ? 'Metode pembayaran di Snap belum dipilih. Pilih GoPay/QRIS/VA dulu di popup Midtrans, lalu cek status kembali.'
+                : midtransData.status_message || midtransData.error_messages?.join(', ') || 'Status Midtrans belum tersedia';
             return Response.json({
                 success: true,
                 data: {
                     orderId,
                     status: localOrder?.status || 'pending',
-                    midtransStatus: 'not_available',
+                    midtransStatus: isSnapNotSelected ? 'snap_not_selected' : 'not_available',
                     midtransStatusMessage: statusMessage,
+                    displayStatus: isSnapNotSelected ? 'Belum pilih metode pembayaran' : 'Status belum tersedia',
+                    paymentInstruction: statusMessage,
+                    paymentType: null,
+                    paymentLabel: 'Belum dipilih',
+                    checkedAt: new Date().toISOString(),
                     raw: midtransData,
                 },
             });
@@ -55,7 +69,8 @@ async function handleStatus(request) {
         const transactionStatus = midtransData.transaction_status;
         const fraudStatus = midtransData.fraud_status;
         const normalizedStatus = normalizeMidtransStatus(transactionStatus, fraudStatus);
-        const paidAt = getPaidAtForStatus(normalizedStatus);
+        const paidAt = getPaidAtForStatus(normalizedStatus, midtransData);
+        const statusDetails = describeMidtransStatus(midtransData, localOrder);
 
         const updatePayload = {
             status: normalizedStatus,
@@ -82,7 +97,20 @@ async function handleStatus(request) {
                 solanaTraceError: solanaTrace?.solanaTraceError || null,
                 midtransStatus: transactionStatus || 'unknown',
                 fraudStatus: fraudStatus || null,
-                paymentType: midtransData.payment_type || null,
+                displayStatus: statusDetails.displayStatus,
+                paymentInstruction: statusDetails.paymentInstruction,
+                paymentType: statusDetails.paymentType,
+                paymentLabel: statusDetails.paymentLabel,
+                isQrPayment: statusDetails.isQrPayment,
+                qrCodeUrl: statusDetails.qrCodeUrl,
+                deeplinkUrl: statusDetails.deeplinkUrl,
+                statusUrl: statusDetails.statusUrl,
+                actions: statusDetails.actions,
+                acquirer: statusDetails.acquirer,
+                issuer: statusDetails.issuer,
+                transactionType: statusDetails.transactionType,
+                expiryTime: statusDetails.expiryTime,
+                checkedAt: statusDetails.checkedAt,
                 transactionId: midtransData.transaction_id || null,
                 transactionTime: midtransData.transaction_time || null,
                 settlementTime: midtransData.settlement_time || null,

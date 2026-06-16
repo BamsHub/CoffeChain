@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import QRButton from '@/components/BlockchainQR/BlockchainQR';
+import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 
 const GRADES = ['A', 'B', 'C', 'Specialty', 'Premium'];
 const VARIETIES = ['Arabika', 'Robusta', 'Liberika', 'Excelsa'];
@@ -239,7 +240,7 @@ export default function ProductsContent() {
     async function handleVerifyBlockchain(product) {
         if (verifying) return;
         setVerifying(product.id);
-        setMsg({ type: 'ok', text: `⏳ Mengirim "${product.name}" ke Solana Devnet... (maks 30 detik)` });
+        setMsg({ type: 'ok', text: `⏳ Mengirim "${product.name}" ke Solana Testnet... (maks 30 detik)` });
         try {
             const payload = {
                 productId: product.id,
@@ -263,8 +264,7 @@ export default function ProductsContent() {
             const data = await res.json();
             if (data.success && data.verified && data.data?.txSignature) {
                 // Full on-chain success
-                const explorerUrl = data.data.explorerUrl ||
-                    `https://explorer.solana.com/tx/${data.data.txSignature}?cluster=devnet`;
+                const explorerUrl = normalizeExplorerUrl(data.data.explorerUrl) || getExplorerTxUrl(data.data.txSignature);
                 setMsg({
                     type: 'ok',
                     text: `✅ "${product.name}" berhasil terverifikasi di Solana! Coffee ID: ${data.data.coffeeId} — Gas fee dipotong dari wallet server.`,
@@ -274,8 +274,7 @@ export default function ProductsContent() {
                 load();
             } else if (data.success && data.data?.txSignature) {
                 // TX sent but confirmation pending
-                const explorerUrl = data.data.explorerUrl ||
-                    `https://explorer.solana.com/tx/${data.data.txSignature}?cluster=devnet`;
+                const explorerUrl = normalizeExplorerUrl(data.data.explorerUrl) || getExplorerTxUrl(data.data.txSignature);
                 setMsg({
                     type: 'ok',
                     text: `⚡ TX dikirim! Coffee ID: ${data.data.coffeeId} — Konfirmasi sedang berlangsung di Solana.`,
@@ -353,7 +352,7 @@ export default function ProductsContent() {
                     <span>{msg.type === 'ok' ? '\u2713 ' : '\u2715 '}{msg.text}</span>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         {msg.type === 'ok' && msg.explorerUrl && (
-                            <a href={msg.explorerUrl} target="_blank" rel="noopener noreferrer"
+                            <a href={normalizeExplorerUrl(msg.explorerUrl)} target="_blank" rel="noopener noreferrer"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 7, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
                                 <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><polyline points="15 3 21 3 21 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                                 Solana Explorer
@@ -361,7 +360,7 @@ export default function ProductsContent() {
                         )}
                         {msg.type === 'ok' && msg.txSig && (
                             <QRButton
-                                explorerUrl={msg.explorerUrl}
+                                explorerUrl={normalizeExplorerUrl(msg.explorerUrl)}
                                 coffeeId={msg.txSig?.slice(0, 8) + '...'}
                                 label="QR Sertifikasi"
                             />

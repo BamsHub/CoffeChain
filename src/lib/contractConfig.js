@@ -31,3 +31,14 @@ export const getExplorerTxUrl = (signature) =>
     `${EXPLORER_URL}/tx/${signature}?cluster=${DEPLOY_NETWORK}`;
 export const getExplorerAddressUrl = (address) =>
     `${EXPLORER_URL}/address/${address}?cluster=${DEPLOY_NETWORK}`;
+export const normalizeExplorerUrl = (url) => {
+    if (!url || typeof url !== "string") return url;
+    try {
+        const parsed = new URL(url);
+        if (parsed.hostname !== "explorer.solana.com") return url;
+        parsed.searchParams.set("cluster", DEPLOY_NETWORK);
+        return parsed.toString();
+    } catch {
+        return url.replace(/([?&]cluster=)[^&]+/, `$1${DEPLOY_NETWORK}`);
+    }
+};

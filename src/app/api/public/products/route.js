@@ -2,7 +2,7 @@
 export const runtime = 'nodejs';
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
+import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 
 /**
  * PUBLIC API — Katalog Produk Kopi CoffeeChain
@@ -100,7 +100,7 @@ export async function GET(request) {
                 sold:           orderCountMap[p.id] ?? p.sold ?? 0,
                 coffeeId:       p.coffee_id,
                 txSignature:    trace.tx_signature || null,
-                explorerUrl:    trace.tx_signature ? getExplorerTxUrl(trace.tx_signature) : (trace.explorer_url || null),
+                explorerUrl:    trace.tx_signature ? getExplorerTxUrl(trace.tx_signature) : (normalizeExplorerUrl(trace.explorer_url) || null),
                 traceStatus:    trace.status || null,
                 paymentWallet:  p.payment_wallet,
                 submittedByName: p.submitted_by_name,

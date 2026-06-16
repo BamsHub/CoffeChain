@@ -1,7 +1,7 @@
 /**
  * CoffeeChain Smart Contract — Solana Program Interface
  *
- * Program ID akan di-deploy ke Solana Devnet menggunakan Anchor framework.
+ * Program ID akan di-deploy ke Solana Testnet menggunakan Anchor framework.
  * File ini berisi interface untuk berinteraksi dengan smart contract on-chain.
  *
  * Untuk deploy program:

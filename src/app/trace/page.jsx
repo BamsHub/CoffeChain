@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
+import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import { useTheme } from '@/context/ThemeContext';
 
 const IconCoffee = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
@@ -14,6 +14,15 @@ const IconClock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="no
 const IconQR = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>;
 const IconDownload = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 const IconCopy = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>;
+
+const TRACE_STAGES = [
+    { id: 1, name: 'Pembersihan & Pencampuran' },
+    { id: 2, name: 'Pemanggangan' },
+    { id: 3, name: 'Pendinginan' },
+    { id: 4, name: 'Penggilingan' },
+    { id: 5, name: 'Pelepasan Gas' },
+    { id: 6, name: 'Produk Jadi' },
+];
 
 /* ── Inline QR generator ── */
 function CertQRImage({ url, size = 140 }) {
@@ -99,6 +108,94 @@ function CertCard({ p }) {
     );
 }
 
+function formatTraceKey(key) {
+    const labels = {
+        notes: 'Catatan',
+        operator: 'Operator',
+        durationMinutes: 'Durasi',
+        weightIn: 'Berat Masuk',
+        weightOut: 'Berat Keluar',
+        suhu: 'Suhu',
+        levelRoast: 'Level Roast',
+        ukuranGiling: 'Ukuran Giling',
+        gasReleaseHours: 'Pelepasan Gas',
+        productName: 'Produk',
+        stock: 'Stok',
+        weights: 'Kemasan',
+        pricePerUnit: 'Harga',
+        description: 'Deskripsi',
+        roast: 'Roast',
+    };
+    return labels[key] || key.replace(/[A-Z]/g, letter => ` ${letter}`).trim();
+}
+
+function formatTraceValue(value) {
+    if (Array.isArray(value)) return value.join(', ');
+    if (value && typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+}
+
+function TracePipeline({ pipeline }) {
+    const batch = pipeline?.batch;
+    const logs = pipeline?.logs || [];
+    if (!batch && logs.length === 0) return null;
+
+    return (
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--color-border)' }}>
+            <div style={{ fontSize: 14, color: 'var(--color-text)', fontWeight: 900, marginBottom: 10 }}>Pipeline Produksi</div>
+            {batch && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 8, marginBottom: 12 }}>
+                    {[
+                        ['Batch', batch.name],
+                        ['Asal', batch.origin],
+                        ['Varietas', batch.variety],
+                        ['Grade', batch.grade],
+                        ['Berat Awal', batch.weightKg ? `${batch.weightKg} kg` : '-'],
+                    ].map(([label, value]) => (
+                        <div key={label} style={{ padding: 9, borderRadius: 8, background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)' }}>
+                            <div style={{ color: 'var(--color-text-muted)', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+                            <div style={{ color: 'var(--color-text)', fontSize: 12, fontWeight: 700 }}>{value || '-'}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <div style={{ display: 'grid', gap: 8 }}>
+                {TRACE_STAGES.map(stage => {
+                    const log = logs.find(item => Number(item.stage) === stage.id);
+                    return (
+                        <div key={stage.id} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 10, background: log ? 'rgba(74,124,40,0.08)' : 'rgba(255,255,255,0.02)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: log ? 8 : 0 }}>
+                                <span style={{ color: 'var(--color-text)', fontSize: 12, fontWeight: 800 }}>{stage.id}. {stage.name}</span>
+                                <span style={{ color: log ? '#7ED44A' : '#FFB300', fontSize: 10, fontWeight: 800 }}>{log ? 'Terverifikasi' : 'Belum ada'}</span>
+                            </div>
+                            {log && (
+                                <div style={{ display: 'grid', gap: 8 }}>
+                                    {log.photoUrl && (
+                                        <a href={log.photoUrl} target="_blank" rel="noopener noreferrer">
+                                            <img src={log.photoUrl} alt={`Bukti ${stage.name}`} style={{ width: '100%', maxHeight: 130, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                                        </a>
+                                    )}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))', gap: 7 }}>
+                                        {Object.entries(log.data || {})
+                                            .filter(([, value]) => value !== null && value !== undefined && value !== '')
+                                            .slice(0, 5)
+                                            .map(([key, value]) => (
+                                                <div key={key} style={{ padding: 7, borderRadius: 7, background: 'rgba(0,0,0,0.12)', border: '1px solid var(--color-border)' }}>
+                                                    <div style={{ color: 'var(--color-text-muted)', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>{formatTraceKey(key)}</div>
+                                                    <div style={{ color: 'var(--color-text)', fontSize: 11, fontWeight: 700, wordBreak: 'break-word' }}>{formatTraceValue(value)}</div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 function TraceContent() {
     const searchParams = useSearchParams();
     const [query, setQuery] = useState('');
@@ -164,7 +261,7 @@ function TraceContent() {
                 </div>
             )}
             {!loading && result && (() => {
-                const img = allProducts.find(p => p.coffeeId === result.coffeeId)?.image;
+                const img = result.product?.image || allProducts.find(p => p.coffeeId === result.coffeeId)?.image;
                 return (
                 <div style={{ animation: 'fadeUp 0.4s ease', background: 'var(--color-bg-card)', border: '1.5px solid rgba(126,212,74,0.3)', borderRadius: 22, overflow: 'hidden', display: 'flex', flexDirection: 'row', minHeight: 460 }}>
 
@@ -224,7 +321,7 @@ function TraceContent() {
                                     <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 4 }}>Solana TX Signature</div>
                                     <div style={{ fontSize: 11, color: '#7ED44A', fontFamily: 'monospace', fontWeight: 600 }}>{result.txSignature}</div>
                                 </div>
-                                <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
+                                <a href={normalizeExplorerUrl(result.explorerUrl) || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
                                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#512da8,#7c4dff)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                                     <IconExplorer /> Lihat di Solana Explorer
                                 </a>
@@ -234,14 +331,14 @@ function TraceContent() {
                         {/* QR + buttons */}
                         {result.coffeeId && (
                             <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--color-border)', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <CertQRImage url={result.txSignature ? (result.explorerUrl || getExplorerTxUrl(result.txSignature)) : `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={100} />
+                                <CertQRImage url={result.txSignature ? (normalizeExplorerUrl(result.explorerUrl) || getExplorerTxUrl(result.txSignature)) : `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={100} />
                                 <div style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 7 }}>
                                     <div style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><IconQR /> QR {result.txSignature ? 'Solana Explorer' : 'Sertifikasi'}</div>
                                     <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(74,124,40,0.18)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
                                         <IconQR /> Halaman Sertifikasi
                                     </a>
                                     {result.txSignature && (
-                                        <a href={result.explorerUrl || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
+                                        <a href={normalizeExplorerUrl(result.explorerUrl) || getExplorerTxUrl(result.txSignature)} target="_blank" rel="noopener noreferrer"
                                             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(124,77,255,0.12)', border: '1px solid rgba(124,77,255,0.3)', color: '#b388ff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
                                             <IconExplorer /> Solana Explorer
                                         </a>
@@ -249,6 +346,7 @@ function TraceContent() {
                                 </div>
                             </div>
                         )}
+                        <TracePipeline pipeline={result.pipeline} />
                     </div>
                 </div>
                 );

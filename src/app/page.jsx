@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { STORE_WALLET, MEMO_SIGNER_PUBLIC, getExplorerTxUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, MEMO_SIGNER_PUBLIC, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import { useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
@@ -46,6 +46,7 @@ function formatMidtransStatus(status) {
         cancel: 'Dibatalkan',
         expire: 'Kedaluwarsa',
         failure: 'Gagal',
+        snap_not_selected: 'Belum pilih metode pembayaran',
         not_available: 'Belum tersedia',
         unknown: 'Tidak diketahui',
     };
@@ -116,6 +117,7 @@ export default function LandingPage() {
     const [traceData, setTraceData] = useState(null);
     const [traceLoading, setTraceLoading] = useState(false);
     const solanaIntervalRef = useRef(null);
+    const midtransIntervalRef = useRef(null);
     const snapPaymentActiveRef = useRef(false);
 
     /* ── Katalog Search & Filter ── */
@@ -249,6 +251,29 @@ export default function LandingPage() {
             setTraceData(null);
         }
     }, [detailModal, selectedDetailProduct]);
+
+    useEffect(() => {
+        if (midtransIntervalRef.current) {
+            clearInterval(midtransIntervalRef.current);
+            midtransIntervalRef.current = null;
+        }
+        const shouldPoll = orderResult?.paymentMethod === 'midtrans' &&
+            orderResult?.orderId &&
+            orderResult?.status !== 'paid' &&
+            !['expired', 'cancel', 'deny', 'failure'].includes(orderResult?.midtransStatus);
+        if (!shouldPoll) return undefined;
+
+        midtransIntervalRef.current = setInterval(() => {
+            refreshMidtransStatus(orderResult.orderId, orderResult, true);
+        }, 8000);
+
+        return () => {
+            if (midtransIntervalRef.current) {
+                clearInterval(midtransIntervalRef.current);
+                midtransIntervalRef.current = null;
+            }
+        };
+    }, [orderResult?.orderId, orderResult?.paymentMethod, orderResult?.status, orderResult?.midtransStatus]);
 
     /* ── Phantom Wallet Functions ── */
     async function connectWallet() {
@@ -471,11 +496,11 @@ export default function LandingPage() {
                         setQrDataUrl(url);
                     } catch { setQrDataUrl(null); }
 
-                    // Auto-poll Solana devnet for incoming payment to targetWallet
+                    // Auto-poll Solana testnet for incoming payment to targetWallet
                     if (solanaIntervalRef.current) clearInterval(solanaIntervalRef.current);
                     const capturedOrderId = data.data.orderId;
                     try {
-                        const rpc = 'https://api.devnet.solana.com';
+                        const rpc = SOLANA_NETWORK;
                         const baseRes = await fetch(rpc, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -509,7 +534,7 @@ export default function LandingPage() {
                                         ...(confirmData?.data || {}),
                                         status: 'paid',
                                         txSignature: confirmData?.data?.txSignature || newSig,
-                                        explorerUrl: confirmData?.data?.explorerUrl || getExplorerTxUrl(newSig),
+                                        explorerUrl: normalizeExplorerUrl(confirmData?.data?.explorerUrl || getExplorerTxUrl(newSig)),
                                     }));
                                     setShowBuyAgain(true);
                                 }
@@ -535,7 +560,7 @@ export default function LandingPage() {
 
     async function refreshMidtransStatus(orderId = orderResult?.orderId, baseOrder = null, silent = false) {
         if (!orderId) return;
-        setCheckingMidtrans(true);
+        if (!silent) setCheckingMidtrans(true);
         try {
             const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
             const data = await res.json();
@@ -552,7 +577,7 @@ export default function LandingPage() {
         } catch (err) {
             if (!silent) alert(err.message || 'Gagal mengecek status Midtrans');
         } finally {
-            setCheckingMidtrans(false);
+            if (!silent) setCheckingMidtrans(false);
         }
     }
 
@@ -931,7 +956,7 @@ export default function LandingPage() {
                                         <span key={tag} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.2)', fontWeight:600 }}>{tag}</span>
                                     ))}
                                     {p.coffeeId && (
-                                        <a href={p.explorerUrl || `/trace?id=${p.coffeeId}`} target={p.explorerUrl ? '_blank' : undefined} rel={p.explorerUrl ? 'noopener noreferrer' : undefined} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.3)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
+                                        <a href={normalizeExplorerUrl(p.explorerUrl) || `/trace?id=${p.coffeeId}`} target={p.explorerUrl ? '_blank' : undefined} rel={p.explorerUrl ? 'noopener noreferrer' : undefined} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.3)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
                                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                                             {p.explorerUrl ? 'Solana' : 'Sertifikasi'}
                                         </a>
@@ -939,7 +964,7 @@ export default function LandingPage() {
                                     {p.coffeeId && (
                                         <div onClick={e => e.stopPropagation()}>
                                             <QRButton
-                                                explorerUrl={p.explorerUrl || (p.txSignature ? getExplorerTxUrl(p.txSignature) : undefined)}
+                                                explorerUrl={normalizeExplorerUrl(p.explorerUrl) || (p.txSignature ? getExplorerTxUrl(p.txSignature) : undefined)}
                                                 traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
                                                 coffeeId={p.coffeeId}
                                                 productName={p.name}
@@ -1198,7 +1223,11 @@ export default function LandingPage() {
                                         ...(orderResult.coffeeId ? [['Coffee ID', orderResult.coffeeId]] : []),
                                         ['Status', orderResult.status === 'paid' ? 'Lunas' : 'Menunggu Pembayaran'],
                                         ...(orderResult.paymentMethod === 'midtrans' ? [
-                                            ['Status Midtrans', formatMidtransStatus(orderResult.midtransStatus)],
+                                            ['Status Midtrans', orderResult.displayStatus || formatMidtransStatus(orderResult.midtransStatus)],
+                                            ...(orderResult.paymentLabel ? [['Metode Midtrans', orderResult.paymentLabel]] : []),
+                                            ...(orderResult.transactionId ? [['ID Transaksi Midtrans', orderResult.transactionId]] : []),
+                                            ...(orderResult.expiryTime ? [['Batas Bayar', new Date(String(orderResult.expiryTime).replace(' ', 'T')).toLocaleString('id-ID')]] : []),
+                                            ...(orderResult.checkedAt ? [['Terakhir Dicek', new Date(orderResult.checkedAt).toLocaleString('id-ID')]] : []),
                                             ...(orderResult.midtransStatusMessage ? [['Pesan Midtrans', orderResult.midtransStatusMessage]] : []),
                                         ] : []),
                                         ['Stok Tersisa', `${orderResult.stockLeft ?? '–'} unit`],
@@ -1209,6 +1238,38 @@ export default function LandingPage() {
                                         </div>
                                     ))}
                                 </div>
+
+                                {orderResult.paymentMethod === 'midtrans' && orderResult.status !== 'paid' && (
+                                    <div style={{ background:'rgba(0,174,240,0.08)', border:'1px solid rgba(0,174,240,0.25)', borderRadius:12, padding:14, textAlign:'left', marginBottom:16 }}>
+                                        <div style={{ color:'#00AEF0', fontWeight:900, fontSize:13, marginBottom:6 }}>
+                                            {orderResult.displayStatus || 'Menunggu status Midtrans'}
+                                        </div>
+                                        <div style={{ color:'rgba(232,245,224,0.65)', fontSize:12, lineHeight:1.6 }}>
+                                            {orderResult.paymentInstruction || 'Selesaikan pembayaran di aplikasi, lalu sistem akan mengecek status ke Midtrans otomatis.'}
+                                        </div>
+                                        {orderResult.qrCodeUrl && (
+                                            <div style={{ marginTop:12, textAlign:'center' }}>
+                                                <img src={orderResult.qrCodeUrl} alt="QR GoPay/QRIS Midtrans" style={{ width:180, height:180, objectFit:'contain', background:'#fff', borderRadius:10, padding:8 }} />
+                                            </div>
+                                        )}
+                                        {(orderResult.deeplinkUrl || orderResult.qrCodeUrl) && (
+                                            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
+                                                {orderResult.deeplinkUrl && (
+                                                    <a href={orderResult.deeplinkUrl} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                                        style={{ padding:'8px 12px', fontSize:12, textDecoration:'none' }}>
+                                                        Buka Aplikasi Bayar <IconArrow />
+                                                    </a>
+                                                )}
+                                                {orderResult.qrCodeUrl && (
+                                                    <a href={orderResult.qrCodeUrl} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                                        style={{ padding:'8px 12px', fontSize:12, textDecoration:'none' }}>
+                                                        Buka QR <IconArrow />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {orderResult.paymentMethod === 'midtrans' && (
                                     <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
@@ -1249,7 +1310,7 @@ export default function LandingPage() {
                                         </div>
                                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
                                             {orderResult.txSignature && (
-                                                <a href={orderResult.explorerUrl || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                                <a href={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
                                                     style={{ padding:'8px 12px', fontSize:12, justifyContent:'center', display:'inline-flex', textDecoration:'none' }}>
                                                     <IconSolana /> Solana Explorer <IconArrow />
                                                 </a>
@@ -1262,7 +1323,7 @@ export default function LandingPage() {
                                             )}
                                             {orderResult.coffeeId && orderResult.txSignature && (
                                                 <QRButton
-                                                    explorerUrl={orderResult.explorerUrl || getExplorerTxUrl(orderResult.txSignature)}
+                                                    explorerUrl={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)}
                                                     traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${orderResult.coffeeId}`}
                                                     coffeeId={orderResult.coffeeId}
                                                     productName={orderResult.productName}
@@ -1340,7 +1401,7 @@ export default function LandingPage() {
                                 )}
 
                                 {orderResult.txSignature && (
-                                    <a href={orderResult.explorerUrl || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                    <a href={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
                                         style={{ padding:'10px 16px', fontSize:12, justifyContent:'center', marginBottom:12, width:'100%', display:'flex' }}>
                                         <IconSolana /> Lihat di Solana Explorer <IconArrow />
                                     </a>
@@ -1598,7 +1659,7 @@ export default function LandingPage() {
                                     </a>
                                     {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
                                         <a
-                                            href={selectedDetailProduct.explorerUrl || getExplorerTxUrl(selectedDetailProduct.txSignature)}
+                                            href={normalizeExplorerUrl(selectedDetailProduct.explorerUrl) || getExplorerTxUrl(selectedDetailProduct.txSignature)}
                                             target="_blank"
                                             rel="noreferrer"
                                             style={{ marginLeft:8, display:'inline-flex', alignItems:'center', gap:7, padding:'10px 18px', background:'rgba(153,69,255,0.12)', border:'1px solid rgba(153,69,255,0.35)', borderRadius:9, color:'#b388ff', fontWeight:700, fontSize:13, textDecoration:'none' }}
@@ -1609,7 +1670,7 @@ export default function LandingPage() {
                                     {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
                                         <div style={{ marginTop:10 }}>
                                             <QRButton
-                                                explorerUrl={selectedDetailProduct.explorerUrl || getExplorerTxUrl(selectedDetailProduct.txSignature)}
+                                                explorerUrl={normalizeExplorerUrl(selectedDetailProduct.explorerUrl) || getExplorerTxUrl(selectedDetailProduct.txSignature)}
                                                 traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${selectedDetailProduct.coffeeId}`}
                                                 coffeeId={selectedDetailProduct.coffeeId}
                                                 productName={selectedDetailProduct.name}

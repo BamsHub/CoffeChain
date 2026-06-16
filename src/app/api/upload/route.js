@@ -28,8 +28,19 @@ export async function POST(req) {
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const supabase = getSupabaseAdmin();
         const bucket = 'product-images';
+        let supabase;
+        try {
+            supabase = getSupabaseAdmin();
+        } catch (storageErr) {
+            const fallbackUrl = `data:${file.type};base64,${buffer.toString('base64')}`;
+            return NextResponse.json({
+                success: true,
+                url: fallbackUrl,
+                storage: 'inline',
+                warning: `Storage belum dikonfigurasi, foto disimpan inline: ${storageErr.message}`,
+            });
+        }
 
         const { error: bucketErr } = await supabase.storage.getBucket(bucket);
         if (bucketErr) {
@@ -40,7 +51,13 @@ export async function POST(req) {
             });
             if (createBucketErr && !createBucketErr.message?.toLowerCase().includes('already exists')) {
                 console.error('Supabase bucket create error:', createBucketErr.message);
-                return NextResponse.json({ success: false, message: `Gagal menyiapkan storage: ${createBucketErr.message}` }, { status: 500 });
+                const fallbackUrl = `data:${file.type};base64,${buffer.toString('base64')}`;
+                return NextResponse.json({
+                    success: true,
+                    url: fallbackUrl,
+                    storage: 'inline',
+                    warning: `Storage belum siap, foto disimpan inline: ${createBucketErr.message}`,
+                });
             }
         }
 
@@ -51,7 +68,13 @@ export async function POST(req) {
 
         if (uploadErr) {
             console.error('Supabase upload error:', uploadErr.message);
-            return NextResponse.json({ success: false, message: `Gagal upload ke storage: ${uploadErr.message}` }, { status: 500 });
+            const fallbackUrl = `data:${file.type};base64,${buffer.toString('base64')}`;
+            return NextResponse.json({
+                success: true,
+                url: fallbackUrl,
+                storage: 'inline',
+                warning: `Storage gagal, foto disimpan inline: ${uploadErr.message}`,
+            });
         }
 
         const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);

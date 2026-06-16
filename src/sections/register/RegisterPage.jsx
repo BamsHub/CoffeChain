@@ -19,6 +19,9 @@ export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [registerResult, setRegisterResult] = useState(null);
+    const [resendMsg, setResendMsg] = useState('');
+    const [resending, setResending] = useState(false);
     const [showPass, setShowPass] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -71,6 +74,7 @@ export default function RegisterPage() {
             if (!data.success) {
                 setError(data.message || 'Pendaftaran gagal');
             } else {
+                setRegisterResult(data);
                 setSuccess(true);
             }
         } catch (err) {
@@ -82,6 +86,7 @@ export default function RegisterPage() {
 
     // ── Success screen ──────────────────────────────────────────
     if (success) {
+        const emailSent = registerResult?.emailSent !== false;
         return (
             <div className={styles.container}>
                 <div className={styles.bgGrid} />
@@ -89,32 +94,57 @@ export default function RegisterPage() {
                 <div className={styles.bgGlow2} />
                 <div className={styles.card}>
                     <div className={styles.successIcon}></div>
-                    <h2 className={styles.successTitle}>Cek Email Anda!</h2>
+                    <h2 className={styles.successTitle}>{emailSent ? 'Cek Email Anda!' : 'Akun Dibuat, Email Belum Terkirim'}</h2>
                     <p className={styles.successText}>
-                        Email verifikasi telah dikirim ke{' '}
-                        <strong style={{ color: '#7ED44A' }}>{form.email}</strong>.
-                        Klik link di email untuk mengaktifkan akun Anda.
+                        {emailSent ? (
+                            <>
+                                Email verifikasi telah dikirim ke{' '}
+                                <strong style={{ color: '#7ED44A' }}>{form.email}</strong>.
+                                Klik link di email untuk mengaktifkan akun Anda.
+                            </>
+                        ) : (
+                            <>
+                                Akun untuk <strong style={{ color: '#7ED44A' }}>{form.email}</strong> sudah dibuat,
+                                tetapi server belum berhasil mengirim email verifikasi. Coba kirim ulang setelah konfigurasi email aktif.
+                            </>
+                        )}
                     </p>
+                    {registerResult?.message && (
+                        <p className={styles.successHint} style={{ color: emailSent ? undefined : '#F5A623' }}>
+                            {registerResult.message}
+                        </p>
+                    )}
                     <p className={styles.successHint}>
                         Tidak ada email? Cek folder <strong>Spam / Junk</strong>, atau{' '}
                         <button
                             className={styles.resendBtn}
+                            disabled={resending}
                             onClick={async () => {
+                                setResending(true);
+                                setResendMsg('');
                                 try {
-                                    await fetch('/api/auth/resend-verification', {
+                                    const res = await fetch('/api/auth/resend-verification', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ email: form.email }),
                                     });
-                                    alert('Link verifikasi baru telah dikirim.');
+                                    const data = await res.json();
+                                    setResendMsg(data.message || (data.success ? 'Link verifikasi baru telah dikirim.' : 'Gagal mengirim ulang.'));
                                 } catch {
-                                    alert('Gagal mengirim ulang. Coba lagi.');
+                                    setResendMsg('Gagal mengirim ulang. Coba lagi.');
+                                } finally {
+                                    setResending(false);
                                 }
                             }}
                         >
-                            kirim ulang
+                            {resending ? 'mengirim...' : 'kirim ulang'}
                         </button>.
                     </p>
+                    {resendMsg && (
+                        <p className={styles.successHint} style={{ color: resendMsg.toLowerCase().includes('gagal') ? '#F5A623' : '#7ED44A' }}>
+                            {resendMsg}
+                        </p>
+                    )}
                     <Link href="/login" className={styles.backToLogin}>
                         ← Kembali ke Login
                     </Link>
