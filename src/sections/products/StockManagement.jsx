@@ -41,7 +41,7 @@ const initialStageForm = {
 };
 
 export default function StockManagement() {
-    const { user } = useAuth();
+    const { user, getToken } = useAuth();
     const isFarmer = user?.role === 'farmer';
 
     const [batches, setBatches] = useState([]);
@@ -144,9 +144,14 @@ export default function StockManagement() {
         setUploading(true);
         setMsg(null);
         try {
+            const token = await getToken();
             const formData = new FormData();
             formData.append('file', file);
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                body: formData
+            });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Upload gagal');
             setPhotoUrl(data.url);

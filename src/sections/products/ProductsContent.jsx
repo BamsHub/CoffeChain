@@ -17,7 +17,7 @@ const initialForm = {
 };
 
 export default function ProductsContent() {
-    const { user } = useAuth();
+    const { user, getToken } = useAuth();
     const isFarmer = user?.role === 'farmer';
     const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
 
@@ -227,9 +227,14 @@ export default function ProductsContent() {
     async function uploadPhoto(file, setter, setUploading) {
         setUploading(true);
         try {
+            const token = await getToken();
             const fd = new FormData();
             fd.append('file', file);
-            const res = await fetch('/api/upload', { method: 'POST', body: fd });
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                body: fd
+            });
             const data = await res.json();
             if (data.success) setter(data.url);
             else setMsg({ type: 'err', text: data.message || 'Upload gagal' });
