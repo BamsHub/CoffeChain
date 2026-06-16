@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function DocumentationPage() {
     const { user, getToken } = useAuth();
-    const [activeTab, setActiveTab] = useState('guides'); // guides | buttons | testing
+    const [activeTab, setActiveTab] = useState('guides'); // guides | testing
     
     // DB documentation state
     const [guides, setGuides] = useState({ farmerGuides: [], developerGuides: [] });
@@ -315,9 +315,6 @@ export default function DocumentationPage() {
                 <button style={tabBtnStyle('guides')} onClick={() => setActiveTab('guides')}>
                     📖 Panduan Alur Kerja ({roleLabel})
                 </button>
-                <button style={tabBtnStyle('buttons')} onClick={() => setActiveTab('buttons')}>
-                    🔘 Detail Fungsional Tombol
-                </button>
                 <button style={tabBtnStyle('testing')} onClick={() => setActiveTab('testing')}>
                     🧪 Hasil Pengujian (White Box & Black Box)
                 </button>
@@ -361,54 +358,6 @@ export default function DocumentationPage() {
                             ))}
                         </div>
                     )}
-                </div>
-            )}
-
-            {/* Tab 2: Buttons */}
-            {activeTab === 'buttons' && (
-                <div style={{ display: 'grid', gap: 24 }}>
-                    {buttonRegistry.map((reg, idx) => (
-                        <div key={idx} style={cardStyle}>
-                            <h3 style={{ color: 'var(--color-logo-sub)', fontSize: 18, fontWeight: 900, marginBottom: 16 }}>
-                                {reg.section}
-                            </h3>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 600 }}>
-                                    <thead>
-                                        <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text)' }}>
-                                            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 900 }}>Nama Tombol</th>
-                                            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 900 }}>Pengguna/Akses</th>
-                                            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 900 }}>Deskripsi Fungsi & Reaksi Sistem</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {reg.buttons.map((btn, bidx) => (
-                                            <tr key={bidx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--color-text-secondary)' }}>
-                                                <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>
-                                                    <span style={{ background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)', padding: '4px 8px', borderRadius: 6 }}>
-                                                        {btn.name}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '12px 14px', fontSize: 12 }}>
-                                                    <span style={{ 
-                                                        background: btn.type.includes('Public') ? 'rgba(0,212,255,0.1)' : 'rgba(126,212,74,0.1)', 
-                                                        color: btn.type.includes('Public') ? 'var(--color-crypto)' : 'var(--color-logo-sub)', 
-                                                        padding: '3px 8px', 
-                                                        borderRadius: 6,
-                                                        fontSize: 11,
-                                                        fontWeight: 800
-                                                    }}>
-                                                        {btn.type}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '12px 14px', fontSize: 13, lineHeight: 1.5 }}>{btn.desc}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    ))}
                 </div>
             )}
 
