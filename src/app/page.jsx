@@ -703,7 +703,7 @@ export default function LandingPage() {
 
                     {/* Desktop Nav */}
                     <div className={`lp-nav-links${mobileMenu ? ' open' : ''}`}>
-                        {[['#products', 'Produk'], ['#market', 'Harga Pasar'], ['#how', 'Cara Kerja'], ['/trace', 'Trace Kopi']].map(([href, label]) => (
+                        {[['#products', 'Produk'], ['#market', 'Harga Pasar'], ['#how', 'Cara Kerja'], ['/trace', 'Trace Kopi'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
                             <a key={href} href={href} onClick={() => setMobileMenu(false)} style={{ color: 'rgba(232,245,224,0.7)', fontSize: 14, padding: '9px 14px', borderRadius: 8, textDecoration: 'none', display: 'block' }}>{label}</a>
                         ))}
 
@@ -776,6 +776,9 @@ export default function LandingPage() {
                             </Link>
                             <Link href="/coffee-register" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(74,124,40,0.2)', color: 'rgba(232,245,224,0.8)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
                                 <IconChain /> Register Kopi
+                            </Link>
+                            <Link href="/documentation" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(74,124,40,0.2)', color: 'rgba(232,245,224,0.8)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
+                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg> Dokumentasi
                             </Link>
                             <button
                                 onClick={async () => { await logout(); setAdminUser(null); }}
@@ -1152,7 +1155,7 @@ export default function LandingPage() {
                     </Link>
                     <div style={{ color: 'rgba(232,245,224,0.3)', fontSize: 12 }}>© 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana</div>
                     <div className="lp-footer-links">
-                        {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi']].map(([href, label]) => (
+                        {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
                             <a key={label} href={href} style={{ color: 'rgba(232,245,224,0.4)', fontSize: 13, textDecoration: 'none' }}>{label}</a>
                         ))}
                     </div>

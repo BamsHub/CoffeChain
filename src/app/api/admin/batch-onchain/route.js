@@ -43,7 +43,7 @@ export async function POST(request) {
             });
         }
 
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002';
+        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app';
         const results = [];
 
         for (const p of toProcess) {

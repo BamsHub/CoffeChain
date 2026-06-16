@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 function getAppUrl() {
-    return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002').replace(/\/$/, '');
+    return (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-blockchain.vercel.app').replace(/\/$/, '');
 }
 
 function getFromAddress() {
