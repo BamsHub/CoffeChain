@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import styles from './ProfilePage.module.css';
-import { Key, Shield, Wallet, MonitorSmartphone, User, Lock, Bell, Settings, ShoppingBag, CreditCard, TrendingUp, Link as LinkIcon, Mail, Moon, Sun, Camera, Upload, Trash2, Save, Loader2, Link2, Unplug, AlertTriangle, CheckCircle2, Calendar, Banknote, Sparkles, X, LogOut, Check, ChevronLeft } from 'lucide-react';
+import { Key, Shield, Wallet, MonitorSmartphone, User, Lock, Bell, Settings, ShoppingBag, CreditCard, TrendingUp, Link as LinkIcon, Mail, Camera, Upload, Trash2, Save, Loader2, Link2, Unplug, AlertTriangle, CheckCircle2, Calendar, Banknote, Sparkles, X, LogOut, Check, ChevronLeft } from 'lucide-react';
 
 const LANGUAGES = ['Indonesia', 'English', 'Bahasa Melayu', '日本語', '中文'];
 
@@ -152,7 +151,6 @@ function PhantomModal({ onClose, user, onUpdate }) {
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
     const { user, setUser, logout } = useAuth();
-    const { theme, toggleTheme } = useTheme();
     const router = useRouter();
 
     const [activeTab, setActiveTab] = useState('profile');
@@ -177,7 +175,6 @@ export default function ProfilePage() {
     });
 
     const roleInfo = user ? (ROLE_LABELS[user.role] || ROLE_LABELS.farmer) : null;
-    const isDark = theme === 'dark';
 
     useEffect(() => {
         if (!user) { router.push('/login'); return; }
@@ -298,13 +295,6 @@ export default function ProfilePage() {
                     <h1 className={styles.pageTitle}>Pengaturan Akun</h1>
                     <p className={styles.pageSub}>Kelola profil, keamanan, dan preferensi akun kamu</p>
                 </div>
-                {/* THEME TOGGLE di header */}
-                <button className={styles.themeToggleBtn} onClick={toggleTheme} title={`Switch ke ${isDark ? 'Light' : 'Dark'} Mode`}>
-                    <span className={styles.themeToggleTrack} data-dark={isDark}>
-                        <span className={styles.themeToggleThumb}>{isDark ? <Moon size={16} /> : <Sun size={16} />}</span>
-                    </span>
-                    <span className={styles.themeToggleLabel}>{isDark ? 'Dark Mode' : 'Light Mode'}</span>
-                </button>
             </div>
 
             <div className={styles.layout}>
@@ -543,20 +533,6 @@ export default function ProfilePage() {
                             <form onSubmit={handleSave} className={styles.form}>
                                 <div className={styles.formSection}>
                                     <h3 className={styles.sectionTitle}>Pengaturan Aplikasi</h3>
-
-                                    {/* TEMA TOGGLE — fungsional sekarang */}
-                                    <div className={styles.prefRow}>
-                                        <div>
-                                            <div className={styles.prefLabel}>{isDark ? <span style={{display:"flex",alignItems:"center",gap:6}}><Moon size={16}/> Tema Gelap</span> : <span style={{display:"flex",alignItems:"center",gap:6}}><Sun size={16}/> Tema Terang</span>}</div>
-                                            <div className={styles.prefDesc}>
-                                                {isDark ? 'Mode gelap aktif — klik untuk mode terang' : 'Mode terang aktif — klik untuk mode gelap'}
-                                            </div>
-                                        </div>
-                                        <label className={styles.toggle} onClick={e => { e.preventDefault(); toggleTheme(); }}>
-                                            <input type="checkbox" checked={isDark} readOnly className={styles.toggleInput} />
-                                            <span className={styles.toggleSlider} />
-                                        </label>
-                                    </div>
 
                                     <div className={styles.field}>
                                         <label>Bahasa Antarmuka</label>

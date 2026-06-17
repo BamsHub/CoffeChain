@@ -1490,6 +1490,12 @@ export default function LandingPage() {
                                         <IconSolana /> Lihat di Solana Explorer <IconArrow />
                                     </a>
                                 )}
+                                {orderResult.orderId && (
+                                    <a href={`/receipt?orderId=${encodeURIComponent(orderResult.orderId)}`} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                        style={{ padding:'10px 16px', fontSize:12, justifyContent:'center', marginBottom:12, width:'100%', display:'flex', textDecoration:'none' }}>
+                                        <IconQr /> Lihat Receipt & QR <IconArrow />
+                                    </a>
+                                )}
                                 <button onClick={() => { if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; } setOrderModal(false); setOrderResult(null); setQrDataUrl(null); setShowBuyAgain(false); }} className="lp-btn-primary" style={{ width:'100%', padding:'12px', fontSize:14, justifyContent:'center' }}>
                                     Tutup
                                 </button>
@@ -1670,6 +1676,16 @@ export default function LandingPage() {
                         </p>
                         <p style={{ fontSize:12, color:'rgba(232,245,224,0.4)', marginBottom:28 }}>Terima kasih sudah belanja di CoffeeChain!</p>
                         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                            {orderResult?.orderId && (
+                                <a
+                                    href={`/receipt?orderId=${encodeURIComponent(orderResult.orderId)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="lp-btn-outline"
+                                    style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:13, textDecoration:'none' }}>
+                                    <IconQr /> Lihat Receipt & QR
+                                </a>
+                            )}
                             <button
                                 onClick={() => {
                                     if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
