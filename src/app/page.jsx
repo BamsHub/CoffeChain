@@ -360,6 +360,11 @@ export default function LandingPage() {
                 });
                 const data = await res.json();
                 if (data.success && data.snapToken) {
+                    const midtransOrder = {
+                        ...data.data,
+                        snapToken: data.snapToken,
+                        redirectUrl: data.redirectUrl || null,
+                    };
                     // Jika window.snap belum siap, tunggu sebentar (maks 2 detik)
                     if (!window.snap) {
                         let retries = 4;
@@ -388,7 +393,7 @@ export default function LandingPage() {
                         onSuccess: (result) => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...data.data,
+                                ...midtransOrder,
                                 status: 'paid',
                                 midtransStatus: result.transaction_status || 'capture',
                                 midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
@@ -405,7 +410,7 @@ export default function LandingPage() {
                         onPending: (result) => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...data.data,
+                                ...midtransOrder,
                                 status: 'pending',
                                 midtransStatus: result.transaction_status || 'pending',
                                 midtransStatusMessage: result.status_message || 'Menunggu pembayaran',
@@ -425,10 +430,10 @@ export default function LandingPage() {
                         onClose: () => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...data.data,
+                                ...midtransOrder,
                                 status: 'pending',
                                 midtransStatus: 'pending',
-                                midtransStatusMessage: 'Popup ditutup. Cek status untuk melihat status terbaru dari Midtrans.',
+                                midtransStatusMessage: 'Popup pembayaran ditutup. Anda bisa melanjutkan pembayaran tanpa membuat pesanan baru.',
                             };
                             setOrderResult(nextOrder);
                             refreshAfterSnap(nextOrder, 1800);
@@ -601,6 +606,79 @@ export default function LandingPage() {
             if (!silent) alert(err.message || 'Gagal mengecek status Midtrans');
         } finally {
             if (!silent) setCheckingMidtrans(false);
+        }
+    }
+
+    async function resumeMidtransPayment() {
+        if (!orderResult?.snapToken || orderResult.status === 'paid') return;
+        if (snapPaymentActiveRef.current) {
+            alert('Popup pembayaran Midtrans masih aktif. Selesaikan atau tutup popup pembayaran dulu.');
+            return;
+        }
+
+        snapPaymentActiveRef.current = true;
+        setCheckingMidtrans(true);
+        try {
+            loadMidtransSnap();
+            if (!window.snap) {
+                let retries = 6;
+                while (retries > 0 && !window.snap) {
+                    await new Promise(r => setTimeout(r, 500));
+                    retries--;
+                }
+            }
+            if (!window.snap) throw new Error('Midtrans Snap belum siap. Refresh halaman dan coba lagi.');
+
+            const finish = () => {
+                snapPaymentActiveRef.current = false;
+                setCheckingMidtrans(false);
+            };
+            const refreshLater = (delay = 1200) => {
+                window.setTimeout(() => refreshMidtransStatus(orderResult.orderId, orderResult, true), delay);
+            };
+
+            window.snap.pay(orderResult.snapToken, {
+                onSuccess: (result) => {
+                    finish();
+                    setOrderResult(prev => ({
+                        ...prev,
+                        status: 'paid',
+                        midtransStatus: result.transaction_status || 'capture',
+                        midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
+                    }));
+                    setShowBuyAgain(true);
+                    refreshLater();
+                },
+                onPending: (result) => {
+                    finish();
+                    setOrderResult(prev => ({
+                        ...prev,
+                        status: 'pending',
+                        midtransStatus: result.transaction_status || 'pending',
+                        midtransStatusMessage: result.status_message || 'Menunggu pembayaran',
+                    }));
+                    refreshLater();
+                },
+                onError: (result) => {
+                    finish();
+                    alert('Pembayaran Midtrans gagal: ' + (result.status_message || 'Terjadi kesalahan'));
+                    refreshLater(1500);
+                },
+                onClose: () => {
+                    finish();
+                    setOrderResult(prev => ({
+                        ...prev,
+                        status: prev?.status || 'pending',
+                        midtransStatus: prev?.midtransStatus || 'pending',
+                        midtransStatusMessage: 'Popup pembayaran ditutup. Anda bisa melanjutkan pembayaran tanpa membuat pesanan baru.',
+                    }));
+                    refreshLater(1800);
+                },
+            });
+        } catch (err) {
+            snapPaymentActiveRef.current = false;
+            setCheckingMidtrans(false);
+            alert(err.message || 'Popup Midtrans gagal dibuka. Coba lagi.');
         }
     }
 
@@ -1283,10 +1361,19 @@ export default function LandingPage() {
                                 )}
 
                                 {orderResult.paymentMethod === 'midtrans' && (
-                                    <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
-                                        style={{ width:'100%', padding:'11px 16px', borderRadius:10, border:'1px solid rgba(0,174,240,0.35)', background:'rgba(0,174,240,0.12)', color:'#00AEF0', fontWeight:800, cursor:checkingMidtrans ? 'wait' : 'pointer', marginBottom:16 }}>
-                                        {checkingMidtrans ? 'Mengecek Status...' : 'Cek Status Midtrans'}
-                                    </button>
+                                    <div style={{ display:'grid', gap:8, marginBottom:16 }}>
+                                        {orderResult.status !== 'paid' && orderResult.snapToken && (
+                                            <button type="button" onClick={resumeMidtransPayment} disabled={checkingMidtrans}
+                                                className="lp-btn-primary"
+                                                style={{ width:'100%', padding:'12px 16px', fontSize:13, justifyContent:'center', background:'linear-gradient(135deg,#00AEF0,#0070B8)', cursor:checkingMidtrans ? 'wait' : 'pointer' }}>
+                                                <IconMidtrans size={18} /> {checkingMidtrans ? 'Membuka Snap...' : 'Lanjutkan Pembayaran'}
+                                            </button>
+                                        )}
+                                        <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
+                                            style={{ width:'100%', padding:'11px 16px', borderRadius:10, border:'1px solid rgba(0,174,240,0.35)', background:'rgba(0,174,240,0.12)', color:'#00AEF0', fontWeight:800, cursor:checkingMidtrans ? 'wait' : 'pointer' }}>
+                                            {checkingMidtrans ? 'Mengecek Status...' : 'Cek Status Midtrans'}
+                                        </button>
+                                    </div>
                                 )}
 
                                 {(orderResult.txSignature || orderResult.coffeeId) && (
