@@ -37,7 +37,7 @@ async function ensureBalance(connection, publicKey) {
     const balance = await connection.getBalance(publicKey);
     console.log(`[coffee-trace] Wallet ${publicKey.toBase58()} balance: ${balance / LAMPORTS_PER_SOL} SOL`);
     if (balance < 0.005 * LAMPORTS_PER_SOL) {
-        console.log('[coffee-trace] Balance low, requesting devnet airdrop...');
+        console.log('[coffee-trace] Balance low, requesting testnet airdrop...');
         try {
             const sig = await connection.requestAirdrop(publicKey, 1 * LAMPORTS_PER_SOL);
             await connection.confirmTransaction(sig, 'confirmed');

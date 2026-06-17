@@ -6,7 +6,7 @@
  *
  * Untuk deploy program:
  * 1. Install Anchor: cargo install --git https://github.com/coral-xyz/anchor anchor-cli
- * 2. solana config set --url devnet
+ * 2. solana config set --url testnet
  * 3. anchor build && anchor deploy
  */
 
@@ -95,7 +95,7 @@ export function createVerifyBatchInstruction(operatorPublicKey, batchId) {
 }
 
 /**
- * Simulasi kirim transaksi ke blockchain (devnet/mainnet)
+ * Simulasi kirim transaksi ke blockchain (testnet/mainnet)
  * Untuk production, gunakan sendCoffeeTransaction() yang sesungguhnya
  */
 export async function simulateCoffeeTransaction(farmerPubKey, weightKg, pricePerKg, variety) {

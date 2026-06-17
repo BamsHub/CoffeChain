@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 import styles from './TransactionsPage.module.css';
 
 function explorerUrl(hashOrSig) {
     if (!hashOrSig || hashOrSig.startsWith('0x') || hashOrSig.includes('...')) return null;
     if (hashOrSig.length >= 60) {
-        return `https://explorer.solana.com/tx/${hashOrSig}?cluster=devnet`;
+        return getExplorerTxUrl(hashOrSig);
     }
     return null;
 }

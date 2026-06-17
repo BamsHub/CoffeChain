@@ -306,6 +306,13 @@ export default function LandingPage() {
         setWalletPublicKey(null); setWalletBalance(0); setWalletMenuOpen(false);
     }
 
+    function goToReceipt(orderId, delay = 250) {
+        if (!orderId || typeof window === 'undefined') return;
+        window.setTimeout(() => {
+            window.location.assign(`/receipt?orderId=${encodeURIComponent(orderId)}`);
+        }, delay);
+    }
+
     async function handleOrder(e) {
         e.preventDefault();
         if (!selectedProduct) return;
@@ -404,8 +411,8 @@ export default function LandingPage() {
                                     ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
                                     : p
                             ));
-                            setShowBuyAgain(true);
                             refreshAfterSnap(nextOrder);
+                            goToReceipt(nextOrder.orderId);
                         },
                         onPending: (result) => {
                             finishSnapPayment();
@@ -564,7 +571,7 @@ export default function LandingPage() {
                                         txSignature: confirmData?.data?.txSignature || newSig,
                                         explorerUrl: normalizeExplorerUrl(confirmData?.data?.explorerUrl || getExplorerTxUrl(newSig)),
                                     }));
-                                    setShowBuyAgain(true);
+                                    goToReceipt(capturedOrderId);
                                 }
                             } catch { /* ignore poll errors */ }
                         }, 5000);
@@ -578,6 +585,9 @@ export default function LandingPage() {
                         const url = await QRCode.toDataURL(qrContent, { width: 240, margin: 2, color: { dark: '#F5A623', light: '#0a120a' } });
                         setQrDataUrl(url);
                     } catch { setQrDataUrl(null); }
+                }
+                if (data.data?.status === 'paid') {
+                    goToReceipt(data.data.orderId);
                 }
             } else {
                 alert(data.message || 'Gagal membuat pesanan');
@@ -601,7 +611,7 @@ export default function LandingPage() {
                 midtransStatus: data.data.midtransStatus,
                 midtransStatusMessage: data.data.midtransStatusMessage,
             }));
-            if (data.data.status === 'paid') setShowBuyAgain(true);
+            if (data.data.status === 'paid') goToReceipt(orderId);
         } catch (err) {
             if (!silent) alert(err.message || 'Gagal mengecek status Midtrans');
         } finally {
@@ -646,8 +656,8 @@ export default function LandingPage() {
                         midtransStatus: result.transaction_status || 'capture',
                         midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
                     }));
-                    setShowBuyAgain(true);
                     refreshLater();
+                    goToReceipt(orderResult.orderId);
                 },
                 onPending: (result) => {
                     finish();

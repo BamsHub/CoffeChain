@@ -95,7 +95,7 @@ export async function POST(request) {
                     results.push({ id: p.id, name: p.name, status: 'failed', error: data.message });
                 }
 
-                // 2.5 detik jeda antar TX supaya tidak rate-limited Solana devnet
+                // 2.5 detik jeda antar TX supaya tidak rate-limited Solana testnet
                 await new Promise(r => setTimeout(r, 2500));
             } catch (err) {
                 results.push({ id: p.id, name: p.name, status: 'error', error: err.message });
