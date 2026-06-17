@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 // GET — list all batches (or filter by stage / farmerId)
 export async function GET(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -73,7 +73,7 @@ export async function GET(req) {
 // POST — create new batch (starts at stage 1)
 export async function POST(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -120,7 +120,7 @@ export async function POST(req) {
 // PATCH — update batch (advance stage, attach coffeeId, etc.)
 export async function PATCH(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -165,7 +165,7 @@ export async function PATCH(req) {
 // DELETE
 export async function DELETE(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });

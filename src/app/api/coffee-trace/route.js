@@ -131,7 +131,7 @@ async function verifyPhantomMemoTx(txSignature, signerAddress) {
 
 export async function POST(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });

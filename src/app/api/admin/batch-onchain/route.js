@@ -13,7 +13,7 @@ import { verifyToken } from '@/lib/auth';
  */
 export async function POST(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session || !['koperasi', 'developer'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
@@ -122,7 +122,7 @@ export async function POST(request) {
 /** GET — cek berapa produk yang belum terverifikasi on-chain */
 export async function GET(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session || !['koperasi', 'developer'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });

@@ -18,9 +18,7 @@ import { readDb } from '@/lib/db';
 export async function GET(request) {
     try {
         // ── 1. Identifikasi user dari token ─────────────────────────
-        const token =
-            request.headers.get('Authorization')?.replace('Bearer ', '') ||
-            new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
         const session = await verifyToken(token);
         if (!session) {
