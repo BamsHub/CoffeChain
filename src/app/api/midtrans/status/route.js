@@ -11,6 +11,33 @@ import {
 } from '@/lib/midtrans';
 import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
 
+async function deductPaidOrderStock(order) {
+    if (!order?.product_id) return null;
+    const { data: product, error } = await supabaseAdmin
+        .from('products')
+        .select('id, stock')
+        .eq('id', order.product_id)
+        .maybeSingle();
+
+    if (error || !product) {
+        console.warn('[midtrans-status] Product not found for stock deduction:', order.product_id);
+        return null;
+    }
+
+    const quantity = Number(order.quantity || 1);
+    const stockLeft = Math.max(0, Number(product.stock || 0) - quantity);
+    const { error: updateErr } = await supabaseAdmin
+        .from('products')
+        .update({ stock: stockLeft })
+        .eq('id', product.id);
+
+    if (updateErr) {
+        console.warn('[midtrans-status] Stock deduction failed:', updateErr.message);
+        return null;
+    }
+    return stockLeft;
+}
+
 async function getOrderId(request) {
     if (request.method === 'GET') {
         return new URL(request.url).searchParams.get('orderId');
@@ -82,6 +109,11 @@ async function handleStatus(request) {
             .update(updatePayload)
             .eq('order_id', orderId);
 
+        let stockLeft = null;
+        if (normalizedStatus === 'paid' && localOrder?.status !== 'paid') {
+            stockLeft = await deductPaidOrderStock(localOrder);
+        }
+
         const solanaTrace = normalizedStatus === 'paid'
             ? await ensureMidtransSolanaTrace(orderId, midtransData)
             : null;
@@ -94,6 +126,7 @@ async function handleStatus(request) {
                 txSignature: solanaTrace?.txSignature || localOrder?.tx_signature || null,
                 explorerUrl: solanaTrace?.explorerUrl || null,
                 coffeeId: solanaTrace?.coffeeId || localOrder?.coffee_id || null,
+                stockLeft,
                 solanaTraceError: solanaTrace?.solanaTraceError || null,
                 midtransStatus: transactionStatus || 'unknown',
                 fraudStatus: fraudStatus || null,

@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { STORE_WALLET, MEMO_SIGNER_PUBLIC, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import { useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
@@ -150,7 +150,9 @@ export default function LandingPage() {
         const idleId = onIdle(() => {
             const token = localStorage.getItem('cc_token');
             if (!token) return;
-            fetch(`/api/auth/me?token=${token}`)
+            fetch('/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` },
+            })
                 .then(r => r.json())
                 .then(data => {
                     if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
@@ -451,7 +453,7 @@ export default function LandingPage() {
 
         setOrdering(true);
         let txSignature = null;
-        const targetWallet = selectedProduct.paymentWallet || MEMO_SIGNER_PUBLIC;
+        const targetWallet = selectedProduct.paymentWallet || STORE_WALLET;
 
         try {
             if (pm === 'transfer') {
@@ -542,6 +544,14 @@ export default function LandingPage() {
                                         body: JSON.stringify({ txSignature: newSig }),
                                     });
                                     const confirmData = await confirmRes.json().catch(() => null);
+                                    if (!confirmRes.ok || !confirmData?.success) {
+                                        setOrderResult(prev => ({
+                                            ...prev,
+                                            status: prev?.status || 'pending',
+                                            midtransStatusMessage: confirmData?.message || 'Transaksi Solana belum valid untuk order ini.',
+                                        }));
+                                        return;
+                                    }
                                     setOrderResult(prev => ({
                                         ...prev,
                                         ...(confirmData?.data || {}),
@@ -591,28 +601,6 @@ export default function LandingPage() {
             if (!silent) alert(err.message || 'Gagal mengecek status Midtrans');
         } finally {
             if (!silent) setCheckingMidtrans(false);
-        }
-    }
-
-    async function confirmQrPayment() {
-        if (!orderResult?.orderId) return;
-        setQrConfirm({ loading: true, done: false, error: null });
-        try {
-            const res = await fetch('/api/orders', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId: orderResult.orderId, status: 'paid' }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setQrConfirm({ loading: false, done: true, error: null });
-                setOrderResult(prev => ({ ...prev, status: 'paid' }));
-                setShowBuyAgain(true);
-            } else {
-                setQrConfirm({ loading: false, done: false, error: data.message || 'Gagal konfirmasi' });
-            }
-        } catch {
-            setQrConfirm({ loading: false, done: false, error: 'Koneksi error' });
         }
     }
 
@@ -1398,28 +1386,14 @@ export default function LandingPage() {
                                     </div>
                                 )}
 
-                                {/* Rupiah QR — manual confirm button */}
+                                {/* Rupiah QR - menunggu verifikasi admin/payment provider */}
                                 {orderResult.paymentMethod === 'qr-idr' && orderResult.status !== 'paid' && (
-                                    <div style={{ marginBottom: 16 }}>
-                                        {qrConfirm.done ? (
-                                            <div style={{ padding:'12px 16px', borderRadius:10, background:'rgba(76,175,80,0.12)', border:'1px solid rgba(76,175,80,0.35)', color:'#4CAF50', fontWeight:600, fontSize:13, textAlign:'center' }}>
-                                                <IconSuccessCircle size={20} /> Pembayaran dikonfirmasi! Pesanan Anda sedang diproses.
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <button
-                                                    onClick={confirmQrPayment}
-                                                    disabled={qrConfirm.loading}
-                                                    className="lp-btn-primary"
-                                                    style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:14, marginBottom:6, opacity: qrConfirm.loading ? 0.7 : 1 }}>
-                                                    {qrConfirm.loading ? <><span className="lp-spinner" /> Memverifikasi...</> : <><IconSuccessCircle size={18} /> Saya Sudah Bayar ke GoPay 081389629074</>}
-                                                </button>
-                                                {qrConfirm.error && (
-                                                    <div style={{ fontSize:12, color:'#f44336', textAlign:'center', marginTop:4 }}>{qrConfirm.error}</div>
-                                                )}
-                                                <div style={{ fontSize:11, color:'rgba(232,245,224,0.35)', textAlign:'center' }}>Klik setelah transfer ke GoPay 081389629074 berhasil</div>
-                                            </>
-                                        )}
+                                    <div style={{ marginBottom:16, padding:'12px 16px', borderRadius:10, background:'rgba(245,166,35,0.06)', border:'1px solid rgba(245,166,35,0.22)', textAlign:'center' }}>
+                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:13, color:'rgba(232,245,224,0.72)' }}>
+                                            <IconClockWait size={18} />
+                                            Menunggu verifikasi pembayaran
+                                        </div>
+                                        <div style={{ marginTop:6, fontSize:11, color:'rgba(232,245,224,0.38)' }}>Status hanya akan berubah setelah admin atau payment provider mengonfirmasi pembayaran.</div>
                                     </div>
                                 )}
 

@@ -77,8 +77,12 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
     // Fetch notifications
     async function fetchNotifications() {
         if (!user) return;
+        const token = localStorage.getItem('cc_token');
+        if (!token) return;
         try {
-            const res = await fetch(`/api/notifications?userId=${user.id}`);
+            const res = await fetch(`/api/notifications?userId=${user.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
             const data = await res.json();
             if (data.success) {
                 setNotifications(data.data || []);
@@ -105,9 +109,11 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
 
     async function markAllRead() {
         if (!user) return;
+        const token = localStorage.getItem('cc_token');
+        if (!token) return;
         await fetch('/api/notifications', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ markAllRead: true, userId: user.id }),
         });
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -115,9 +121,11 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
     }
 
     async function markOneRead(id) {
+        const token = localStorage.getItem('cc_token');
+        if (!token) return;
         await fetch('/api/notifications', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ id }),
         });
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));

@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -32,7 +32,7 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -62,7 +62,7 @@ export async function POST(request) {
 // Mark as read: PATCH { id } or PATCH { markAllRead: true, userId }
 export async function PATCH(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });

@@ -8,9 +8,7 @@ import { readDb } from '@/lib/db';
 // Helper: verifikasi token → ambil objek user lengkap
 // ──────────────────────────────────────────────────────────────────
 async function getUserFromRequest(request) {
-    const token =
-        request.headers.get('Authorization')?.replace('Bearer ', '') ||
-        new URL(request.url).searchParams.get('token');
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
     const session = await verifyToken(token);
     if (!session) return null;

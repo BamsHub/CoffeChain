@@ -16,7 +16,9 @@ export function AuthProvider({ children }) {
         const token = localStorage.getItem('cc_token');
         if (!token) { setLoading(false); return; }
 
-        fetch(`/api/auth/me?token=${token}`)
+        fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${token}` },
+        })
             .then(r => r.json())
             .then(data => {
                 if (data.success) setUser(data.user);

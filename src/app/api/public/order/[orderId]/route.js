@@ -3,6 +3,24 @@ import { readDb, updateItem } from '@/lib/db';
 import { getExplorerTxUrl, SOLANA_NETWORK, STORE_WALLET } from '@/lib/contractConfig';
 import { Connection } from '@solana/web3.js';
 
+async function getProduct(productId) {
+    if (!productId) return null;
+    const productsDb = await readDb('products');
+    return productsDb.items.find(p => p.id === productId) || null;
+}
+
+async function deductStockOnce(order) {
+    if (!order?.productId || order.status === 'paid') return null;
+    const product = await getProduct(order.productId);
+    if (!product) return null;
+
+    const currentStock = product.stock ?? 0;
+    const quantity = Number(order.quantity || 1);
+    const stockLeft = Math.max(0, currentStock - quantity);
+    await updateItem('products', product.id, { stock: stockLeft });
+    return stockLeft;
+}
+
 /**
  * PUBLIC API — Cek Status Pesanan
  * GET /api/public/order/[orderId]
@@ -64,6 +82,33 @@ export async function PATCH(request, { params }) {
         }
 
         // ── Verify Solana Transaction Signature on-chain ──
+
+        if (!['transfer', 'qr'].includes(order.paymentMethod)) {
+            return Response.json({ success: false, message: 'Order ini bukan pembayaran Solana' }, { status: 400 });
+        }
+
+        if (order.status === 'paid') {
+            if (order.txSignature === txSignature) {
+                return Response.json({
+                    success: true,
+                    message: 'Pembayaran sudah dikonfirmasi',
+                    data: {
+                        orderId: order.orderId,
+                        status: order.status,
+                        txSignature: order.txSignature,
+                        explorerUrl: getExplorerTxUrl(order.txSignature),
+                        coffeeId: order.coffeeId || null,
+                    }
+                }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+            }
+            return Response.json({ success: false, message: 'Order sudah dibayar dengan signature lain' }, { status: 400 });
+        }
+
+        const reused = db.items.find(o => o.txSignature === txSignature && o.status === 'paid' && o.orderId !== order.orderId);
+        if (reused) {
+            return Response.json({ success: false, message: 'Tx signature sudah pernah digunakan untuk order lain' }, { status: 400 });
+        }
+
         const connection = new Connection(SOLANA_NETWORK, 'confirmed');
         let tx = null;
         try {
@@ -102,8 +147,9 @@ export async function PATCH(request, { params }) {
             return '';
         });
 
-        // Verify receiver address is STORE_WALLET
-        const storeWalletIndex = accountKeys.indexOf(STORE_WALLET);
+        const product = await getProduct(order.productId);
+        const validReceivers = [product?.paymentWallet, STORE_WALLET].filter(Boolean);
+        const storeWalletIndex = accountKeys.findIndex(key => validReceivers.includes(key));
         if (storeWalletIndex === -1) {
             return Response.json({
                 success: false,
@@ -145,6 +191,7 @@ export async function PATCH(request, { params }) {
             });
         }
 
+        const stockLeft = await deductStockOnce(order);
         order.txSignature = txSignature;
         order.status = 'paid';
         order.paidAt = new Date().toISOString();
@@ -155,12 +202,7 @@ export async function PATCH(request, { params }) {
             paidAt: order.paidAt,
         });
 
-        let coffeeId = order.coffeeId || null;
-        if (order.productId) {
-            const productsDb = await readDb('products');
-            const product = productsDb.items.find(p => p.id === order.productId);
-            coffeeId = coffeeId || product?.coffeeId || null;
-        }
+        let coffeeId = order.coffeeId || product?.coffeeId || null;
 
         return Response.json({
             success: true,
@@ -171,6 +213,7 @@ export async function PATCH(request, { params }) {
                 txSignature: order.txSignature,
                 explorerUrl: getExplorerTxUrl(order.txSignature),
                 coffeeId,
+                stockLeft,
             }
         }, { headers: { 'Access-Control-Allow-Origin': '*' } });
 

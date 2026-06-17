@@ -102,6 +102,33 @@ async function sendMemoTx(memoData) {
     return { txSignature, explorerUrl: getExplorerTxUrl(txSignature) };
 }
 
+async function verifyPhantomMemoTx(txSignature, signerAddress) {
+    if (!txSignature || !signerAddress) {
+        return { ok: false, message: 'Signature dan wallet Phantom wajib diisi' };
+    }
+
+    const connection = getConnection();
+    const tx = await connection.getParsedTransaction(txSignature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+    });
+
+    if (!tx) return { ok: false, message: 'Transaksi Phantom tidak ditemukan atau belum confirmed' };
+    if (tx.meta?.err) return { ok: false, message: 'Transaksi Phantom gagal / dibatalkan' };
+
+    const accountKeys = tx.transaction.message.accountKeys.map(k => {
+        if (typeof k === 'string') return k;
+        if (k?.pubkey) return typeof k.pubkey === 'string' ? k.pubkey : k.pubkey.toBase58();
+        return '';
+    });
+
+    if (!accountKeys.includes(signerAddress)) {
+        return { ok: false, message: 'Signature tidak ditandatangani oleh wallet Phantom yang terhubung' };
+    }
+
+    return { ok: true };
+}
+
 export async function POST(request) {
     try {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
@@ -185,6 +212,10 @@ export async function POST(request) {
 
         if (phantomTxSignature) {
             // ── Phantom sudah sign & kirim TX di client-side ──
+            const phantomVerification = await verifyPhantomMemoTx(phantomTxSignature, phantomWalletAddress || paymentWallet);
+            if (!phantomVerification.ok) {
+                return Response.json({ success: false, message: phantomVerification.message }, { status: 400 });
+            }
             txSignature = phantomTxSignature;
             explorerUrl = getExplorerTxUrl(phantomTxSignature);
             console.log('[coffee-trace] Using Phantom-signed TX:', phantomTxSignature);
