@@ -63,6 +63,9 @@ const IconSol = ({ size = 18 }) => (
         <path d="M6.5 7.25h11l-2 2.25h-11l2-2.25zM4.5 11h11l2 2.25h-11L4.5 11zM6.5 14.75h11l-2 2.25h-11l2-2.25z" fill="currentColor"/>
     </svg>
 );
+const SolanaLogo = ({ size = 24 }) => (
+    <img src="/solana-logo.png" alt="Solana" width={size} height={size} style={{ display: 'block', objectFit: 'contain' }} />
+);
 
 const demoTxHistory = [
     { type: 'Masuk', desc: 'Penjualan Arabika Gayo 120kg', amount: 8220000, hash: '0x3f8a...c9d1', time: '27 Feb 14:21', status: 'Confirmed' },
@@ -155,7 +158,7 @@ export default function WalletPage() {
                 </div>
                 {!wallet.connected ? (
                     <button className={styles.connectPhantomBtn} onClick={handleConnect} disabled={loading}>
-                        <span className={styles.phantomEmoji}><IconWallet size={24} /></span>
+                        <span className={styles.phantomEmoji}><SolanaLogo size={24} /></span>
                         {loading ? 'Menghubungkan...' : 'Hubungkan Phantom Wallet'}
                     </button>
                 ) : (
@@ -166,7 +169,7 @@ export default function WalletPage() {
             {/* Not Connected */}
             {!wallet.connected && (
                 <div className={styles.notConnected}>
-                    <div className={styles.phantomLogo}><IconWallet size={24} /></div>
+                    <div className={styles.phantomLogo}><SolanaLogo size={24} /></div>
                     <h2 className={styles.ncTitle}>Phantom Wallet Belum Terhubung</h2>
                     <p className={styles.ncDesc}>Hubungkan Phantom wallet Solana untuk mengakses saldo, mengirim transaksi, dan melihat riwayat aktivitas blockchain kopi kamu.</p>
                     <div className={styles.ncFeatures}>
@@ -182,7 +185,7 @@ export default function WalletPage() {
                         </div>
                     )}
                     <button className={styles.connectPhantomBtn} onClick={handleConnect} disabled={loading}>
-                        <span><IconWallet size={24} /></span> {loading ? 'Menghubungkan...' : 'Hubungkan Phantom'}
+                        <span><SolanaLogo size={24} /></span> {loading ? 'Menghubungkan...' : 'Hubungkan Phantom'}
                     </button>
                 </div>
             )}
@@ -201,7 +204,7 @@ export default function WalletPage() {
                                 <div className={styles.balanceUsd}>Sekitar ${(wallet.balance * solPrice).toFixed(2)} USD</div>
                             </div>
                             <div className={styles.walletIconBox}>
-                                <div style={{ fontSize: 36 }}><IconWallet size={28} /></div>
+                                <div style={{ fontSize: 36 }}><SolanaLogo size={28} /></div>
                                 <div className={styles.phantomLabel}>Phantom</div>
                                 <div className={styles.netLabel}>Testnet</div>
                             </div>

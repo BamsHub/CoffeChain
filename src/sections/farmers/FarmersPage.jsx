@@ -42,10 +42,10 @@ export default function FarmersPage() {
     const baruBulanIni  = farmers.filter(f => (f.joined || '').startsWith(thisMonth)).length;
 
     const stats = [
-        { label: 'Total Petani',   val: loading ? '…' : totalPetani.toLocaleString('id-ID'),   icon: 'CC', color: '#4A7C28' },
-        { label: 'Koperasi Aktif', val: loading ? '…' : koperasiAktif.toLocaleString('id-ID'), icon: 'CC', color: '#F5A623' },
-        { label: 'Terverifikasi',  val: loading ? '…' : terverifikasi.toLocaleString('id-ID'),  icon: '✅', color: '#4CAF50' },
-        { label: 'Baru Bulan Ini', val: loading ? '…' : (baruBulanIni > 0 ? `+${baruBulanIni}` : '0'), icon: '🆕', color: '#00D4FF' },
+        { label: 'Total Petani',   val: loading ? '...' : totalPetani.toLocaleString('id-ID'), color: '#4A7C28' },
+        { label: 'Koperasi Aktif', val: loading ? '...' : koperasiAktif.toLocaleString('id-ID'), color: '#F5A623' },
+        { label: 'Terverifikasi',  val: loading ? '...' : terverifikasi.toLocaleString('id-ID'), color: '#4CAF50' },
+        { label: 'Baru Bulan Ini', val: loading ? '...' : (baruBulanIni > 0 ? `+${baruBulanIni}` : '0'), color: '#00D4FF' },
     ];
 
     return (
@@ -61,7 +61,6 @@ export default function FarmersPage() {
             <div className={styles.statsRow}>
                 {stats.map((s, i) => (
                     <div key={i} className={styles.statCard}>
-                        <div className={styles.statIcon}>{s.icon}</div>
                         <div className={styles.statVal} style={{ color: s.color }}>{s.val}</div>
                         <div className={styles.statLabel}>{s.label}</div>
                     </div>
@@ -86,7 +85,7 @@ export default function FarmersPage() {
                                 <div className={styles.farmerType}>{f.type} • {f.region}</div>
                             </div>
                             <span className={`${styles.statusBadge} ${f.status === 'Verified' ? styles.verified : styles.pending}`}>
-                                {f.status === 'Verified' ? '✓ Verified' : '⏳ Pending'}
+                                {f.status === 'Verified' ? 'Verified' : 'Pending'}
                             </span>
                         </div>
 

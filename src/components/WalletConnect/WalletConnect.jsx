@@ -5,12 +5,8 @@ import { connectPhantom, disconnectPhantom, getSolBalance, shortenAddress, isPha
 import { getExplorerAddressUrl } from '@/lib/contractConfig';
 import styles from './WalletConnect.module.css';
 
-const PhantomMark = ({ size = 18 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="3" y="5" width="18" height="14" rx="4" fill="currentColor" opacity="0.18"/>
-        <path d="M7 14.5c1.7-4.2 4.1-6.3 7.2-6.3 2.2 0 3.8 1.2 3.8 3.1 0 2.4-2.1 4.5-5 4.5h-1.1l-1.2 1.7H8.2l1.3-2H7z" fill="currentColor"/>
-        <circle cx="14.8" cy="11.2" r="0.7" fill="var(--color-bg-card, #101810)"/>
-    </svg>
+const SolanaLogo = ({ size = 18 }) => (
+    <img src="/solana-logo.png" alt="Solana" width={size} height={size} style={{ display: 'block', objectFit: 'contain' }} />
 );
 
 export default function WalletConnect({ onConnect, onDisconnect }) {
@@ -83,7 +79,7 @@ export default function WalletConnect({ onConnect, onDisconnect }) {
                 {walletState.loading ? (
                     <span className={styles.spinner} />
                 ) : (
-                    <PhantomMark size={16} />
+                    <SolanaLogo size={16} />
                 )}
                 {walletState.loading ? 'Menghubungkan...' : 'Hubungkan Phantom'}
             </button>
@@ -93,7 +89,7 @@ export default function WalletConnect({ onConnect, onDisconnect }) {
     return (
         <div className={styles.walletWrapper}>
             <button className={styles.walletBtn} onClick={() => setShowMenu(!showMenu)}>
-                <div className={styles.phantomIcon}><PhantomMark /></div>
+                <div className={styles.phantomIcon}><SolanaLogo /></div>
                 <div className={styles.walletInfo}>
                     <span className={styles.walletAddr}>{shortenAddress(walletState.publicKey)}</span>
                     <span className={styles.walletBal}>{walletState.balance.toFixed(3)} SOL</span>
@@ -107,7 +103,7 @@ export default function WalletConnect({ onConnect, onDisconnect }) {
             {showMenu && (
                 <div className={styles.dropdownMenu}>
                     <div className={styles.dropdownHeader}>
-                        <div className={styles.dropdownIcon}><PhantomMark /></div>
+                        <div className={styles.dropdownIcon}><SolanaLogo size={28} /></div>
                         <div>
                             <div className={styles.dropdownName}>Phantom Wallet</div>
                             <div className={styles.dropdownAddr}>{walletState.publicKey}</div>

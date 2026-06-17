@@ -72,20 +72,7 @@ const IconCheck = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="no
 const IconWallet = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>;
 const IconTransfer = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>;
 const IconPhantomLogo = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-    <circle cx="50" cy="50" r="50" fill="#1A1A1A"/>
-    <g transform="translate(15, 20) scale(0.7)">
-      <path d="M15 12.5h60l-12.5 12.5H2.5L15 12.5z" fill="url(#solana-g)"/>
-      <path d="M2.5 32.5h60l12.5 12.5H15L2.5 32.5z" fill="url(#solana-g)"/>
-      <path d="M15 52.5h60l-12.5 12.5H2.5L15 52.5z" fill="url(#solana-g)"/>
-    </g>
-    <defs>
-      <linearGradient id="solana-g" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#9945FF" />
-        <stop offset="100%" stopColor="#14F195" />
-      </linearGradient>
-    </defs>
-  </svg>
+  <img src="/solana-logo.png" alt="Solana" width={size} height={size} style={{ display: 'inline-block', objectFit: 'contain', verticalAlign: 'middle' }} />
 );
 const IconBank = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>;
 const IconMobileQR = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;

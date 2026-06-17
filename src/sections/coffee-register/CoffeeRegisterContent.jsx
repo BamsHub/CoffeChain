@@ -21,22 +21,9 @@ const IcoClose   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="n
 const IcoCheck   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const IcoEye     = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
 const IcoReject  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
-const IcoSpin    = () => <span style={{ display:'inline-block', animation:'spin 0.8s linear infinite', fontSize:14 }}>⏳</span>;
+const IcoSpin    = () => <span style={{ display:'inline-block', animation:'spin 0.8s linear infinite', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%' }} />;
 const IcoPhantom = () => (
-  <svg width="16" height="16" viewBox="0 0 100 100" fill="none">
-    <circle cx="50" cy="50" r="50" fill="#1A1A1A"/>
-    <g transform="translate(15, 20) scale(0.7)">
-      <path d="M15 12.5h60l-12.5 12.5H2.5L15 12.5z" fill="url(#solana-ico-g)"/>
-      <path d="M2.5 32.5h60l12.5 12.5H15L2.5 32.5z" fill="url(#solana-ico-g)"/>
-      <path d="M15 52.5h60l-12.5 12.5H2.5L15 52.5z" fill="url(#solana-ico-g)"/>
-    </g>
-    <defs>
-      <linearGradient id="solana-ico-g" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#9945FF" />
-        <stop offset="100%" stopColor="#14F195" />
-      </linearGradient>
-    </defs>
-  </svg>
+  <img src="/solana-logo.png" alt="Solana" width="16" height="16" style={{ display: 'inline-block', objectFit: 'contain', verticalAlign: 'middle' }} />
 );
 
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled'];
@@ -571,7 +558,7 @@ export default function CoffeeRegisterContent() {
                                             />
                                         </>
                                     ) : (
-                                        <span style={{ fontSize: 11, color: '#FFB300', fontWeight: 600, padding: '4px 10px', borderRadius: 7, background: 'rgba(255,152,0,0.1)', border: '1px solid rgba(255,152,0,0.25)' }}>⏳ Pending</span>
+                                        <span style={{ fontSize: 11, color: '#FFB300', fontWeight: 600, padding: '4px 10px', borderRadius: 7, background: 'rgba(255,152,0,0.1)', border: '1px solid rgba(255,152,0,0.25)' }}>Pending</span>
                                     )}
                                 </div>
                             </div>

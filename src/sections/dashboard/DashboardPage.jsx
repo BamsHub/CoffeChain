@@ -104,10 +104,10 @@ export default function DashboardPage({ walletPublicKey }) {
     }
 
     const statsData = [
-        { title: 'Total Transaksi', value: stats.total.toLocaleString(), change: '+18.4%', positive: true, sub: 'Blockchain transactions', icon: 'CC', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
-        { title: 'Kopi Terbeli', value: orderStats.totalKg >= 1000 ? `${(orderStats.totalKg / 1000).toFixed(1)} Kg` : `${orderStats.totalKg} g`, change: `${orderStats.count} order`, positive: true, sub: 'Total dari database', icon: '☕', color: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
-        { title: 'Petani Aktif', value: stats.farmers.toLocaleString(), change: '+241', positive: true, sub: 'Terdaftar di blockchain', icon: 'CC', color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
-        { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', icon: 'CC', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
+        { title: 'Total Transaksi', value: stats.total.toLocaleString(), change: '+18.4%', positive: true, sub: 'Blockchain transactions', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
+        { title: 'Kopi Terbeli', value: orderStats.totalKg >= 1000 ? `${(orderStats.totalKg / 1000).toFixed(1)} Kg` : `${orderStats.totalKg} g`, change: `${orderStats.count} order`, positive: true, sub: 'Total dari database', color: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
+        { title: 'Petani Aktif', value: stats.farmers.toLocaleString(), change: '+241', positive: true, sub: 'Terdaftar di blockchain', color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
+        { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
     ];
 
     const txChartOptions = {
@@ -162,9 +162,11 @@ export default function DashboardPage({ walletPublicKey }) {
                 {statsData.map((stat, i) => (
                     <div key={i} className={styles.statCard} style={{ animationDelay: `${i * 0.08}s` }}>
                         <div className={styles.statTop}>
-                            <div className={styles.statIcon} style={{ background: stat.bg }}>
-                                <span style={{ fontSize: 20 }}>{stat.icon}</span>
-                            </div>
+                            {stat.icon && (
+                                <div className={styles.statIcon} style={{ background: stat.bg }}>
+                                    <span style={{ fontSize: 20 }}>{stat.icon}</span>
+                                </div>
+                            )}
                             <span className={`${styles.statChange} ${stat.positive ? styles.positive : styles.negative}`}>
                                 {stat.positive ? '↑' : '↓'} {stat.change}
                             </span>

@@ -53,13 +53,12 @@ export default function SupplyChainPage() {
             {/* Stats */}
             <div className={styles.statsRow}>
                 {[
-                    { label: 'Batch Aktif', val: '84', icon: 'CC', color: '#4A7C28' },
-                    { label: 'Dalam Pengiriman', val: '23', icon: 'CC', color: '#F5A623' },
-                    { label: 'Selesai Bulan Ini', val: '156', icon: '✓', color: '#4CAF50' },
-                    { label: 'Rata-rata Waktu', val: '14 Hari', icon: '⏱', color: '#00D4FF' },
+                    { label: 'Batch Aktif', val: '84', color: '#4A7C28' },
+                    { label: 'Dalam Pengiriman', val: '23', color: '#F5A623' },
+                    { label: 'Selesai Bulan Ini', val: '156', color: '#4CAF50' },
+                    { label: 'Rata-rata Waktu', val: '14 Hari', color: '#00D4FF' },
                 ].map((s, i) => (
                     <div key={i} className={styles.statCard}>
-                        <span className={styles.statIcon}>{s.icon}</span>
                         <span className={styles.statVal} style={{ color: s.color }}>{s.val}</span>
                         <span className={styles.statLabel}>{s.label}</span>
                     </div>
