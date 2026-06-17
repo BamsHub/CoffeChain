@@ -106,7 +106,6 @@ const coffeeTypes = [
 export default function LandingPage() {
     const { logout } = useAuth();
     const [products, setProducts] = useState([]);
-    const [activeFarmers, setActiveFarmers] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [orderModal, setOrderModal] = useState(false);
@@ -232,7 +231,6 @@ export default function LandingPage() {
                 const farmerData = await farmerRes.json();
                 const txData = await txRes.json();
                 if (prodData.success) setProducts(prodData.data);
-                if (farmerData.success) setActiveFarmers(farmerData.data || []);
                 setStats({
                     farmers: farmerData.success ? farmerData.data?.length : 0,
                     transactions: txData.success ? txData.data?.length : 0,
@@ -883,50 +881,6 @@ export default function LandingPage() {
             </section>
 
             {/* ── PRODUCTS GRID ── */}
-            <section id="farmers" style={{ padding: 'clamp(36px,7vw,68px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
-                <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-                        <div>
-                            <h2 style={{ fontSize: 'clamp(24px,4vw,36px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 8 }}>Petani Aktif</h2>
-                            <p style={{ color: 'rgba(232,245,224,0.5)', fontSize: 14, maxWidth: 520 }}>
-                                Mitra petani yang sudah aktif dan siap memasok kopi bersertifikat CoffeeChain.
-                            </p>
-                        </div>
-                        <span style={{ color: '#7ED44A', fontSize: 13, fontWeight: 700 }}>{activeFarmers.length} aktif</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
-                        {(loading ? Array.from({ length: 4 }) : activeFarmers.slice(0, 8)).map((farmer, index) => (
-                            <div key={farmer?.id || index} style={{ minHeight: 118, border: '1px solid rgba(74,124,40,0.22)', borderRadius: 12, background: 'rgba(255,255,255,0.03)', padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                {loading ? (
-                                    <div style={{ height: 14, width: '65%', borderRadius: 20, background: 'rgba(255,255,255,0.08)' }} />
-                                ) : (
-                                    <>
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(126,212,74,0.15)', border: '1px solid rgba(126,212,74,0.25)', color: '#7ED44A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
-                                                    {(farmer.name || 'PT').slice(0, 2).toUpperCase()}
-                                                </div>
-                                                <div style={{ minWidth: 0 }}>
-                                                    <div style={{ color: '#E8F5E0', fontSize: 14, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{farmer.name}</div>
-                                                    <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 12 }}>{farmer.region || '-'}</div>
-                                                </div>
-                                            </div>
-                                            <div style={{ color: 'rgba(232,245,224,0.5)', fontSize: 12 }}>{farmer.type || 'Petani'} - {farmer.status || 'Aktif'}</div>
-                                        </div>
-                                        <div style={{ color: '#7ED44A', fontSize: 12, fontWeight: 700, marginTop: 14 }}>Aktif</div>
-                                    </>
-                                )}
-                            </div>
-                        ))}
-                        {!loading && activeFarmers.length === 0 && (
-                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', border: '1px solid rgba(74,124,40,0.22)', borderRadius: 12, padding: 24, color: 'rgba(232,245,224,0.45)' }}>
-                                Belum ada petani aktif yang bisa ditampilkan.
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </section>
-
             <section id="products" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: 32 }}>
