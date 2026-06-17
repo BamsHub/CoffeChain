@@ -6,6 +6,52 @@ import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
 import WalletConnect from '@/components/WalletConnect/WalletConnect';
 import styles from './Header.module.css';
 
+const IconCart = ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 6h15l-1.5 8h-12L6 3H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="9" cy="20" r="1.5" fill="currentColor" />
+        <circle cx="18" cy="20" r="1.5" fill="currentColor" />
+    </svg>
+);
+
+const IconPayment = ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+        <path d="M3 10h18M8 15h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
+const IconTrend = ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 17l6-6 4 4 6-8M15 7h5v5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+const IconInfo = ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 11v5M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
+const IconCheck = ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+const IconAlert = ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 8v5M12 17h.01M10.3 4.9L2.9 18a2 2 0 001.7 3h14.8a2 2 0 001.7-3L13.7 4.9a2 2 0 00-3.4 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+const IconBell = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
 export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisconnect }) {
     const { user, logout } = useAuth();
     const router = useRouter();
@@ -92,11 +138,18 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
         logout();
     }
 
-    const typeIcon = { product_added: '🛒', payment: '💲', price: '↑', info: 'ℹ', success: '✓', warning: '!' };
+    const typeIcon = {
+        product_added: <IconCart />,
+        payment: <IconPayment />,
+        price: <IconTrend />,
+        info: <IconInfo />,
+        success: <IconCheck />,
+        warning: <IconAlert />,
+    };
 
     return (
         <header className={styles.header} style={{ left: sidebarCollapsed ? '68px' : '260px' }}>
-            {/* Left — Logo & Search */}
+            {/* Left - Logo & Search */}
             <div className={styles.left}>
                 {sidebarCollapsed && (
                     <img 
@@ -113,7 +166,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                         <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                     <input type="text" placeholder="Cari transaksi, petani, batch..." className={styles.searchInput} />
-                    <kbd className={styles.searchKbd}>⌘K</kbd>
+                    <kbd className={styles.searchKbd}>Ctrl K</kbd>
                 </div>
             </div>
 
@@ -152,11 +205,11 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                                             className={`${styles.notifItem} ${!n.read ? styles.notifUnread : ''}`}
                                             onClick={() => markOneRead(n.id)}
                                         >
-                                            <div className={styles.notifItemIcon}>{typeIcon[n.type] || n.icon || '🔔'}</div>
+                                            <div className={styles.notifItemIcon}>{typeIcon[n.type] || <IconBell />}</div>
                                             <div className={styles.notifItemBody}>
                                                 <div className={styles.notifItemTitle}>{n.title}</div>
                                                 <div className={styles.notifItemMsg}>{n.message}</div>
-                                                <div className={styles.notifItemTime}>{timeAgo(n.createdAt)} · {n.actorName}</div>
+                                                <div className={styles.notifItemTime}>{timeAgo(n.createdAt)} - {n.actorName}</div>
                                             </div>
                                             {!n.read && <div className={styles.notifDot} />}
                                         </div>

@@ -259,7 +259,7 @@ export default function FarmerDashboardPage({ walletPublicKey }) {
                 <div>
                     <h1 className={styles.pageTitle}>Dashboard Penjualan</h1>
                     <p className={styles.pageSubtitle}>
-                        {walletPublicKey ? `Phantom: ${walletPublicKey.slice(0, 8)}...${walletPublicKey.slice(-6)} • ` : ''}
+                        {walletPublicKey ? `Phantom: ${walletPublicKey.slice(0, 8)}...${walletPublicKey.slice(-6)} • ` : '-'}
                         Hanya menampilkan data penjualan milik <strong>{user?.name || 'kamu'}</strong>.
                     </p>
                 </div>
@@ -387,7 +387,7 @@ export default function FarmerDashboardPage({ walletPublicKey }) {
                     </div>
                 ) : displaySales.length === 0 ? (
                     <div style={{ padding: '40px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+                        <div style={{ fontSize: 16, marginBottom: 12 }}>Produk</div>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 8 }}>
                             {selectedDate ? 'Tidak ada penjualan pada tanggal ini.' : 'Belum ada entri penjualan.'}
                         </div>
@@ -451,7 +451,7 @@ export default function FarmerDashboardPage({ walletPublicKey }) {
                                                         color: 'var(--color-text-muted)', padding: '4px 6px',
                                                         borderRadius: 6, fontSize: 13 }}
                                                     title="Hapus entri">
-                                                    🗑
+                                                    Hapus
                                                 </button>
                                             </td>
                                         </tr>

@@ -96,9 +96,9 @@ export default function AddTransactionModal({ onClose, onSuccess, walletPublicKe
                 <div className={styles.modalHeader}>
                     <div>
                         <h2 className={styles.modalTitle}>
-                            {step === 1 && '📝 Buat Transaksi Kopi'}
+                            {step === 1 && ' Buat Transaksi Kopi'}
                             {step === 2 && '✅ Konfirmasi Transaksi'}
-                            {step === 3 && (txResult ? '🎉 Transaksi Berhasil!' : '⏳ Memproses...')}
+                            {step === 3 && (txResult ? ' Transaksi Berhasil!' : '⏳ Memproses...')}
                         </h2>
                         <p className={styles.modalSub}>
                             {step === 1 && 'Data akan dicatat on-chain di Solana blockchain'}

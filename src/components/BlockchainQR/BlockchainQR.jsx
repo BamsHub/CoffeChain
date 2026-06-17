@@ -69,12 +69,12 @@ async function generateQR(url) {
 export function BlockchainQRCard({ explorerUrl, traceUrl, coffeeId, productName, compact = false }) {
     const safeExplorerUrl = normalizeExplorerUrl(explorerUrl);
     const [qrData, setQrData] = useState(null);
-    const [activeUrl, setActiveUrl] = useState(safeExplorerUrl || traceUrl || '');
+    const [activeUrl, setActiveUrl] = useState(traceUrl || safeExplorerUrl || '');
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const target = safeExplorerUrl || traceUrl;
+        const target = traceUrl || safeExplorerUrl;
         if (!target) return;
         setActiveUrl(target);
         setLoading(true);

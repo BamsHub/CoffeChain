@@ -197,7 +197,7 @@ export default function TransactionsPage() {
                                                         <span className={styles.txHash}>
                                                             {(tx.txSignature || tx.hash).slice(0, 12)}...
                                                         </span>
-                                                        <span className={styles.explorerIcon}>🔗</span>
+                                                        <span className={styles.explorerIcon}>Link</span>
                                                     </a>
                                                 ) : (
                                                     <span className={styles.txHash}>{tx.hash}</span>
@@ -224,7 +224,7 @@ export default function TransactionsPage() {
                                                             disabled={deletingId === tx.id}
                                                             title="Hapus transaksi (Admin only)"
                                                         >
-                                                            {deletingId === tx.id ? '...' : '🗑️'}
+                                                            {deletingId === tx.id ? '...' : 'Hapus'}
                                                         </button>
                                                     )}
                                                 </td>

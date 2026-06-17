@@ -39,7 +39,7 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { type, title, message, targetUserId = 'all', icon = '🔔', actorName, actorRole } = body;
+        const { type, title, message, targetUserId = 'all', icon = 'info', actorName, actorRole } = body;
         const notif = {
             id: uuidv4(),
             type: type || 'info',      // 'product_added' | 'info' | 'warning' | 'success'

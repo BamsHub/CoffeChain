@@ -53,8 +53,8 @@ export default function SupplyChainPage() {
             {/* Stats */}
             <div className={styles.statsRow}>
                 {[
-                    { label: 'Batch Aktif', val: '84', icon: '📦', color: '#4A7C28' },
-                    { label: 'Dalam Pengiriman', val: '23', icon: '🚚', color: '#F5A623' },
+                    { label: 'Batch Aktif', val: '84', icon: 'CC', color: '#4A7C28' },
+                    { label: 'Dalam Pengiriman', val: '23', icon: 'CC', color: '#F5A623' },
                     { label: 'Selesai Bulan Ini', val: '156', icon: '✓', color: '#4CAF50' },
                     { label: 'Rata-rata Waktu', val: '14 Hari', icon: '⏱', color: '#00D4FF' },
                 ].map((s, i) => (
@@ -74,8 +74,8 @@ export default function SupplyChainPage() {
                             <div className={styles.batchId}>{batch.id}</div>
                             <div className={styles.batchName}>{batch.variety} — {batch.weight}</div>
                             <div className={styles.batchMeta}>
-                                <span>🌱 {batch.farmer}</span>
-                                <span>📍 {batch.origin} → {batch.destination}</span>
+                                <span> {batch.farmer}</span>
+                                <span> {batch.origin} → {batch.destination}</span>
                             </div>
                         </div>
                         <div className={styles.progressBox}>

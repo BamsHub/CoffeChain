@@ -104,10 +104,10 @@ export default function DashboardPage({ walletPublicKey }) {
     }
 
     const statsData = [
-        { title: 'Total Transaksi', value: stats.total.toLocaleString(), change: '+18.4%', positive: true, sub: 'Blockchain transactions', icon: '🔄', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
+        { title: 'Total Transaksi', value: stats.total.toLocaleString(), change: '+18.4%', positive: true, sub: 'Blockchain transactions', icon: 'CC', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
         { title: 'Kopi Terbeli', value: orderStats.totalKg >= 1000 ? `${(orderStats.totalKg / 1000).toFixed(1)} Kg` : `${orderStats.totalKg} g`, change: `${orderStats.count} order`, positive: true, sub: 'Total dari database', icon: '☕', color: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
-        { title: 'Petani Aktif', value: stats.farmers.toLocaleString(), change: '+241', positive: true, sub: 'Terdaftar di blockchain', icon: '👩‍🌾', color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
-        { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', icon: '💰', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
+        { title: 'Petani Aktif', value: stats.farmers.toLocaleString(), change: '+241', positive: true, sub: 'Terdaftar di blockchain', icon: 'CC', color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
+        { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', icon: 'CC', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
     ];
 
     const txChartOptions = {
@@ -141,7 +141,7 @@ export default function DashboardPage({ walletPublicKey }) {
                 <div>
                     <h1 className={styles.pageTitle}>Dashboard</h1>
                     <p className={styles.pageSubtitle}>
-                        {walletPublicKey ? `👻 Phantom: ${walletPublicKey.slice(0, 8)}...${walletPublicKey.slice(-6)} • ` : ''}
+                        {walletPublicKey ? ` Phantom: ${walletPublicKey.slice(0, 8)}...${walletPublicKey.slice(-6)} • ` : ''}
                         Selamat datang! Ringkasan aktivitas blockchain hari ini.
                     </p>
                 </div>
@@ -255,7 +255,7 @@ export default function DashboardPage({ walletPublicKey }) {
             {recentOrders.length > 0 && (
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
-                        <div><h3 className={styles.cardTitle}>🛍️ Riwayat Pembelian Produk Kopi</h3><p className={styles.cardSubtitle}>Data real dari database — {orderStats.count} transaksi lunas · {orderStats.totalKg}g terbeli · Rp {orderStats.totalRevenue.toLocaleString('id-ID')} revenue</p></div>
+                        <div><h3 className={styles.cardTitle}>Riwayat Pembelian Produk Kopi</h3><p className={styles.cardSubtitle}>Data real dari database — {orderStats.count} transaksi lunas · {orderStats.totalKg}g terbeli · Rp {orderStats.totalRevenue.toLocaleString('id-ID')} revenue</p></div>
                         <a href="/market" className={styles.seeAll}>Lihat di Pasar →</a>
                     </div>
                     <div className={styles.tableWrapper}>
@@ -269,7 +269,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                         <td className={styles.txFarmer}>{o.productName}</td>
                                         <td className={styles.txLocation}>{o.userName}</td>
                                         <td className={styles.txWeight}>{o.weight}g</td>
-                                        <td><span style={{ fontSize: 11, fontWeight: 600, color: o.paymentMethod === 'qris' ? '#A855F7' : '#4CAF50' }}>{o.paymentMethod === 'qris' ? '📱 QRIS' : '👻 Phantom'}</span></td>
+                                        <td><span style={{ fontSize: 11, fontWeight: 600, color: o.paymentMethod === 'qris' ? '#A855F7' : '#4CAF50' }}>{o.paymentMethod === 'qris' ? 'QRIS' : 'Phantom'}</span></td>
                                         <td className={styles.txAmount}>Rp {(o.totalPrice || 0).toLocaleString('id-ID')}</td>
                                         <td><span className={`${styles.badge} ${styles.badgecompleted}`}>✅ LUNAS</span></td>
                                         <td className={styles.txTime}>{o.paidAt ? new Date(o.paidAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>

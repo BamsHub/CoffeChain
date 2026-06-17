@@ -140,7 +140,7 @@ export default function RegisterPage() {
                                 fontSize: 13,
                                 boxShadow: '0 4px 12px rgba(126,212,74,0.2)'
                             }}>
-                                🔑 Verifikasi Akun Sekarang
+                                 Verifikasi Akun Sekarang
                             </a>
                         </div>
                     )}
@@ -202,7 +202,7 @@ export default function RegisterPage() {
                                 borderRadius: 6,
                                 fontSize: 12
                             }}>
-                                🔑 Aktifkan Akun Instan
+                                 Aktifkan Akun Instan
                             </a>
                         </div>
                     )}
@@ -330,7 +330,7 @@ export default function RegisterPage() {
                                 autoComplete="new-password"
                             />
                             <button type="button" className={styles.eyeBtn} onClick={() => setShowPass(!showPass)}>
-                                {showPass ? '🙈' : '👁️'}
+                                {showPass ? 'Sembunyikan' : 'Lihat'}
                             </button>
                         </div>
                         {/* Strength bar */}
@@ -366,7 +366,7 @@ export default function RegisterPage() {
                                 autoComplete="new-password"
                             />
                             <button type="button" className={styles.eyeBtn} onClick={() => setShowConfirm(!showConfirm)}>
-                                {showConfirm ? '🙈' : '👁️'}
+                                {showConfirm ? 'Sembunyikan' : 'Lihat'}
                             </button>
                         </div>
                         {form.confirmPassword && form.password !== form.confirmPassword && (
@@ -403,9 +403,9 @@ export default function RegisterPage() {
                 </p>
 
                 <div className={styles.footer}>
-                    <span className={styles.footerBadge}>🔒 Terenkripsi SHA-256</span>
+                    <span className={styles.footerBadge}> Terenkripsi SHA-256</span>
                     <span className={styles.footerBadge}>⛓️ Solana Blockchain</span>
-                    <span className={styles.footerBadge}>🌿 CoffeeChain v1.0</span>
+                    <span className={styles.footerBadge}> CoffeeChain v1.0</span>
                 </div>
             </div>
 

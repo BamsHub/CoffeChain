@@ -42,8 +42,8 @@ export default function FarmersPage() {
     const baruBulanIni  = farmers.filter(f => (f.joined || '').startsWith(thisMonth)).length;
 
     const stats = [
-        { label: 'Total Petani',   val: loading ? '…' : totalPetani.toLocaleString('id-ID'),   icon: '👩‍🌾', color: '#4A7C28' },
-        { label: 'Koperasi Aktif', val: loading ? '…' : koperasiAktif.toLocaleString('id-ID'), icon: '🏘️', color: '#F5A623' },
+        { label: 'Total Petani',   val: loading ? '…' : totalPetani.toLocaleString('id-ID'),   icon: 'CC', color: '#4A7C28' },
+        { label: 'Koperasi Aktif', val: loading ? '…' : koperasiAktif.toLocaleString('id-ID'), icon: 'CC', color: '#F5A623' },
         { label: 'Terverifikasi',  val: loading ? '…' : terverifikasi.toLocaleString('id-ID'),  icon: '✅', color: '#4CAF50' },
         { label: 'Baru Bulan Ini', val: loading ? '…' : (baruBulanIni > 0 ? `+${baruBulanIni}` : '0'), icon: '🆕', color: '#00D4FF' },
     ];

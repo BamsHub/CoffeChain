@@ -118,7 +118,7 @@ export default function LoginPage() {
                         <div className={styles.inputWrapper}>
                             <input type={showPass ? 'text' : 'password'} value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} className={styles.input} placeholder="Masukkan password" autoComplete="current-password" />
                             <button type="button" className={styles.eyeBtn} onClick={() => setShowPass(!showPass)}>
-                                {showPass ? '🙈' : '👁️'}
+                                {showPass ? 'Sembunyikan' : 'Lihat'}
                             </button>
                         </div>
                     </div>
@@ -138,7 +138,7 @@ export default function LoginPage() {
                                 <p className={styles.resendMsg}>{resendMsg}</p>
                             ) : (
                                 <button type="button" className={styles.resendBtn} onClick={handleResendVerification} disabled={resendLoading}>
-                                    {resendLoading ? 'Mengirim...' : '🔄 Kirim ulang email verifikasi'}
+                                    {resendLoading ? 'Mengirim...' : ' Kirim ulang email verifikasi'}
                                 </button>
                             )}
                             {manualVerifyLink && (
@@ -163,7 +163,7 @@ export default function LoginPage() {
                                         borderRadius: 6,
                                         fontSize: 11
                                     }}>
-                                        🔑 Verifikasi Akun Sekarang
+                                         Verifikasi Akun Sekarang
                                     </a>
                                 </div>
                             )}
@@ -189,9 +189,9 @@ export default function LoginPage() {
                 </div>
 
                 <div className={styles.footer}>
-                    <span className={styles.footerBadge}>🔒 SHA-256</span>
+                    <span className={styles.footerBadge}> SHA-256</span>
                     <span className={styles.footerBadge}>⛓️ Solana Blockchain</span>
-                    <span className={styles.footerBadge}>🌿 CoffeeChain v1.0</span>
+                    <span className={styles.footerBadge}> CoffeeChain v1.0</span>
                 </div>
             </div>
         </div>

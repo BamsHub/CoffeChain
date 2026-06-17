@@ -6,6 +6,64 @@ import { simulateCoffeeTransaction } from '@/lib/solana';
 import { getExplorerAddressUrl } from '@/lib/contractConfig';
 import styles from './WalletPage.module.css';
 
+const IconWallet = ({ size = 20 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 12V7H5a2 2 0 010-4h14v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M3 5v14a2 2 0 002 2h16v-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M18 12a2 2 0 000 4h4v-4h-4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
+const IconCopy = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="2"/>
+        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+);
+const IconExplorer = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M15 3h6v6M10 14L21 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
+const IconSend = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
+const IconReceive = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
+const IconChart = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 19V5M4 19h16M8 16V9M12 16V7M16 16v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+);
+const IconHistory = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 12a9 9 0 101.8-5.4M3 4v6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+);
+const IconLink = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+);
+const IconLock = ({ size = 16 }) => (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="10" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
+        <path d="M8 10V7a4 4 0 018 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+);
+const IconSol = ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.5 7.25h11l-2 2.25h-11l2-2.25zM4.5 11h11l2 2.25h-11L4.5 11zM6.5 14.75h11l-2 2.25h-11l2-2.25z" fill="currentColor"/>
+    </svg>
+);
+
 const demoTxHistory = [
     { type: 'Masuk', desc: 'Penjualan Arabika Gayo 120kg', amount: 8220000, hash: '0x3f8a...c9d1', time: '27 Feb 14:21', status: 'Confirmed' },
     { type: 'Keluar', desc: 'Komisi Koperasi (2%)', amount: -164000, hash: '0x3f8a...c9d2', time: '27 Feb 14:21', status: 'Confirmed' },
@@ -20,6 +78,7 @@ export default function WalletPage() {
     const [sending, setSending] = useState(false);
     const [sendResult, setSendResult] = useState(null);
     const [tab, setTab] = useState('overview');
+    const [receiveQr, setReceiveQr] = useState(null);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.solana?.isConnected) return;
@@ -28,6 +87,24 @@ export default function WalletPage() {
             getSolBalance(pk).then(bal => setWallet({ connected: true, publicKey: pk, balance: bal }));
         }
     }, []);
+
+    useEffect(() => {
+        if (!wallet.connected || !wallet.publicKey) {
+            setReceiveQr(null);
+            return;
+        }
+        let cancelled = false;
+        import('qrcode')
+            .then(m => m.default.toDataURL(wallet.publicKey, {
+                width: 220,
+                margin: 2,
+                color: { dark: '#111111', light: '#ffffff' },
+                errorCorrectionLevel: 'M',
+            }))
+            .then(data => { if (!cancelled) setReceiveQr(data); })
+            .catch(() => { if (!cancelled) setReceiveQr(null); });
+        return () => { cancelled = true; };
+    }, [wallet.connected, wallet.publicKey]);
 
     async function handleConnect() {
         if (!isPhantomInstalled()) { window.open('https://phantom.app/', '_blank'); return; }
@@ -78,7 +155,7 @@ export default function WalletPage() {
                 </div>
                 {!wallet.connected ? (
                     <button className={styles.connectPhantomBtn} onClick={handleConnect} disabled={loading}>
-                        <span className={styles.phantomEmoji}><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></span>
+                        <span className={styles.phantomEmoji}><IconWallet size={24} /></span>
                         {loading ? 'Menghubungkan...' : 'Hubungkan Phantom Wallet'}
                     </button>
                 ) : (
@@ -89,23 +166,23 @@ export default function WalletPage() {
             {/* Not Connected */}
             {!wallet.connected && (
                 <div className={styles.notConnected}>
-                    <div className={styles.phantomLogo}><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></div>
+                    <div className={styles.phantomLogo}><IconWallet size={24} /></div>
                     <h2 className={styles.ncTitle}>Phantom Wallet Belum Terhubung</h2>
                     <p className={styles.ncDesc}>Hubungkan Phantom wallet Solana untuk mengakses saldo, mengirim transaksi, dan melihat riwayat aktivitas blockchain kopi kamu.</p>
                     <div className={styles.ncFeatures}>
-                        <div className={styles.ncFeature}><span>🔗</span> Transaksi on-chain Solana</div>
-                        <div className={styles.ncFeature}><span>🔐</span> Tanda tangan transaksi kopi</div>
-                        <div className={styles.ncFeature}><span>📊</span> Riwayat transaksi lengkap</div>
-                        <div className={styles.ncFeature}><span>💸</span> Kirim/terima SOL</div>
+                        <div className={styles.ncFeature}><span><IconLink /></span> Transaksi on-chain Solana</div>
+                        <div className={styles.ncFeature}><span><IconLock /></span> Tanda tangan transaksi kopi</div>
+                        <div className={styles.ncFeature}><span><IconChart /></span> Riwayat transaksi lengkap</div>
+                        <div className={styles.ncFeature}><span><IconSol /></span> Kirim/terima SOL</div>
                     </div>
                     {!isPhantomInstalled() && (
                         <div className={styles.installNote}>
-                            💡 Phantom belum terinstall.
-                            <a href="https://phantom.app/" target="_blank" rel="noreferrer" className={styles.installLink}> Download disini →</a>
+                            Phantom belum terinstall.
+                            <a href="https://phantom.app/" target="_blank" rel="noreferrer" className={styles.installLink}> Download di sini</a>
                         </div>
                     )}
                     <button className={styles.connectPhantomBtn} onClick={handleConnect} disabled={loading}>
-                        <span><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></span> {loading ? 'Menghubungkan...' : 'Hubungkan Phantom'}
+                        <span><IconWallet size={24} /></span> {loading ? 'Menghubungkan...' : 'Hubungkan Phantom'}
                     </button>
                 </div>
             )}
@@ -120,23 +197,23 @@ export default function WalletPage() {
                             <div>
                                 <div className={styles.balanceLabel}>Total Saldo SOL</div>
                                 <div className={styles.balanceAmount}>{wallet.balance.toFixed(4)} <span className={styles.balanceCurrency}>SOL</span></div>
-                                <div className={styles.balanceIdr}>≈ Rp {balanceIdr.toLocaleString('id-ID')}</div>
-                                <div className={styles.balanceUsd}>≈ ${(wallet.balance * solPrice).toFixed(2)} USD</div>
+                                <div className={styles.balanceIdr}>Sekitar Rp {balanceIdr.toLocaleString('id-ID')}</div>
+                                <div className={styles.balanceUsd}>Sekitar ${(wallet.balance * solPrice).toFixed(2)} USD</div>
                             </div>
                             <div className={styles.walletIconBox}>
-                                <div style={{ fontSize: 36 }}><svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 00-1-1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-2V7zM5 5h12v2H5V5zm12 10h2v4H5V9h12v6z" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg></div>
+                                <div style={{ fontSize: 36 }}><IconWallet size={28} /></div>
                                 <div className={styles.phantomLabel}>Phantom</div>
                                 <div className={styles.netLabel}>Testnet</div>
                             </div>
                         </div>
                         <div className={styles.walletAddrRow}>
                             <span className={styles.walletAddr}>{wallet.publicKey}</span>
-                            <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(wallet.publicKey)}>📋</button>
+                            <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(wallet.publicKey)} aria-label="Salin alamat wallet"><IconCopy /></button>
                         </div>
                         <div className={styles.balanceActions}>
-                            <button className={styles.actionBtn} onClick={() => setTab('send')}>⬆ Kirim</button>
-                            <button className={styles.actionBtn} onClick={() => setTab('receive')}>⬇ Terima</button>
-                            <a href={getExplorerAddressUrl(wallet.publicKey)} target="_blank" rel="noreferrer" className={styles.actionBtn}>🔍 Explorer</a>
+                            <button className={styles.actionBtn} onClick={() => setTab('send')}><IconSend /> Kirim</button>
+                            <button className={styles.actionBtn} onClick={() => setTab('receive')}><IconReceive /> Terima</button>
+                            <a href={getExplorerAddressUrl(wallet.publicKey)} target="_blank" rel="noreferrer" className={styles.actionBtn}><IconExplorer /> Explorer</a>
                         </div>
                     </div>
 
@@ -144,7 +221,7 @@ export default function WalletPage() {
                     <div className={styles.tabs}>
                         {['overview', 'send', 'receive', 'history'].map(t => (
                             <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
-                                {t === 'overview' ? '📊 Ringkasan' : t === 'send' ? '⬆ Kirim' : t === 'receive' ? '⬇ Terima' : '📋 Riwayat'}
+                                {t === 'overview' ? <><IconChart /> Ringkasan</> : t === 'send' ? <><IconSend /> Kirim</> : t === 'receive' ? <><IconReceive /> Terima</> : <><IconHistory /> Riwayat</>}
                             </button>
                         ))}
                     </div>
@@ -176,12 +253,12 @@ export default function WalletPage() {
                                     <input value={sendForm.to} onChange={e => setSendForm(p => ({ ...p, to: e.target.value }))} placeholder="Masukkan alamat wallet Solana..." className={styles.sendInput} />
                                 </div>
                                 <div className={styles.sendField}>
-                                    <label>Jumlah (SOL) — Saldo: {wallet.balance.toFixed(4)} SOL</label>
+                                    <label>Jumlah (SOL) - Saldo: {wallet.balance.toFixed(4)} SOL</label>
                                     <input type="number" step="0.001" value={sendForm.amount} onChange={e => setSendForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" className={styles.sendInput} />
                                 </div>
-                                {sendResult && <div className={styles.sendSuccess}>✅ Berhasil! Signature: <code>{sendResult.signature.slice(0, 20)}...</code></div>}
+                                {sendResult && <div className={styles.sendSuccess}>Berhasil. Signature: <code>{sendResult.signature.slice(0, 20)}...</code></div>}
                                 <button className={styles.sendBtn} onClick={handleSend} disabled={sending}>
-                                    {sending ? '⏳ Memproses...' : '⬆ Kirim SOL'}
+                                    {sending ? 'Memproses...' : <><IconSend /> Kirim SOL</>}
                                 </button>
                             </div>
                         </div>
@@ -191,13 +268,18 @@ export default function WalletPage() {
                     {tab === 'receive' && (
                         <div className={styles.receiveCard}>
                             <h3 className={styles.cardTitle}>Terima SOL</h3>
-                            <p className={styles.receiveDesc}>Bagikan alamat wallet di bawah untuk menerima SOL dari pengirim</p>
+                            <p className={styles.receiveDesc}>Bagikan QR atau alamat wallet ini ke pengirim. Pastikan pengirim memakai jaringan Solana.</p>
                             <div className={styles.qrPlaceholder}>
-                                <div className={styles.qrBox}>📱<br />QR Code<br /><small>(gunakan Phantom app)</small></div>
+                                <div className={styles.receiveQrBox}>
+                                    {receiveQr
+                                        ? <img src={receiveQr} alt="QR alamat wallet Solana" className={styles.receiveQrImage} />
+                                        : <div className={styles.qrLoading}>Membuat QR...</div>}
+                                </div>
                             </div>
                             <div className={styles.addrBox}>
+                                <span className={styles.addrLabel}>Alamat Wallet Solana</span>
                                 <code className={styles.fullAddr}>{wallet.publicKey}</code>
-                                <button className={styles.copyFullBtn} onClick={() => { navigator.clipboard.writeText(wallet.publicKey); alert('Alamat disalin!'); }}>Salin Alamat</button>
+                                <button className={styles.copyFullBtn} onClick={() => { navigator.clipboard.writeText(wallet.publicKey); alert('Alamat disalin!'); }}><IconCopy /> Salin Alamat</button>
                             </div>
                         </div>
                     )}
@@ -209,10 +291,10 @@ export default function WalletPage() {
                             <div className={styles.txList}>
                                 {txHistory.map((tx, i) => (
                                     <div key={i} className={styles.txRow}>
-                                        <div className={`${styles.txType} ${tx.type === 'Masuk' ? styles.incoming : styles.outgoing}`}>{tx.type === 'Masuk' ? '⬇' : '⬆'}</div>
+                                        <div className={`${styles.txType} ${tx.type === 'Masuk' ? styles.incoming : styles.outgoing}`}>{tx.type === 'Masuk' ? <IconReceive /> : <IconSend />}</div>
                                         <div className={styles.txInfo}>
                                             <div className={styles.txDesc}>{tx.desc}</div>
-                                            <div className={styles.txMeta}><span className={styles.txHash}>{tx.hash}</span><span>• {tx.time}</span></div>
+                                            <div className={styles.txMeta}><span className={styles.txHash}>{tx.hash}</span><span>{tx.time}</span></div>
                                         </div>
                                         <div className={styles.txRight}>
                                             <div className={`${styles.txAmount} ${tx.amount >= 0 ? styles.amountIn : styles.amountOut}`}>

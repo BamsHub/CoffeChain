@@ -211,7 +211,7 @@ export default function DocumentationPage() {
             {isDeveloper && !isEditing && (
                 <div style={{ ...cardStyle, background: 'rgba(74, 124, 40, 0.05)', border: '1px dashed var(--color-border)', marginBottom: 24, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
-                        <strong style={{ color: 'var(--color-text)', fontSize: 14 }}>🛠️ Mode Editor Admin</strong>
+                        <strong style={{ color: 'var(--color-text)', fontSize: 14 }}> Mode Editor Admin</strong>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 2 }}>Anda memiliki wewenang untuk mengedit panduan manual secara langsung ke database.</div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -237,7 +237,7 @@ export default function DocumentationPage() {
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={saveGuides} disabled={saving} style={{ padding: '8px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}>
-                                {saving ? 'Menyimpan...' : '💾 Simpan Perubahan'}
+                                {saving ? 'Menyimpan...' : ' Simpan Perubahan'}
                             </button>
                             <button onClick={cancelEditing} disabled={saving} style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text-secondary)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
                                 Batal
@@ -266,7 +266,7 @@ export default function DocumentationPage() {
                                         placeholder="Judul Kategori Panduan"
                                     />
                                     <button onClick={() => deleteSection(sidx)} style={{ background: '#E57373', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                                        🗑️ Hapus Kategori
+                                         Hapus Kategori
                                     </button>
                                 </div>
 
@@ -313,10 +313,10 @@ export default function DocumentationPage() {
             {/* Navigation Tabs */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap', borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
                 <button style={tabBtnStyle('guides')} onClick={() => setActiveTab('guides')}>
-                    📖 Panduan Alur Kerja ({roleLabel})
+                     Panduan Alur Kerja ({roleLabel})
                 </button>
                 <button style={tabBtnStyle('testing')} onClick={() => setActiveTab('testing')}>
-                    🧪 Hasil Pengujian (White Box & Black Box)
+                     Hasil Pengujian (White Box & Black Box)
                 </button>
             </div>
 
@@ -429,7 +429,7 @@ export default function DocumentationPage() {
                                 </h4>
                                 
                                 <div style={{ marginBottom: 14 }}>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>🔍 Pengujian Black Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian Black Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Mendaftar dengan email baru → Form memunculkan password strength meter (Lemah/Cukup/Kuat).</li>
                                         <li>Login dengan akun belum terverifikasi → Tombol "Kirim Ulang Email Verifikasi" muncul dan dapat ditekan.</li>
@@ -468,7 +468,7 @@ export default function DocumentationPage() {
                                 </h4>
                                 
                                 <div style={{ marginBottom: 14 }}>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>🔍 Pengujian Black Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian Black Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Membuat batch baru → Status awal dimulai pada Tahap 1 (Pembersihan).</li>
                                         <li>Tombol "Catat Tahap" dinonaktifkan jika input form tidak lengkap atau foto bukti kosong.</li>
@@ -507,7 +507,7 @@ export default function DocumentationPage() {
                                 </h4>
                                 
                                 <div style={{ marginBottom: 14 }}>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>🔍 Pengujian Black Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian Black Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Memilih Midtrans IDR → Menampilkan modal Snap berisi instruksi transfer Virtual Account atau barcode QRIS.</li>
                                         <li>Memilih SOL Transfer → Tombol meminta koneksi ke Phantom Wallet, menampilkan saldo SOL pengguna, dan mengisi otomatis alamat target store.</li>
@@ -546,7 +546,7 @@ export default function DocumentationPage() {
                                 </h4>
                                 
                                 <div style={{ marginBottom: 14 }}>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>🔍 Pengujian Black Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian Black Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Klik mendaftarkan kopi published ke rantai blok → Phantom wallet memunculkan prompt tanda tangan digital (signature request).</li>
                                         <li>Setelah ditandatangani, sistem menampilkan Coffee ID (misal: CF-001) beserta link Solana Explorer.</li>

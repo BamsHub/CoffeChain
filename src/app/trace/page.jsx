@@ -331,9 +331,9 @@ function TraceContent() {
                         {/* QR + buttons */}
                         {result.coffeeId && (
                             <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--color-border)', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <CertQRImage url={result.txSignature ? (normalizeExplorerUrl(result.explorerUrl) || getExplorerTxUrl(result.txSignature)) : `${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={100} />
+                                <CertQRImage url={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${result.coffeeId}`} size={100} />
                                 <div style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><IconQR /> QR {result.txSignature ? 'Solana Explorer' : 'Sertifikasi'}</div>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><IconQR /> QR Sertifikasi</div>
                                     <a href={`/trace?id=${result.coffeeId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(74,124,40,0.18)', border: '1px solid rgba(126,212,74,0.4)', color: '#7ED44A', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
                                         <IconQR /> Halaman Sertifikasi
                                     </a>
@@ -357,21 +357,6 @@ function TraceContent() {
                 </div>
             )}
 
-            {/* All Products Certifications */}
-            {allProducts.length > 0 && (
-                <div style={{ marginTop: 64, animation: 'fadeUp 0.8s ease' }}>
-                    <div style={{ textAlign: 'center', marginBottom: 28 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>Sertifikasi Produk</div>
-                        <h2 style={{ fontSize: 'clamp(18px,3.5vw,24px)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.5px' }}>Semua Sertifikasi Kopi</h2>
-                        <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{allProducts.filter(p => p.coffeeId).length} produk tersertifikasi di blockchain</p>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
-                        {allProducts.filter(p => p.coffeeId).map(p => (
-                            <CertCard key={p.id} p={p} />
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
