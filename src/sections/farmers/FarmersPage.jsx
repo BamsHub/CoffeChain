@@ -24,7 +24,10 @@ export default function FarmersPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/farmers')
+        const token = localStorage.getItem('cc_token');
+        fetch('/api/farmers', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
             .then(r => r.json())
             .then(d => setFarmers(d.data || []))
             .catch(() => {})
@@ -50,9 +53,8 @@ export default function FarmersPage() {
             <div className={styles.pageHeader}>
                 <div>
                     <h1 className={styles.pageTitle}>Data Petani & Koperasi</h1>
-                    <p className={styles.pageSubtitle}>Semua petani dan koperasi yang terdaftar di blockchain CoffeeChain</p>
+                    <p className={styles.pageSubtitle}>Petani aktif yang terdaftar di CoffeeChain</p>
                 </div>
-                <button className={styles.btnPrimary}>+ Daftar Petani Baru</button>
             </div>
 
             {/* Stats */}
@@ -68,6 +70,11 @@ export default function FarmersPage() {
 
             {/* Farmer Cards Grid */}
             <div className={styles.grid}>
+                {!loading && farmers.length === 0 && (
+                    <div className={styles.emptyState}>
+                        Belum ada petani aktif yang terdaftar.
+                    </div>
+                )}
                 {farmers.map((f) => (
                     <div key={f.id} className={styles.farmerCard}>
                         <div className={styles.cardTop}>

@@ -73,31 +73,6 @@
     gap: 12px;
 }
 
-.gasChip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(0, 212, 255, 0.08);
-    border: 1px solid rgba(0, 212, 255, 0.2);
-    border-radius: 20px;
-    padding: 4px 12px;
-}
-
-.gasDot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-crypto);
-    animation: pulse 1.5s infinite;
-}
-
-.gasText {
-    font-size: 12px;
-    color: var(--color-crypto);
-    font-weight: 500;
-    white-space: nowrap;
-}
-
 .iconBtn {
     width: 38px;
     height: 38px;

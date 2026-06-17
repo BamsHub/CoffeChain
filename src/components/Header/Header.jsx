@@ -86,6 +86,12 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
         return `${Math.floor(diff / 86400)} hari lalu`;
     }
 
+    function confirmLogout() {
+        if (!window.confirm('Anda yakin ingin keluar?')) return;
+        setShowUserMenu(false);
+        logout();
+    }
+
     const typeIcon = { product_added: '🛒', payment: '💲', price: '↑', info: 'ℹ', success: '✓', warning: '!' };
 
     return (
@@ -113,12 +119,6 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
 
             {/* Right */}
             <div className={styles.right}>
-                {/* Gas Price */}
-                <div className={styles.gasChip}>
-                    <span className={styles.gasDot} />
-                    <span className={styles.gasText}>Gas: 12 Gwei</span>
-                </div>
-
                 {/* Phantom Wallet */}
                 <WalletConnect onConnect={handleConnect} onDisconnect={handleDisconnect} />
 
@@ -221,7 +221,7 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
                                 Pengaturan
                             </button>
                             <div className={styles.menuDivider} />
-                            <button className={`${styles.menuItem} ${styles.logoutItem}`} onClick={() => { setShowUserMenu(false); logout(); }}>
+                            <button className={`${styles.menuItem} ${styles.logoutItem}`} onClick={confirmLogout}>
                                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                 Keluar
                             </button>

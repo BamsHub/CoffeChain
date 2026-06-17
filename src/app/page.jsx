@@ -106,6 +106,7 @@ const coffeeTypes = [
 export default function LandingPage() {
     const { logout } = useAuth();
     const [products, setProducts] = useState([]);
+    const [activeFarmers, setActiveFarmers] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [orderModal, setOrderModal] = useState(false);
@@ -179,8 +180,9 @@ export default function LandingPage() {
     const midtransLoadedRef = useRef(false);
     function loadMidtransSnap() {
         if (midtransLoadedRef.current) return;
+        const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
+        if (!clientKey) return;
         midtransLoadedRef.current = true;
-        const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || 'Mid-client-k6WqARMZiLSJbg2_';
         const snapUrl = process.env.NEXT_PUBLIC_MIDTRANS_SNAP_URL || 'https://app.sandbox.midtrans.com/snap/snap.js';
         const script = document.createElement('script');
         script.src = snapUrl;
@@ -230,6 +232,7 @@ export default function LandingPage() {
                 const farmerData = await farmerRes.json();
                 const txData = await txRes.json();
                 if (prodData.success) setProducts(prodData.data);
+                if (farmerData.success) setActiveFarmers(farmerData.data || []);
                 setStats({
                     farmers: farmerData.success ? farmerData.data?.length : 0,
                     transactions: txData.success ? txData.data?.length : 0,
@@ -285,6 +288,12 @@ export default function LandingPage() {
             }
         };
     }, [orderResult?.orderId, orderResult?.paymentMethod, orderResult?.status, orderResult?.midtransStatus]);
+
+    async function handleLandingLogout() {
+        if (!window.confirm('Anda yakin ingin keluar?')) return;
+        await logout();
+        setAdminUser(null);
+    }
 
     /* ── Phantom Wallet Functions ── */
     async function connectWallet() {
@@ -757,6 +766,14 @@ export default function LandingPage() {
                         <Link href="/login" className="lp-btn-outline" onClick={() => setMobileMenu(false)} style={{ padding: '9px 14px', fontSize: 13 }}>
                             <IconLock /> Masuk
                         </Link>
+                        {adminUser && (
+                            <button
+                                onClick={handleLandingLogout}
+                                className="lp-btn-outline"
+                                style={{ padding: '9px 14px', fontSize: 13, color: '#f44336', borderColor: 'rgba(244,67,54,0.35)' }}>
+                                <IconClose /> Keluar
+                            </button>
+                        )}
                     </div>
 
                     {/* Mobile hamburger */}
@@ -777,8 +794,8 @@ export default function LandingPage() {
                     borderBottom: '1px solid rgba(126,212,74,0.3)',
                     padding: '0 20px',
                 }}>
-                    <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 44, gap: 8, flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(232,245,224,0.7)' }}>
+                    <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: 44, gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'none', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(232,245,224,0.7)' }}>
                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7ED44A', display: 'inline-block', animation: 'pulse 2s infinite' }} />
                             <span style={{ fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                 {adminUser.role === 'developer' ? 'Developer' : adminUser.role === 'koperasi' ? 'Koperasi' : 'Admin'}
@@ -801,7 +818,7 @@ export default function LandingPage() {
                             </Link>
                             <button
                                 onClick={async () => { await logout(); setAdminUser(null); }}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.2)', color: '#f44336', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                                style={{ display: 'none', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.2)', color: '#f44336', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                                 <IconClose /> Keluar
                             </button>
                         </div>
@@ -866,6 +883,50 @@ export default function LandingPage() {
             </section>
 
             {/* ── PRODUCTS GRID ── */}
+            <section id="farmers" style={{ padding: 'clamp(36px,7vw,68px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
+                <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+                        <div>
+                            <h2 style={{ fontSize: 'clamp(24px,4vw,36px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 8 }}>Petani Aktif</h2>
+                            <p style={{ color: 'rgba(232,245,224,0.5)', fontSize: 14, maxWidth: 520 }}>
+                                Mitra petani yang sudah aktif dan siap memasok kopi bersertifikat CoffeeChain.
+                            </p>
+                        </div>
+                        <span style={{ color: '#7ED44A', fontSize: 13, fontWeight: 700 }}>{activeFarmers.length} aktif</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
+                        {(loading ? Array.from({ length: 4 }) : activeFarmers.slice(0, 8)).map((farmer, index) => (
+                            <div key={farmer?.id || index} style={{ minHeight: 118, border: '1px solid rgba(74,124,40,0.22)', borderRadius: 12, background: 'rgba(255,255,255,0.03)', padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                {loading ? (
+                                    <div style={{ height: 14, width: '65%', borderRadius: 20, background: 'rgba(255,255,255,0.08)' }} />
+                                ) : (
+                                    <>
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(126,212,74,0.15)', border: '1px solid rgba(126,212,74,0.25)', color: '#7ED44A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
+                                                    {(farmer.name || 'PT').slice(0, 2).toUpperCase()}
+                                                </div>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <div style={{ color: '#E8F5E0', fontSize: 14, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{farmer.name}</div>
+                                                    <div style={{ color: 'rgba(232,245,224,0.45)', fontSize: 12 }}>{farmer.region || '-'}</div>
+                                                </div>
+                                            </div>
+                                            <div style={{ color: 'rgba(232,245,224,0.5)', fontSize: 12 }}>{farmer.type || 'Petani'} - {farmer.status || 'Aktif'}</div>
+                                        </div>
+                                        <div style={{ color: '#7ED44A', fontSize: 12, fontWeight: 700, marginTop: 14 }}>Aktif</div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                        {!loading && activeFarmers.length === 0 && (
+                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', border: '1px solid rgba(74,124,40,0.22)', borderRadius: 12, padding: 24, color: 'rgba(232,245,224,0.45)' }}>
+                                Belum ada petani aktif yang bisa ditampilkan.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
+
             <section id="products" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
                 <div style={{ maxWidth: 1200, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: 32 }}>
