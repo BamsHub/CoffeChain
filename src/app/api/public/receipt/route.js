@@ -102,6 +102,10 @@ export async function GET(request) {
             return Response.json({ success: false, message: 'Receipt tidak ditemukan' }, { status: 404 });
         }
 
+        if (order.status !== 'paid') {
+            return Response.json({ success: false, message: 'Belum dibayar. Receipt akan tersedia setelah pembayaran dikonfirmasi.' }, { status: 402 });
+        }
+
         const trace = await findTrace(order);
         return Response.json({
             success: true,

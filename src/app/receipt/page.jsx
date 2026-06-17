@@ -133,8 +133,8 @@ function ReceiptContent() {
                     <section style={{ border: '1px solid var(--color-border, rgba(74,124,40,0.25))', borderRadius: 18, background: 'var(--color-bg-surface, #101a10)', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.25)' }}>
                         <div style={{ padding: '24px clamp(18px, 4vw, 36px)', borderBottom: '1px solid var(--color-border, rgba(74,124,40,0.18))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap' }}>
                             <div>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: order.status === 'paid' ? '#7ED44A' : '#F5A623', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                    <IconCheck /> {order.status === 'paid' ? 'Pembayaran Terkonfirmasi' : 'Menunggu Pembayaran'}
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#7ED44A', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                    <IconCheck /> Pembayaran Berhasil
                                 </div>
                                 <h1 style={{ marginTop: 10, fontSize: 'clamp(28px, 5vw, 44px)', lineHeight: 1.05, letterSpacing: 0 }}>Receipt Transaksi</h1>
                                 <p style={{ color: 'var(--color-text-muted, rgba(232,245,224,0.55))', marginTop: 8, fontSize: 14 }}>Order {order.orderId}</p>
