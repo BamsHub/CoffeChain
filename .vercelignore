@@ -1,0 +1,8 @@
+contracts/target/
+reports/
+scratch/
+scratch*.js
+check_tables.js
+create_sales_table.js
+migrate_and_link.js
+perf_results.json
