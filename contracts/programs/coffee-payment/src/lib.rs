@@ -5,7 +5,7 @@ declare_id!("CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52");
 
 /// =============================================================
 ///  CoffeeChain — Smart Contract Pembayaran Kopi
-///  Network: Solana Devnet / Mainnet
+///  Network: Solana Testnet / Mainnet
 ///  Gas: ~5000 lamports (< Rp 1) — paling hemat dengan Compute Budget
 /// =============================================================
 #[program]
