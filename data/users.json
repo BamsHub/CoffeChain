@@ -1,0 +1,75 @@
+{
+  "items": [
+    {
+      "id": "user-001",
+      "name": "Administrator CoffeeChain",
+      "email": "jabbarbabam0222@gmail.com",
+      "password": "3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2",
+      "role": "developer",
+      "region": "Jakarta",
+      "wallet": "",
+      "avatar": "AD",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "lastLogin": "2026-03-21T08:37:06.146Z",
+      "active": true,
+      "bio": "",
+      "location": "",
+      "phone": "",
+      "language": "Indonesia",
+      "photoBase64": null
+    },
+    {
+      "id": "user-002",
+      "name": "Koperasi Gayo Murni",
+      "email": "koperasi@coffeechain.io",
+      "password": "91460a2e607c322cfbe096efdb7bd8c4e1d8585957ee5e4059316296404b7078",
+      "role": "koperasi",
+      "region": "Gayo, Aceh",
+      "wallet": "315uu33zhmYeYv3whEivNMiD73C44jzTBJ6HTSZeXnjr",
+      "avatar": "KO",
+      "createdAt": "2024-03-15T00:00:00.000Z",
+      "lastLogin": "2026-02-28T06:50:32.276Z",
+      "active": true
+    },
+    {
+      "id": "user-003",
+      "name": "Pak Slamet Riyadi",
+      "email": "petani@coffeechain.io",
+      "password": "c8475f4bac28e3539a6ad014aaf34844141456146252541c11467caaa6404847",
+      "role": "farmer",
+      "region": "Gayo, Aceh",
+      "wallet": "98pPV5S3FZ7S2Kgpk4XqVN4irbSQFSvrGbBq8WWfzGhS",
+      "avatar": "PS",
+      "createdAt": "2024-05-20T00:00:00.000Z",
+      "lastLogin": "2026-03-17T09:12:34.713Z",
+      "active": true
+    },
+    {
+      "id": "user-004",
+      "name": "Bu Ratna Dewi",
+      "email": "ratna@coffeechain.io",
+      "password": "6f02b8f7d9f6c854b5b8c1b6e02f4f3a8e1d2c5b0a7f9e3d1c4b6a8f0e2d4c6",
+      "role": "farmer",
+      "region": "Toraja, Sulsel",
+      "wallet": "4cDe1F2G3H4i5J6k7L8M9N0o1P2q3R",
+      "avatar": "RD",
+      "createdAt": "2024-01-14T00:00:00.000Z",
+      "lastLogin": null,
+      "active": true
+    },
+    {
+      "id": "user-005",
+      "name": "Jabbar Petani",
+      "email": "jabbarbabam0333@gmail.com",
+      "password": "a83a92663e404e361deeb66ff51c5b9caa511555b27adfbee4f19633c80fee74",
+      "role": "farmer",
+      "region": "Gayo, Aceh",
+      "wallet": "",
+      "avatar": "JP",
+      "createdAt": "2026-05-30T00:00:00.000Z",
+      "lastLogin": null,
+      "active": true,
+      "emailVerified": true
+    }
+  ]
+}

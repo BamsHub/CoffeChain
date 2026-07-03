@@ -1,0 +1,376 @@
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+
+// Dummy approval history (shows a pre-existing approved request)
+const DUMMY_REQUESTS = [
+    {
+        id: 'dummy-req-001',
+        productId: 'dummy-prod-001',
+        productName: 'Arabika Gayo Special Reserve',
+        origin: 'Aceh Tengah',
+        variety: 'Arabika',
+        grade: 'Specialty',
+        roast: 'Medium Roast',
+        stock: 80,
+        submittedByName: 'Pak Slamet Riyadi',
+        submittedByRole: 'farmer',
+        submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+        status: 'published',
+        approvedByName: 'Admin Koperasi Gayo',
+        approvedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        type: 'add',
+        note: 'Produk unggulan petani binaan koperasi — kopi single origin Grade Specialty dengan catatan rasa fruity & floral.',
+    },
+];
+
+const STATUS_CONFIG = {
+    pending:   { label: 'Menunggu', color: '#F5A623', bg: 'rgba(245,166,35,0.12)' },
+    published: { label: 'Disetujui', color: '#4CAF50', bg: 'rgba(76,175,80,0.12)' },
+    rejected:  { label: 'Ditolak',  color: '#f44336', bg: 'rgba(244,67,54,0.12)' },
+};
+
+export default function RequestLog() {
+    const { user } = useAuth();
+    const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
+
+    const [pending, setPending] = useState([]);
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history'
+    const [approving, setApproving] = useState(null);
+    const [msg, setMsg] = useState(null);
+    const [search, setSearch] = useState('');
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [pendRes, allRes, txRes] = await Promise.all([
+                fetch('/api/products?status=pending'),
+                fetch('/api/products'),
+                fetch('/api/transactions'),
+            ]);
+            const pendData = await pendRes.json();
+            const allData = await allRes.json();
+            const txData = await txRes.json();
+
+            // Pending requests
+            setPending(pendData.data || []);
+
+            // History: approved/rejected products + approval transactions
+            const approvalTx = (txData.data || []).filter(t => t.type === 'product_approval');
+            const approvedProducts = (allData.data || []).filter(p =>
+                p.status === 'published' || p.status === 'rejected'
+            );
+
+            // Build history entries — merge product data with tx approval events
+            const histItems = approvedProducts.map(p => {
+                const matchTx = approvalTx.find(t => t.productId === p.id || t.productName === p.name);
+                return {
+                    id: p.id,
+                    productId: p.id,
+                    productName: p.name,
+                    origin: p.origin,
+                    variety: p.variety,
+                    grade: p.grade,
+                    roast: p.roast,
+                    stock: p.stock,
+                    submittedByName: p.submittedByName || 'Petani',
+                    submittedByRole: p.submittedByRole || 'farmer',
+                    submittedAt: p.submittedAt || p.createdAt || null,
+                    status: p.status,
+                    approvedByName: p.approvedByName || matchTx?.approvedBy || '—',
+                    approvedAt: p.approvedAt || matchTx?.createdAt || null,
+                    rejectedReason: p.rejectedReason || null,
+                    type: 'add',
+                };
+            });
+
+            // Merge with dummy — only add dummy if no real items yet
+            const merged = histItems.length === 0
+                ? [...DUMMY_REQUESTS, ...histItems]
+                : [...histItems, ...DUMMY_REQUESTS.filter(d => !histItems.find(h => h.id === d.id))];
+
+            setHistory(merged.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)));
+        } catch { }
+        setLoading(false);
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    async function handleApprove(product) {
+        setApproving(`approve-${product.id}`);
+        setMsg(null);
+        try {
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: product.id,
+                    status: 'published',
+                    approvedBy: user?.id || 'admin',
+                    approvedByName: user?.name || user?.email || 'Admin',
+                    approvedAt: new Date().toISOString(),
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setMsg({ type: 'ok', text: `Produk "${product.name}" dari ${product.submittedByName || 'petani'} telah disetujui dan kini tampil di katalog!` });
+                load();
+            } else setMsg({ type: 'err', text: data.message });
+        } catch { setMsg({ type: 'err', text: 'Gagal menyetujui' }); }
+        setApproving(null);
+    }
+
+    async function handleReject(product) {
+        const reason = prompt(`Alasan penolakan untuk "${product.name}"?`);
+        if (reason === null) return;
+        setApproving(`reject-${product.id}`);
+        setMsg(null);
+        try {
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: product.id,
+                    status: 'rejected',
+                    rejectedReason: reason || 'Tidak memenuhi standar',
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setMsg({ type: 'ok', text: `Produk "${product.name}" ditolak.` });
+                load();
+            } else setMsg({ type: 'err', text: data.message });
+        } catch { setMsg({ type: 'err', text: 'Gagal menolak' }); }
+        setApproving(null);
+    }
+
+    // Filter list
+    const filteredPending = pending.filter(p =>
+        !search ||
+        p.name?.toLowerCase().includes(search.toLowerCase()) ||
+        p.submittedByName?.toLowerCase().includes(search.toLowerCase())
+    );
+    const filteredHistory = history.filter(p =>
+        !search ||
+        p.productName?.toLowerCase().includes(search.toLowerCase()) ||
+        p.submittedByName?.toLowerCase().includes(search.toLowerCase()) ||
+        p.approvedByName?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    /* ── STYLES ── */
+    const card = { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 };
+    const input = { padding: '9px 13px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
+    const badge = (color, bg) => ({ fontSize: 11, padding: '3px 9px', borderRadius: 100, background: bg || `${color}18`, color, border: `1px solid ${color}44`, fontWeight: 700 });
+
+    if (!canApprove) {
+        return (
+            <div style={{ padding: 'clamp(16px,3vw,32px)', maxWidth: 1100, margin: '0 auto' }}>
+                <div style={{ ...card, textAlign: 'center', padding: '60px 0', color: 'var(--color-text-muted)' }}>
+                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', display: 'block', opacity: 0.35 }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <p style={{ fontSize: 14 }}>Halaman ini hanya dapat diakses oleh <strong>Koperasi</strong> atau <strong>Developer</strong>.</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ padding: 'clamp(16px,3vw,32px)', maxWidth: 1100, margin: '0 auto' }}>
+
+            {/* Sub Nav */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+                <Link href="/products" style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
+                    Kelola Produk
+                </Link>
+                <Link href="/products/stock" style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
+                    Kelola Stok
+                </Link>
+                <span style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', cursor: 'default' }}>
+                    Request Log
+                </span>
+            </div>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+                <div>
+                    <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
+                        Request Log Produk
+                    </h1>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                        Permintaan penambahan / edit produk dari petani — persetujuan & riwayat lengkap
+                    </p>
+                </div>
+                {/* Stats */}
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ textAlign: 'center', background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.25)', borderRadius: 10, padding: '8px 18px' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#F5A623' }}>{pending.length}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Menunggu</div>
+                    </div>
+                    <div style={{ textAlign: 'center', background: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)', borderRadius: 10, padding: '8px 18px' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#4CAF50' }}>{history.filter(h => h.status === 'published').length}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Disetujui</div>
+                    </div>
+                    <div style={{ textAlign: 'center', background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.2)', borderRadius: 10, padding: '8px 18px' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#f44336' }}>{history.filter(h => h.status === 'rejected').length}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Ditolak</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Toast */}
+            {msg && (
+                <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: msg.type === 'ok' ? 'rgba(76,175,80,0.12)' : 'rgba(244,67,54,0.12)', border: `1px solid ${msg.type === 'ok' ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.35)'}`, color: msg.type === 'ok' ? '#4CAF50' : '#f44336', fontSize: 13, fontWeight: 600 }}>
+                    {msg.type === 'ok' ? '✓ ' : '✕ '}{msg.text}
+                </div>
+            )}
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+                {[
+                    { key: 'pending', label: `Menunggu Persetujuan`, count: pending.length },
+                    { key: 'history', label: 'Riwayat Persetujuan', count: history.length },
+                ].map(tab => (
+                    <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                        style={{ padding: '9px 20px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s',
+                            background: activeTab === tab.key ? 'rgba(126,212,74,0.15)' : 'rgba(255,255,255,0.04)',
+                            color: activeTab === tab.key ? '#7ED44A' : 'var(--color-text-muted)',
+                            outline: activeTab === tab.key ? '1px solid rgba(126,212,74,0.4)' : '1px solid var(--color-border)',
+                        }}>
+                        {tab.label}
+                        {tab.count > 0 && (
+                            <span style={{ background: activeTab === tab.key ? '#7ED44A' : '#555', color: activeTab === tab.key ? '#0a1a0a' : '#ccc', borderRadius: '50%', width: 20, height: 20, fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {tab.count}
+                            </span>
+                        )}
+                    </button>
+                ))}
+            </div>
+
+            {/* Search */}
+            <div style={{ marginBottom: 16 }}>
+                <input style={{ ...input, maxWidth: 360, width: '100%' }} placeholder="Cari nama produk atau petani..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+
+            {/* ── PENDING TAB ── */}
+            {activeTab === 'pending' && (
+                loading ? (
+                    <div style={{ ...card, textAlign: 'center', padding: '40px 0', color: 'var(--color-text-muted)' }}>Memuat...</div>
+                ) : filteredPending.length === 0 ? (
+                    <div style={{ ...card, textAlign: 'center', padding: '56px 0' }}>
+                        <svg width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.3" style={{ margin: '0 auto 14px', display: 'block', opacity: 0.3 }}><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                        <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>Tidak ada permintaan yang menunggu persetujuan.</p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {filteredPending.map(p => (
+                            <div key={p.id} style={{ ...card, border: '1px solid rgba(245,166,35,0.35)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                                    <div style={{ flex: 1, minWidth: 220 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                                            <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--color-text)' }}>{p.name}</div>
+                                            <span style={badge('#F5A623')}>Menunggu</span>
+                                            <span style={badge('#7ED44A', 'rgba(126,212,74,0.08)')}>{p.variety || 'Arabika'}</span>
+                                            {p.grade && <span style={badge('#a855f7', 'rgba(168,85,247,0.08)')}>{p.grade}</span>}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                                            {p.origin} · {p.roast}
+                                        </div>
+                                        <div style={{ displaydisplay: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '4px 16px', fontSize: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px' }}>
+                                            <div><span style={{ color: 'var(--color-text-muted)' }}>Petani:</span> <strong style={{ color: 'var(--color-text)' }}>{p.submittedByName || 'Petani'}</strong></div>
+                                            <div><span style={{ color: 'var(--color-text-muted)' }}>Stok:</span> <strong style={{ color: 'var(--color-text)' }}>{p.stock ?? 0} unit</strong></div>
+                                            <div><span style={{ color: 'var(--color-text-muted)' }}>Tanggal:</span> <strong style={{ color: 'var(--color-text)' }}>{p.submittedAt ? new Date(p.submittedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</strong></div>
+                                            {p.description && <div style={{ gridColumn: '1/-1', color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 4 }}>"{p.description}"</div>}
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                        <button onClick={() => handleApprove(p)} disabled={!!approving}
+                                            style={{ padding: '9px 20px', background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', border: 'none', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: approving ? 0.6 : 1 }}>
+                                            {approving === `approve-${p.id}` ? 'Memproses...' : '✓ Setujui'}
+                                        </button>
+                                        <button onClick={() => handleReject(p)} disabled={!!approving}
+                                            style={{ padding: '9px 20px', background: 'rgba(244,67,54,0.1)', color: '#f44336', border: '1px solid rgba(244,67,54,0.3)', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: approving ? 0.6 : 1 }}>
+                                            {approving === `reject-${p.id}` ? 'Memproses...' : '✕ Tolak'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
+            )}
+
+            {/* ── HISTORY TAB ── */}
+            {activeTab === 'history' && (
+                loading ? (
+                    <div style={{ ...card, textAlign: 'center', padding: '40px 0', color: 'var(--color-text-muted)' }}>Memuat...</div>
+                ) : filteredHistory.length === 0 ? (
+                    <div style={{ ...card, textAlign: 'center', padding: '56px 0', color: 'var(--color-text-muted)', fontSize: 14 }}>
+                        Belum ada riwayat persetujuan.
+                    </div>
+                ) : (
+                    <div style={{ ...card, overflow: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                    {['Nama Produk', 'Asal / Varietas', 'Petani / Pemohon', 'Tgl Permintaan', 'Diproses oleh', 'Tgl Diproses', 'Status'].map(h => (
+                                        <th key={h} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredHistory.map((item, i) => {
+                                    const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
+                                    return (
+                                        <tr key={item.id || i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: '14px', verticalAlign: 'middle' }}>
+                                                <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>{item.productName || item.name}</div>
+                                                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2, display: 'flex', gap: 4 }}>
+                                                    {item.grade && <span style={{ background: 'rgba(126,212,74,0.1)', color: '#7ED44A', borderRadius: 4, padding: '1px 6px' }}>{item.grade}</span>}
+                                                    {item.roast && <span style={{ background: 'rgba(245,166,35,0.08)', color: '#F5A623', borderRadius: 4, padding: '1px 6px' }}>{item.roast}</span>}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '14px', verticalAlign: 'middle', color: 'var(--color-text-muted)' }}>
+                                                <div>{item.origin || '—'}</div>
+                                                <div style={{ fontSize: 11 }}>{item.variety || '—'}</div>
+                                            </td>
+                                            <td style={{ padding: '14px', verticalAlign: 'middle' }}>
+                                                <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{item.submittedByName || '—'}</div>
+                                                <div style={{ fontSize: 11, color: '#7ED44A' }}>{item.submittedByRole || 'farmer'}</div>
+                                            </td>
+                                            <td style={{ padding: '14px', verticalAlign: 'middle', color: 'var(--color-text-muted)', fontSize: 12 }}>
+                                                {item.submittedAt ? new Date(item.submittedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                            </td>
+                                            <td style={{ padding: '14px', verticalAlign: 'middle' }}>
+                                                {item.approvedByName && item.approvedByName !== '—' ? (
+                                                    <>
+                                                        <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{item.approvedByName}</div>
+                                                        <div style={{ fontSize: 11, color: item.status === 'published' ? '#4CAF50' : '#f44336' }}>
+                                                            {item.status === 'published' ? 'Menyetujui' : 'Menolak'}
+                                                        </div>
+                                                    </>
+                                                ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
+                                            </td>
+                                            <td style={{ padding: '14px', verticalAlign: 'middle', color: 'var(--color-text-muted)', fontSize: 12 }}>
+                                                {item.approvedAt ? new Date(item.approvedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                            </td>
+                                            <td style={{ padding: '14px', verticalAlign: 'middle' }}>
+                                                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 100, background: sc.bg, color: sc.color, border: `1px solid ${sc.color}44`, fontWeight: 700 }}>
+                                                    {sc.label}
+                                                </span>
+                                                {item.rejectedReason && (
+                                                    <div style={{ fontSize: 10, color: '#f44336', marginTop: 3, maxWidth: 160, fontStyle: 'italic' }}>"{item.rejectedReason}"</div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )
+            )}
+        </div>
+    );
+}

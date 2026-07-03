@@ -1,0 +1,208 @@
+.calendar {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 16px;
+    width: 280px;
+    user-select: none;
+}
+
+.calHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.navBtn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: var(--color-bg-card2);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.navBtn:hover:not(:disabled) {
+    border-color: var(--color-primary-light);
+    color: var(--color-primary-light);
+}
+
+.navBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.calTitle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.titleBtn {
+    background: none;
+    border: none;
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.titleBtn:hover {
+    color: var(--color-primary-light);
+    background: rgba(74, 124, 40, 0.1);
+}
+
+.titleText {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+/* Day names row */
+.dayNames {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 6px;
+}
+
+.dayName {
+    font-size: 10px;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    padding: 4px 0;
+}
+
+/* Day grid */
+.dayGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.dayCell {
+    aspect-ratio: 1;
+    border-radius: 7px;
+    font-size: 12px;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dayCell:hover {
+    background: rgba(74, 124, 40, 0.15);
+    color: var(--color-text);
+}
+
+.otherMonth {
+    color: var(--color-text-muted);
+    opacity: 0.4;
+    cursor: default;
+}
+
+.otherMonth:hover {
+    background: none;
+}
+
+.today {
+    color: var(--color-primary-light);
+    font-weight: 700;
+    border: 1px solid rgba(74, 124, 40, 0.4);
+}
+
+.selected {
+    background: var(--color-primary-light) !important;
+    color: white !important;
+    font-weight: 700;
+}
+
+/* Month grid */
+.monthGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 4px 0;
+}
+
+.monthCell {
+    padding: 10px 4px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+}
+
+.monthCell:hover {
+    background: rgba(74, 124, 40, 0.15);
+    color: var(--color-text);
+}
+
+/* Year grid */
+.yearGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 4px 0;
+}
+
+.yearCell {
+    padding: 8px 2px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+}
+
+.yearCell:hover {
+    background: rgba(74, 124, 40, 0.15);
+    color: var(--color-text);
+}
+
+/* Selected display */
+.selectedDisplay {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+.selectedLabel {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.selectedVal {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-primary-light);
+}

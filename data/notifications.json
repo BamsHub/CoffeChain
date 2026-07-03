@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "d62b93e0-6fee-4ce5-bc44-b3eb9aed6c57",
+      "type": "product_added",
+      "title": "🛍️ Produk Kopi Baru Tersedia",
+      "message": "Test Arabika Notification dari Aceh — mulai Rp 60.000",
+      "icon": "☕",
+      "actorName": "Koperasi",
+      "actorRole": "koperasi",
+      "targetUserId": "all",
+      "read": false,
+      "createdAt": "2026-02-27T17:23:52.121Z"
+    }
+  ]
+}

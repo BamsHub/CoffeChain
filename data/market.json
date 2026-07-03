@@ -1,0 +1,64 @@
+{
+    "items": [
+        {
+            "id": "m-001",
+            "name": "Arabika Gayo",
+            "grade": "A",
+            "price": 68500,
+            "change": -2.1,
+            "volume": 4821,
+            "origin": "Aceh",
+            "updatedAt": "2026-02-27T08:00:00.000Z"
+        },
+        {
+            "id": "m-002",
+            "name": "Arabika Toraja",
+            "grade": "A",
+            "price": 72000,
+            "change": 1.4,
+            "volume": 3210,
+            "origin": "Sulawesi",
+            "updatedAt": "2026-02-27T08:00:00.000Z"
+        },
+        {
+            "id": "m-003",
+            "name": "Robusta Lampung",
+            "grade": "B",
+            "price": 42000,
+            "change": 0.8,
+            "volume": 8540,
+            "origin": "Lampung",
+            "updatedAt": "2026-02-27T08:00:00.000Z"
+        },
+        {
+            "id": "m-004",
+            "name": "Arabika Flores",
+            "grade": "A",
+            "price": 75000,
+            "change": 3.2,
+            "volume": 1980,
+            "origin": "NTT",
+            "updatedAt": "2026-02-27T08:00:00.000Z"
+        },
+        {
+            "id": "m-005",
+            "name": "Arabika Mandheling",
+            "grade": "AA",
+            "price": 80000,
+            "change": -0.5,
+            "volume": 2430,
+            "origin": "Sumut",
+            "updatedAt": "2026-02-27T08:00:00.000Z"
+        },
+        {
+            "id": "m-006",
+            "name": "Liberika Riau",
+            "grade": "B",
+            "price": 38000,
+            "change": 1.8,
+            "volume": 920,
+            "origin": "Riau",
+            "updatedAt": "2026-02-27T08:00:00.000Z"
+        }
+    ]
+}
