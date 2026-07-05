@@ -8,13 +8,13 @@ const WHATSAPP_NUMBER = '6287857417132';
 
 // ── Kategori Pengaduan ──────────────────────────────────────────
 const CATEGORIES = [
-    { key: 'quality', icon: '☕', label: 'Kualitas Produk', desc: 'Masalah dengan kualitas kopi' },
-    { key: 'delivery', icon: '🚚', label: 'Pengiriman', desc: 'Keterlambatan atau kerusakan pengiriman' },
-    { key: 'payment', icon: '💳', label: 'Pembayaran', desc: 'Masalah transaksi atau refund' },
-    { key: 'blockchain', icon: '⛓️', label: 'Blockchain', desc: 'Masalah traceability atau sertifikasi' },
-    { key: 'account', icon: '👤', label: 'Akun', desc: 'Login, registrasi, atau keamanan akun' },
-    { key: 'suggestion', icon: '💡', label: 'Saran & Masukan', desc: 'Ide perbaikan untuk CoffeeChain' },
-    { key: 'other', icon: '📋', label: 'Lainnya', desc: 'Pertanyaan umum atau topik lain' },
+    { key: 'quality', icon: '', label: 'Kualitas Produk', desc: 'Masalah dengan kualitas kopi' },
+    { key: 'delivery', icon: '', label: 'Pengiriman', desc: 'Keterlambatan atau kerusakan pengiriman' },
+    { key: 'payment', icon: '', label: 'Pembayaran', desc: 'Masalah transaksi atau refund' },
+    { key: 'blockchain', icon: '', label: 'Blockchain', desc: 'Masalah traceability atau sertifikasi' },
+    { key: 'account', icon: '', label: 'Akun', desc: 'Login, registrasi, atau keamanan akun' },
+    { key: 'suggestion', icon: '', label: 'Saran & Masukan', desc: 'Ide perbaikan untuk CoffeeChain' },
+    { key: 'other', icon: '', label: 'Lainnya', desc: 'Pertanyaan umum atau topik lain' },
 ];
 
 // ── Floating particles ──────────────────────────────────────────
@@ -69,16 +69,16 @@ export default function ContactPage() {
     // Build WhatsApp message
     const buildWhatsAppMessage = () => {
         const cat = CATEGORIES.find((c) => c.key === category);
-        const urgencyLabel = urgency === 'urgent' ? '🔴 URGENT' : urgency === 'high' ? '🟡 Prioritas Tinggi' : '🟢 Normal';
+        const urgencyLabel = urgency === 'urgent' ? ' URGENT' : urgency === 'high' ? ' Prioritas Tinggi' : ' Normal';
 
-        let text = `📩 *PENGADUAN COFFEECHAIN*\n`;
+        let text = ` *PENGADUAN COFFEECHAIN*\n`;
         text += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-        if (name) text += `👤 *Nama:* ${name}\n`;
-        if (phone) text += `📱 *No. HP:* ${phone}\n`;
-        text += `📂 *Kategori:* ${cat ? `${cat.icon} ${cat.label}` : 'Belum dipilih'}\n`;
-        text += `⚡ *Urgensi:* ${urgencyLabel}\n`;
-        if (subject) text += `📌 *Subjek:* ${subject}\n`;
-        text += `\n💬 *Pesan:*\n${message || '(tidak ada pesan)'}\n`;
+        if (name) text += ` *Nama:* ${name}\n`;
+        if (phone) text += ` *No. HP:* ${phone}\n`;
+        text += ` *Kategori:* ${cat ? `${cat.icon} ${cat.label}` : 'Belum dipilih'}\n`;
+        text += ` *Urgensi:* ${urgencyLabel}\n`;
+        if (subject) text += ` *Subjek:* ${subject}\n`;
+        text += `\n *Pesan:*\n${message || '(tidak ada pesan)'}\n`;
         text += `\n━━━━━━━━━━━━━━━━━━━━\n`;
         text += `_Dikirim via CoffeeChain Contact_`;
 
@@ -138,7 +138,7 @@ export default function ContactPage() {
             {/* Header */}
             <header style={styles.header}>
                 <a href="/" style={styles.logoLink}>
-                    <span style={styles.logoIcon}>☕</span>
+                    <span style={styles.logoIcon}></span>
                     <span style={styles.logoText}>CoffeeChain</span>
                 </a>
                 <nav style={styles.nav}>
@@ -150,7 +150,7 @@ export default function ContactPage() {
             <div style={styles.container}>
                 {/* Title */}
                 <div style={styles.titleSection}>
-                    <div style={styles.titleBadge}>📞 Layanan Pengaduan</div>
+                    <div style={styles.titleBadge}> Layanan Pengaduan</div>
                     <h1 style={styles.title}>
                         Hubungi <span style={styles.titleAccent}>Kami</span>
                     </h1>
@@ -165,7 +165,7 @@ export default function ContactPage() {
                     {/* Left: Form */}
                     <div style={styles.formCard}>
                         <div style={styles.formHeader}>
-                            <span style={styles.formHeaderIcon}>📝</span>
+                            <span style={styles.formHeaderIcon}></span>
                             <div>
                                 <div style={styles.formHeaderTitle}>Form Pengaduan</div>
                                 <div style={styles.formHeaderDesc}>Isi form di bawah, lalu kirim via WhatsApp</div>
@@ -176,7 +176,7 @@ export default function ContactPage() {
                             {/* Name & Phone */}
                             <div style={styles.fieldRow}>
                                 <div style={styles.fieldGroup}>
-                                    <label style={styles.label}>👤 Nama <span style={styles.optional}>(opsional)</span></label>
+                                    <label style={styles.label}> Nama <span style={styles.optional}>(opsional)</span></label>
                                     <input
                                         type="text" placeholder="Nama lengkap Anda"
                                         value={name} onChange={(e) => setName(e.target.value)}
@@ -184,7 +184,7 @@ export default function ContactPage() {
                                     />
                                 </div>
                                 <div style={styles.fieldGroup}>
-                                    <label style={styles.label}>📱 No. HP <span style={styles.optional}>(opsional)</span></label>
+                                    <label style={styles.label}> No. HP <span style={styles.optional}>(opsional)</span></label>
                                     <input
                                         type="tel" placeholder="08xx-xxxx-xxxx"
                                         value={phone} onChange={(e) => setPhone(e.target.value)}
@@ -195,7 +195,7 @@ export default function ContactPage() {
 
                             {/* Category */}
                             <div style={styles.fieldGroup}>
-                                <label style={styles.label}>📂 Kategori <span style={styles.required}>*</span></label>
+                                <label style={styles.label}> Kategori <span style={styles.required}>*</span></label>
                                 <div style={styles.categoryGrid}>
                                     {CATEGORIES.map((cat) => (
                                         <button
@@ -220,12 +220,12 @@ export default function ContactPage() {
 
                             {/* Urgency */}
                             <div style={styles.fieldGroup}>
-                                <label style={styles.label}>⚡ Urgensi</label>
+                                <label style={styles.label}> Urgensi</label>
                                 <div style={styles.urgencyRow}>
                                     {[
-                                        { key: 'normal', label: '🟢 Normal', color: '#4CAF50' },
-                                        { key: 'high', label: '🟡 Prioritas Tinggi', color: '#FF9800' },
-                                        { key: 'urgent', label: '🔴 Urgent', color: '#f44336' },
+                                        { key: 'normal', label: ' Normal', color: '#4CAF50' },
+                                        { key: 'high', label: ' Prioritas Tinggi', color: '#FF9800' },
+                                        { key: 'urgent', label: ' Urgent', color: '#f44336' },
                                     ].map((u) => (
                                         <button
                                             key={u.key}
@@ -245,7 +245,7 @@ export default function ContactPage() {
 
                             {/* Subject */}
                             <div style={styles.fieldGroup}>
-                                <label style={styles.label}>📌 Subjek <span style={styles.optional}>(opsional)</span></label>
+                                <label style={styles.label}> Subjek <span style={styles.optional}>(opsional)</span></label>
                                 <input
                                     type="text" placeholder="Ringkasan singkat masalah Anda"
                                     value={subject} onChange={(e) => setSubject(e.target.value)}
@@ -256,7 +256,7 @@ export default function ContactPage() {
                             {/* Message */}
                             <div style={styles.fieldGroup}>
                                 <label style={styles.label}>
-                                    💬 Pesan <span style={styles.required}>*</span>
+                                     Pesan <span style={styles.required}>*</span>
                                     <span style={styles.charCount}>{charCount} karakter</span>
                                 </label>
                                 <textarea
@@ -268,7 +268,7 @@ export default function ContactPage() {
                             </div>
 
                             {/* Error */}
-                            {error && <div style={styles.errorMsg}>⚠️ {error}</div>}
+                            {error && <div style={styles.errorMsg}> {error}</div>}
 
                             {/* Actions */}
                             <div style={styles.actionRow}>
@@ -280,18 +280,18 @@ export default function ContactPage() {
                                     disabled={isSaving}
                                     style={{ ...styles.sendBtn, ...(sent ? styles.sendBtnSent : {}), ...(isSaving ? { opacity: 0.7, cursor: 'wait' } : {}) }}
                                 >
-                                    {isSaving ? '⏳ Menyimpan...' : sent ? '✅ WhatsApp Terbuka!' : '💬 Kirim via WhatsApp'}
+                                    {isSaving ? ' Menyimpan...' : sent ? ' WhatsApp Terbuka!' : ' Kirim via WhatsApp'}
                                 </button>
                             </div>
 
                             {sent && (
                                 <div style={styles.successMsg}>
-                                    ✅ Jendela WhatsApp sudah terbuka! Klik <strong>Kirim</strong> di WhatsApp untuk menyelesaikan pengaduan.
+                                     Jendela WhatsApp sudah terbuka! Klik <strong>Kirim</strong> di WhatsApp untuk menyelesaikan pengaduan.
                                 </div>
                             )}
                             {dbSaved && (
                                 <div style={{ ...styles.successMsg, color: '#2196F3', background: 'rgba(33, 150, 243, 0.08)', border: '1px solid rgba(33, 150, 243, 0.2)' }}>
-                                    💾 Pengaduan juga tersimpan di database! Tim admin akan meninjau pesan Anda.
+                                     Pengaduan juga tersimpan di database! Tim admin akan meninjau pesan Anda.
                                 </div>
                             )}
                         </div>
@@ -301,22 +301,22 @@ export default function ContactPage() {
                     <div style={styles.rightCol}>
                         {/* WhatsApp Info Card — tombol Chat Langsung dihapus sesuai permintaan */}
                         <div style={styles.waCard}>
-                            <div style={styles.waIconLarge}>💬</div>
+                            <div style={styles.waIconLarge}></div>
                             <h3 style={styles.waTitle}>WhatsApp Direct</h3>
                             <p style={styles.waDesc}>
                                 Pesan langsung terkirim ke tim support CoffeeChain via WhatsApp. Respons cepat di jam kerja.
                             </p>
                             <div style={styles.waHours}>
                                 <div style={styles.waHoursRow}>
-                                    <span>🕐 Senin - Jumat</span>
+                                    <span> Senin - Jumat</span>
                                     <span style={styles.waHoursValue}>08:00 - 17:00 WIB</span>
                                 </div>
                                 <div style={styles.waHoursRow}>
-                                    <span>🕐 Sabtu</span>
+                                    <span> Sabtu</span>
                                     <span style={styles.waHoursValue}>09:00 - 14:00 WIB</span>
                                 </div>
                                 <div style={styles.waHoursRow}>
-                                    <span>🕐 Minggu</span>
+                                    <span> Minggu</span>
                                     <span style={styles.waHoursValue}>Libur</span>
                                 </div>
                             </div>
@@ -325,7 +325,7 @@ export default function ContactPage() {
                         {/* Preview Card */}
                         {(category || message) && (
                             <div style={styles.previewCard}>
-                                <div style={styles.previewTitle}>👁️ Preview Pesan</div>
+                                <div style={styles.previewTitle}> Preview Pesan</div>
                                 <div style={styles.previewBody}>
                                     <pre style={styles.previewText}>{buildWhatsAppMessage()}</pre>
                                 </div>
@@ -334,16 +334,16 @@ export default function ContactPage() {
 
                         {/* Quick Contact */}
                         <div style={styles.quickCard}>
-                            <h4 style={styles.quickTitle}>🚀 Kontak Cepat</h4>
+                            <h4 style={styles.quickTitle}> Kontak Cepat</h4>
                             <a
                                 href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Halo CoffeeChain, saya butuh bantuan.')}`}
                                 target="_blank" rel="noopener noreferrer"
                                 style={styles.quickBtn}
                             >
-                                💬 Chat Cepat (tanpa form)
+                                 Chat Cepat (tanpa form)
                             </a>
                             <a href="mailto:support@coffeechain.id" style={styles.quickBtnAlt}>
-                                📧 Email Support
+                                 Email Support
                             </a>
                         </div>
                     </div>
@@ -352,22 +352,22 @@ export default function ContactPage() {
                 {/* Info Cards */}
                 <div style={styles.infoGrid}>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>⚡</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Respons Cepat</h3>
                         <p style={styles.infoDesc}>Tim kami merespons dalam 1x24 jam di hari kerja.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>🔒</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Privasi Terjaga</h3>
                         <p style={styles.infoDesc}>Data pengaduan Anda dijaga kerahasiaannya.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>📱</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Via WhatsApp</h3>
                         <p style={styles.infoDesc}>Langsung chat, tidak perlu install aplikasi tambahan.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>🆓</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Gratis & Tanpa Login</h3>
                         <p style={styles.infoDesc}>Siapa saja bisa mengirim pengaduan tanpa perlu akun.</p>
                     </div>
@@ -376,7 +376,7 @@ export default function ContactPage() {
 
             {/* Footer */}
             <footer style={styles.footer}>
-                <p>© 2025 CoffeeChain — Blockchain Industri Kopi Indonesia</p>
+                <p> 2025 CoffeeChain — Blockchain Industri Kopi Indonesia</p>
             </footer>
         </div>
     );

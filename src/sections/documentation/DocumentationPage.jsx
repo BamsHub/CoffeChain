@@ -178,12 +178,12 @@ export default function DocumentationPage() {
             {/* Notification Messages */}
             {successMsg && (
                 <div style={{ background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.3)', color: '#81C784', padding: '12px 18px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 800 }}>
-                    ✅ {successMsg}
+                     {successMsg}
                 </div>
             )}
             {errorMsg && (
                 <div style={{ background: 'rgba(244,67,54,0.15)', border: '1px solid rgba(244,67,54,0.3)', color: '#E57373', padding: '12px 18px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 800 }}>
-                    ⚠️ {errorMsg}
+                     {errorMsg}
                 </div>
             )}
 
@@ -216,10 +216,10 @@ export default function DocumentationPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => startEditing('farmer')} style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--color-primary-light)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-                            ✏️ Edit Panduan Petani
+                             Edit Panduan Petani
                         </button>
                         <button onClick={() => startEditing('developer')} style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--color-secondary)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-                            ✏️ Edit Panduan Developer
+                             Edit Panduan Developer
                         </button>
                     </div>
                 </div>
@@ -231,7 +231,7 @@ export default function DocumentationPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 14, marginBottom: 20 }}>
                         <div>
                             <h2 style={{ color: 'var(--color-text)', fontSize: 18, fontWeight: 900 }}>
-                                ✍️ Mengedit Panduan: <span style={{ color: 'var(--color-logo-sub)' }}>{editTarget === 'farmer' ? 'Petani' : 'Developer & Koperasi'}</span>
+                                 Mengedit Panduan: <span style={{ color: 'var(--color-logo-sub)' }}>{editTarget === 'farmer' ? 'Petani' : 'Developer & Koperasi'}</span>
                             </h2>
                             <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>Pastikan tidak memasukkan data kode rahasia, token, atau informasi kredensial berbahaya.</p>
                         </div>
@@ -298,14 +298,14 @@ export default function DocumentationPage() {
                                     ))}
                                 </div>
                                 <button onClick={() => addItem(sidx)} style={{ marginTop: 12, background: 'rgba(126,212,74,0.1)', border: '1px dashed rgba(126,212,74,0.3)', color: 'var(--color-logo-sub)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                                    ➕ Tambah Item Panduan
+                                     Tambah Item Panduan
                                 </button>
                             </div>
                         ))}
                     </div>
 
                     <button onClick={addSection} style={{ marginTop: 18, width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px dashed var(--color-border)', color: 'var(--color-text)', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                        ➕ Tambah Kategori Baru
+                         Tambah Kategori Baru
                     </button>
                 </div>
             )}
@@ -374,13 +374,13 @@ export default function DocumentationPage() {
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                             <div style={{ background: 'var(--color-bg-card2)', padding: 16, borderRadius: 8, borderLeft: '4px solid var(--color-primary-light)' }}>
-                                <strong style={{ color: 'var(--color-text)', display: 'block', marginBottom: 6 }}>◼ Black Box Testing (Fungsional)</strong>
+                                <strong style={{ color: 'var(--color-text)', display: 'block', marginBottom: 6 }}> Black Box Testing (Fungsional)</strong>
                                 <span style={{ color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
                                     Menguji input-output antarmuka aplikasi. Memastikan tombol, form pengisian, verifikasi email, drag & drop upload foto, snap payment, dan pencarian ID Kopi bekerja normal sesuai ekspektasi user.
                                 </span>
                             </div>
                             <div style={{ background: 'var(--color-bg-card2)', padding: 16, borderRadius: 8, borderLeft: '4px solid var(--color-crypto)' }}>
-                                <strong style={{ color: 'var(--color-text)', display: 'block', marginBottom: 6 }}>◽ White Box Testing (Struktural)</strong>
+                                <strong style={{ color: 'var(--color-text)', display: 'block', marginBottom: 6 }}> White Box Testing (Struktural)</strong>
                                 <span style={{ color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
                                     Menguji jalur internal kode pemrograman, logika API routes, enkripsi token verifikasi, validasi middleware (JWT), pembacaan block hash, serta integrasi RPC Solana Smart Contract.
                                 </span>
@@ -438,7 +438,7 @@ export default function DocumentationPage() {
                                 </div>
 
                                 <div>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>⚙️ Pengujian White Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian White Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Fungsi hashing SHA-256 memverifikasi kecocokan password internal.</li>
                                         <li>API `/api/auth/verify-email?token=xxx` memproses query parameter token dari database Supabase secara real-time.</li>
@@ -477,7 +477,7 @@ export default function DocumentationPage() {
                                 </div>
 
                                 <div>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>⚙️ Pengujian White Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian White Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Fungsi backend `/api/production-stages` memvalidasi sequence log agar tahapan tidak dilewati secara acak.</li>
                                         <li>Handler storage menyimpan gambar bukti ke Supabase Storage, dengan fallback base64 string jika koneksi storage terganggu.</li>
@@ -516,7 +516,7 @@ export default function DocumentationPage() {
                                 </div>
 
                                 <div>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>⚙️ Pengujian White Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian White Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>API endpoint `/api/midtrans` memformat request payload sesuai format resmi API Midtrans.</li>
                                         <li>Middleware webhook memverifikasi signature hash key dari server Midtrans untuk mencegah manipulasi data status bayar.</li>
@@ -555,7 +555,7 @@ export default function DocumentationPage() {
                                 </div>
 
                                 <div>
-                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}>⚙️ Pengujian White Box:</strong>
+                                    <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian White Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Handler frontend memanfaatkan library `@solana/web3.js` untuk membuat payload instruksi Memo.</li>
                                         <li>Validasi on-chain memastikan transaction slot telah terkonfirmasi (confirmed status) di kluster Testnet sebelum ID Kopi disimpan ke database lokal.</li>

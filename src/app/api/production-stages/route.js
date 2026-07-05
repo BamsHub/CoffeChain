@@ -16,6 +16,13 @@ const STAGE_NAMES = {
     6: 'Produk Jadi',
 };
 
+function isValidCid(cid) {
+    return typeof cid === 'string' && (
+        /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(cid)
+        || /^b[a-z2-7]{20,}$/i.test(cid)
+    );
+}
+
 // GET — list stage logs for a batch
 export async function GET(req) {
     try {
@@ -59,7 +66,7 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { batchId, stage, stageData, photoUrl, loggedBy, loggedByName } = body;
+        const { batchId, stage, stageData, photoUrl, photoCid, ipfsUri, loggedBy, loggedByName } = body;
 
         if (!batchId || !stage) {
             return NextResponse.json({ success: false, message: 'batchId dan stage wajib' }, { status: 400 });
@@ -67,8 +74,17 @@ export async function POST(req) {
         if (Number(stage) < 1 || Number(stage) > 6) {
             return NextResponse.json({ success: false, message: 'Stage tidak valid' }, { status: 400 });
         }
-        if (!photoUrl) {
-            return NextResponse.json({ success: false, message: 'Bukti foto wajib diupload sebelum menyimpan tahap produksi' }, { status: 400 });
+        if (!photoUrl || !isValidCid(photoCid) || ipfsUri !== `ipfs://${photoCid}`) {
+            return NextResponse.json({
+                success: false,
+                message: 'Bukti foto yang sudah dipin ke IPFS wajib sebelum menyimpan tahap produksi',
+            }, { status: 400 });
+        }
+        if (!stageData?.evidencePhoto
+            || stageData.evidencePhoto.cid !== photoCid
+            || stageData.evidencePhoto.uri !== ipfsUri
+            || stageData.evidencePhoto.gatewayUrl !== photoUrl) {
+            return NextResponse.json({ success: false, message: 'Metadata bukti foto IPFS tidak valid' }, { status: 400 });
         }
 
         const supabase = getSupabaseAdmin();
@@ -200,6 +216,8 @@ export async function POST(req) {
                 stageName,
                 stageData,
                 photoUrl,
+                photoCid,
+                ipfsUri,
                 txSignature: null,
                 explorerUrl: null,
                 productId,

@@ -245,7 +245,7 @@ export default function ProductsContent() {
     async function handleVerifyBlockchain(product) {
         if (verifying) return;
         setVerifying(product.id);
-        setMsg({ type: 'ok', text: `⏳ Mengirim "${product.name}" ke Solana Testnet... (maks 30 detik)` });
+        setMsg({ type: 'ok', text: ` Mengirim "${product.name}" ke Solana Testnet... (maks 30 detik)` });
         try {
             const payload = {
                 productId: product.id,
@@ -272,7 +272,7 @@ export default function ProductsContent() {
                 const explorerUrl = normalizeExplorerUrl(data.data.explorerUrl) || getExplorerTxUrl(data.data.txSignature);
                 setMsg({
                     type: 'ok',
-                    text: `✅ "${product.name}" berhasil terverifikasi di Solana! Coffee ID: ${data.data.coffeeId} — Gas fee dipotong dari wallet server.`,
+                    text: ` "${product.name}" berhasil terverifikasi di Solana! Coffee ID: ${data.data.coffeeId} — Gas fee dipotong dari wallet server.`,
                     explorerUrl,
                     txSig: data.data.txSignature,
                 });
@@ -282,13 +282,13 @@ export default function ProductsContent() {
                 const explorerUrl = normalizeExplorerUrl(data.data.explorerUrl) || getExplorerTxUrl(data.data.txSignature);
                 setMsg({
                     type: 'ok',
-                    text: `⚡ TX dikirim! Coffee ID: ${data.data.coffeeId} — Konfirmasi sedang berlangsung di Solana.`,
+                    text: ` TX dikirim! Coffee ID: ${data.data.coffeeId} — Konfirmasi sedang berlangsung di Solana.`,
                     explorerUrl,
                     txSig: data.data.txSignature,
                 });
                 load();
             } else if (data.success) {
-                setMsg({ type: 'err', text: `⚠️ "${product.name}" tersimpan tapi TX gagal on-chain. Coba lagi atau cek saldo wallet server.` });
+                setMsg({ type: 'err', text: ` "${product.name}" tersimpan tapi TX gagal on-chain. Coba lagi atau cek saldo wallet server.` });
                 load();
             } else {
                 setMsg({ type: 'err', text: data.message || 'Gagal verifikasi blockchain' });
@@ -589,7 +589,7 @@ export default function ProductsContent() {
                                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>ID: {p.id}</div>
                                 {p.coffeeId ? (
                                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}>✅ On-Chain: {p.coffeeId}</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(126,212,74,0.25)' }}> On-Chain: {p.coffeeId}</span>
                                         <QRButton
                                             traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
                                             coffeeId={p.coffeeId}
@@ -598,7 +598,7 @@ export default function ProductsContent() {
                                         />
                                     </div>
                                 ) : p.status === 'pending' ? (
-                                    <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}>⏳ Menunggu Persetujuan</span>
+                                    <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}> Menunggu Persetujuan</span>
                                 ) : (
                                     <Link href="/coffee-register"
                                         style={{
@@ -608,7 +608,7 @@ export default function ProductsContent() {
                                             display: 'inline-flex', alignItems: 'center', gap: 5,
                                             textDecoration: 'none', transition: 'all 0.2s',
                                         }}>
-                                        ⛓ Daftarkan ke Blockchain
+                                         Daftarkan ke Blockchain
                                     </Link>
                                 )}
                             </div>

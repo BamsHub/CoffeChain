@@ -97,8 +97,8 @@ export default function AddTransactionModal({ onClose, onSuccess, walletPublicKe
                     <div>
                         <h2 className={styles.modalTitle}>
                             {step === 1 && ' Buat Transaksi Kopi'}
-                            {step === 2 && '✅ Konfirmasi Transaksi'}
-                            {step === 3 && (txResult ? ' Transaksi Berhasil!' : '⏳ Memproses...')}
+                            {step === 2 && ' Konfirmasi Transaksi'}
+                            {step === 3 && (txResult ? ' Transaksi Berhasil!' : ' Memproses...')}
                         </h2>
                         <p className={styles.modalSub}>
                             {step === 1 && 'Data akan dicatat on-chain di Solana blockchain'}
@@ -212,14 +212,14 @@ export default function AddTransactionModal({ onClose, onSuccess, walletPublicKe
                             </div>
                         ) : (
                             <div className={styles.successBox}>
-                                <div className={styles.successIcon}>✅</div>
+                                <div className={styles.successIcon}></div>
                                 <div className={styles.successMsg}>Transaksi berhasil dicatat!</div>
                                 <div className={styles.successDetails}>
                                     <div className={styles.confirmRow}><span>Tx ID</span><code className={styles.code}>{txResult.id}</code></div>
                                     <div className={styles.confirmRow}><span>Hash</span><code className={styles.code}>{txResult.hash}</code></div>
                                     <div className={styles.confirmRow}><span>Block</span><code className={styles.code}>#{txResult.block}</code></div>
                                     <div className={styles.confirmRow}><span>Signature</span><code className={`${styles.code} ${styles.sigCode}`}>{txResult.chainSignature?.slice(0, 16)}...</code></div>
-                                    <div className={styles.confirmRow}><span>Status</span><span className={styles.pendingBadge}>⏳ Pending</span></div>
+                                    <div className={styles.confirmRow}><span>Status</span><span className={styles.pendingBadge}> Pending</span></div>
                                 </div>
                                 <button className={styles.btnSubmit} onClick={onClose}>Selesai</button>
                             </div>

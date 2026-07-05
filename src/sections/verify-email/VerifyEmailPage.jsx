@@ -43,9 +43,9 @@ function VerifyEmailContent() {
         loading: (
             <div className={styles.spinner} />
         ),
-        success: <div className={styles.iconCircle} style={{ background: 'rgba(126,212,74,0.15)', border: '2px solid #7ED44A' }}>✅</div>,
-        error: <div className={styles.iconCircle} style={{ background: 'rgba(239,68,68,0.15)', border: '2px solid #ef4444' }}>❌</div>,
-        expired: <div className={styles.iconCircle} style={{ background: 'rgba(245,166,35,0.15)', border: '2px solid #F5A623' }}>⏱️</div>,
+        success: <div className={styles.iconCircle} style={{ background: 'rgba(126,212,74,0.15)', border: '2px solid #7ED44A' }}></div>,
+        error: <div className={styles.iconCircle} style={{ background: 'rgba(239,68,68,0.15)', border: '2px solid #ef4444' }}></div>,
+        expired: <div className={styles.iconCircle} style={{ background: 'rgba(245,166,35,0.15)', border: '2px solid #F5A623' }}></div>,
         'no-token': <div className={styles.iconCircle} style={{ background: 'rgba(239,68,68,0.15)', border: '2px solid #ef4444' }}></div>,
     };
 

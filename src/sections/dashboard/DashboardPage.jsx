@@ -273,7 +273,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                         <td className={styles.txWeight}>{o.weight}g</td>
                                         <td><span style={{ fontSize: 11, fontWeight: 600, color: o.paymentMethod === 'qris' ? '#A855F7' : '#4CAF50' }}>{o.paymentMethod === 'qris' ? 'QRIS' : 'Phantom'}</span></td>
                                         <td className={styles.txAmount}>Rp {(o.totalPrice || 0).toLocaleString('id-ID')}</td>
-                                        <td><span className={`${styles.badge} ${styles.badgecompleted}`}>✅ LUNAS</span></td>
+                                        <td><span className={`${styles.badge} ${styles.badgecompleted}`}> LUNAS</span></td>
                                         <td className={styles.txTime}>{o.paidAt ? new Date(o.paidAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                                     </tr>
                                 ))}

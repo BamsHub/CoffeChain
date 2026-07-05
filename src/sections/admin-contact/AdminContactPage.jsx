@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const CATEGORY_MAP = {
-    quality: { icon: '☕', label: 'Kualitas Produk' },
-    delivery: { icon: '🚚', label: 'Pengiriman' },
-    payment: { icon: '💳', label: 'Pembayaran' },
-    blockchain: { icon: '⛓️', label: 'Blockchain' },
-    account: { icon: '👤', label: 'Akun' },
-    suggestion: { icon: '💡', label: 'Saran & Masukan' },
-    other: { icon: '📋', label: 'Lainnya' },
+    quality: { icon: '', label: 'Kualitas Produk' },
+    delivery: { icon: '', label: 'Pengiriman' },
+    payment: { icon: '', label: 'Pembayaran' },
+    blockchain: { icon: '', label: 'Blockchain' },
+    account: { icon: '', label: 'Akun' },
+    suggestion: { icon: '', label: 'Saran & Masukan' },
+    other: { icon: '', label: 'Lainnya' },
 };
 
 const STATUS_MAP = {
@@ -98,11 +98,11 @@ export default function AdminContactPage() {
             {/* Header */}
             <header style={styles.header}>
                 <a href="/" style={styles.logoLink}>
-                    <span style={styles.logoIcon}>☕</span>
+                    <span style={styles.logoIcon}></span>
                     <span style={styles.logoText}>CoffeeChain</span>
                 </a>
                 <div style={styles.headerRight}>
-                    <span style={styles.headerBadge}>🛡️ Admin</span>
+                    <span style={styles.headerBadge}> Admin</span>
                     <a href="/dashboard" style={styles.navLink}>Dashboard</a>
                 </div>
             </header>
@@ -110,7 +110,7 @@ export default function AdminContactPage() {
             <div style={styles.container}>
                 {/* Title */}
                 <div style={styles.titleSection}>
-                    <h1 style={styles.title}>📬 Pesan Pengaduan</h1>
+                    <h1 style={styles.title}> Pesan Pengaduan</h1>
                     <p style={styles.subtitle}>Kelola dan tanggapi pesan masuk dari pengguna</p>
                 </div>
 
@@ -140,24 +140,24 @@ export default function AdminContactPage() {
                         <option value="">Semua Kategori</option>
                         {Object.entries(CATEGORY_MAP).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
                     </select>
-                    <button onClick={fetchMessages} style={styles.refreshBtn}>🔄 Refresh</button>
+                    <button onClick={fetchMessages} style={styles.refreshBtn}> Refresh</button>
                 </div>
 
-                {error && <div style={styles.errorMsg}>⚠️ {error}</div>}
+                {error && <div style={styles.errorMsg}> {error}</div>}
 
                 {/* Layout */}
                 <div style={styles.mainGrid}>
                     {/* Message List */}
                     <div style={styles.listCard}>
-                        <div style={styles.listHeader}>📋 Daftar Pesan ({messages.length})</div>
+                        <div style={styles.listHeader}> Daftar Pesan ({messages.length})</div>
                         {loading ? (
-                            <div style={styles.loadingBox}>⏳ Memuat...</div>
+                            <div style={styles.loadingBox}> Memuat...</div>
                         ) : messages.length === 0 ? (
-                            <div style={styles.emptyBox}>📭 Belum ada pesan masuk</div>
+                            <div style={styles.emptyBox}> Belum ada pesan masuk</div>
                         ) : (
                             <div style={styles.listBody}>
                                 {messages.map((msg) => {
-                                    const cat = CATEGORY_MAP[msg.category] || { icon: '📋', label: msg.category };
+                                    const cat = CATEGORY_MAP[msg.category] || { icon: '', label: msg.category };
                                     const st = STATUS_MAP[msg.status] || STATUS_MAP.new;
                                     const isActive = selectedMsg?.id === msg.id;
                                     return (
@@ -169,7 +169,7 @@ export default function AdminContactPage() {
                                             </div>
                                             <div style={styles.msgSubject}>{msg.subject || msg.message?.slice(0, 60) || 'Tanpa subjek'}...</div>
                                             <div style={styles.msgMeta}>
-                                                <span>👤 {msg.name || 'Anonim'}</span>
+                                                <span> {msg.name || 'Anonim'}</span>
                                                 <span>{formatDate(msg.created_at)}</span>
                                             </div>
                                         </div>
@@ -183,7 +183,7 @@ export default function AdminContactPage() {
                     <div style={styles.detailCard}>
                         {!selectedMsg ? (
                             <div style={styles.emptyDetail}>
-                                <div style={{ fontSize: 48, marginBottom: 16 }}>📩</div>
+                                <div style={{ fontSize: 48, marginBottom: 16 }}></div>
                                 <div style={{ color: 'var(--color-text-secondary)' }}>Pilih pesan untuk melihat detail</div>
                             </div>
                         ) : (
@@ -196,22 +196,22 @@ export default function AdminContactPage() {
                                 </div>
 
                                 <div style={styles.detailMeta}>
-                                    <div style={styles.metaRow}><span style={styles.metaLabel}>👤 Nama:</span> {selectedMsg.name || 'Anonim'}</div>
-                                    <div style={styles.metaRow}><span style={styles.metaLabel}>📱 Telepon:</span> {selectedMsg.phone || '-'}</div>
-                                    <div style={styles.metaRow}><span style={styles.metaLabel}>📂 Kategori:</span> {CATEGORY_MAP[selectedMsg.category]?.icon} {CATEGORY_MAP[selectedMsg.category]?.label}</div>
-                                    <div style={styles.metaRow}><span style={styles.metaLabel}>⚡ Urgensi:</span>
-                                        {selectedMsg.urgency === 'urgent' ? '🔴 Urgent' : selectedMsg.urgency === 'high' ? '🟡 Prioritas Tinggi' : '🟢 Normal'}
+                                    <div style={styles.metaRow}><span style={styles.metaLabel}> Nama:</span> {selectedMsg.name || 'Anonim'}</div>
+                                    <div style={styles.metaRow}><span style={styles.metaLabel}> Telepon:</span> {selectedMsg.phone || '-'}</div>
+                                    <div style={styles.metaRow}><span style={styles.metaLabel}> Kategori:</span> {CATEGORY_MAP[selectedMsg.category]?.icon} {CATEGORY_MAP[selectedMsg.category]?.label}</div>
+                                    <div style={styles.metaRow}><span style={styles.metaLabel}> Urgensi:</span>
+                                        {selectedMsg.urgency === 'urgent' ? ' Urgent' : selectedMsg.urgency === 'high' ? ' Prioritas Tinggi' : ' Normal'}
                                     </div>
-                                    <div style={styles.metaRow}><span style={styles.metaLabel}>📅 Dikirim:</span> {formatDate(selectedMsg.created_at)}</div>
+                                    <div style={styles.metaRow}><span style={styles.metaLabel}> Dikirim:</span> {formatDate(selectedMsg.created_at)}</div>
                                 </div>
 
                                 <div style={styles.detailMessage}>
-                                    <div style={styles.detailMsgLabel}>💬 Pesan:</div>
+                                    <div style={styles.detailMsgLabel}> Pesan:</div>
                                     <div style={styles.detailMsgText}>{selectedMsg.message}</div>
                                 </div>
 
                                 <div style={styles.adminSection}>
-                                    <div style={styles.adminLabel}>🗒️ Catatan Admin:</div>
+                                    <div style={styles.adminLabel}> Catatan Admin:</div>
                                     <textarea
                                         value={adminNotes}
                                         onChange={(e) => setAdminNotes(e.target.value)}
@@ -225,21 +225,21 @@ export default function AdminContactPage() {
                                     {selectedMsg.status !== 'read' && (
                                         <button onClick={() => handleUpdateStatus(selectedMsg.id, 'read')} disabled={updating}
                                             style={{ ...styles.actionBtn, borderColor: '#FF9800', color: '#FF9800' }}>
-                                            👁️ Tandai Dibaca
+                                             Tandai Dibaca
                                         </button>
                                     )}
                                     <button onClick={() => handleUpdateStatus(selectedMsg.id, 'replied')} disabled={updating}
                                         style={{ ...styles.actionBtn, borderColor: '#4CAF50', color: '#4CAF50' }}>
-                                        ✅ Tandai Dibalas
+                                         Tandai Dibalas
                                     </button>
                                     <button onClick={() => handleUpdateStatus(selectedMsg.id, 'closed')} disabled={updating}
                                         style={{ ...styles.actionBtn, borderColor: '#9E9E9E', color: '#9E9E9E' }}>
-                                        🔒 Selesai
+                                         Selesai
                                     </button>
                                     {selectedMsg.phone && (
                                         <a href={`https://wa.me/${selectedMsg.phone.replace(/^0/, '62').replace(/[^0-9]/g, '')}`}
                                            target="_blank" rel="noopener noreferrer" style={styles.waReplyBtn}>
-                                            💬 Balas via WA
+                                             Balas via WA
                                         </a>
                                     )}
                                 </div>

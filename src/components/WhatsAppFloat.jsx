@@ -47,7 +47,7 @@ export default function WhatsAppFloat() {
                     {/* Header */}
                     <div style={styles.popupHeader}>
                         <div style={styles.popupHeaderLeft}>
-                            <div style={styles.avatar}>☕</div>
+                            <div style={styles.avatar}></div>
                             <div>
                                 <div style={styles.popupName}>CoffeeChain Support</div>
                                 <div style={styles.popupStatus}>
@@ -63,7 +63,7 @@ export default function WhatsAppFloat() {
                     <div style={styles.popupBody}>
                         <div style={styles.chatBubble}>
                             <div style={styles.chatBubbleText}>
-                                Halo! 👋 Ada yang bisa kami bantu?
+                                Halo!  Ada yang bisa kami bantu?
                                 <br /><br />
                                 Silakan ketik pesan Anda di bawah, lalu klik kirim untuk chat via WhatsApp.
                             </div>
@@ -104,14 +104,14 @@ export default function WhatsAppFloat() {
                 {pulse && !isOpen && <span style={styles.pulseRing} />}
 
                 <span style={{ ...styles.fabIcon, ...(isOpen ? styles.fabIconOpen : {}) }}>
-                    {isOpen ? '✕' : '💬'}
+                    {isOpen ? '✕' : ''}
                 </span>
             </button>
 
             {/* Tooltip */}
             {!isOpen && (
                 <div style={styles.tooltip}>
-                    Ada pertanyaan? 💬
+                    Ada pertanyaan?
                 </div>
             )}
 

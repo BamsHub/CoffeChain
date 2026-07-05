@@ -421,7 +421,7 @@ export default function CoffeeRegisterContent() {
                                                 <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
                                                     {batchResult.results.map(r => (
                                                         <div key={r.id} style={{ fontSize:11, color: r.status==='success' ? '#7ED44A' : '#f44336' }}>
-                                                            {r.status==='success' ? '✅' : '❌'} {r.name} {r.coffeeId ? `→ ${r.coffeeId}` : r.error ? `(${r.error})` : ''}
+                                                            {r.status==='success' ? '' : ''} {r.name} {r.coffeeId ? `→ ${r.coffeeId}` : r.error ? `(${r.error})` : ''}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -445,7 +445,7 @@ export default function CoffeeRegisterContent() {
                                                     {[p.grade, p.roast].filter(Boolean).map(tag => (
                                                         <span key={tag} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(74,124,40,0.12)', color: '#7ED44A', border: '1px solid rgba(126,212,74,0.2)' }}>{tag}</span>
                                                     ))}
-                                                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(255,152,0,0.1)', color: '#FFB300', border: '1px solid rgba(255,152,0,0.25)', fontWeight: 700 }}>⛓ Belum di-Chain</span>
+                                                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(255,152,0,0.1)', color: '#FFB300', border: '1px solid rgba(255,152,0,0.25)', fontWeight: 700 }}> Belum di-Chain</span>
                                                 </div>
                                                 <button onClick={(e) => { e.stopPropagation(); openRegister(p); }}
                                                     style={{ ...S.btnG, width: '100%', justifyContent: 'center', padding: '9px', fontSize: 12 }}>
@@ -486,7 +486,7 @@ export default function CoffeeRegisterContent() {
                                                 </div>
                                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                                                     <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#7ED44A', background: 'rgba(74,124,40,0.15)', padding: '3px 8px', borderRadius: 6 }}>{p.coffeeId}</span>
-                                                    <span style={{ fontSize: 10, color: '#7ED44A', background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(126,212,74,0.25)', padding: '2px 7px', borderRadius: 100, fontWeight: 700 }}>✅ On-Chain</span>
+                                                    <span style={{ fontSize: 10, color: '#7ED44A', background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(126,212,74,0.25)', padding: '2px 7px', borderRadius: 100, fontWeight: 700 }}> On-Chain</span>
                                                 </div>
                                                 {/* QR + Link Bukti Blockchain */}
                                                 <div style={{ marginTop: 10, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
@@ -544,7 +544,7 @@ export default function CoffeeRegisterContent() {
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
                                     {t.txSignature ? (
                                         <>
-                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', padding: '3px 9px', borderRadius: 7, background: 'rgba(74,124,40,0.15)', border: '1px solid rgba(126,212,74,0.25)' }}>✅ Verified</span>
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#7ED44A', padding: '3px 9px', borderRadius: 7, background: 'rgba(74,124,40,0.15)', border: '1px solid rgba(126,212,74,0.25)' }}> Verified</span>
                                             <a href={normalizeExplorerUrl(t.explorerUrl) || getExplorerTxUrl(t.txSignature)} target="_blank" rel="noopener noreferrer"
                                                 style={{ fontSize: 11, color: '#b388ff', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, background: 'rgba(124,77,255,0.1)', border: '1px solid rgba(124,77,255,0.25)' }}>
                                                 <IcoLink /> Explorer

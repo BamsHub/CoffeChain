@@ -478,7 +478,7 @@ export default function FarmerDashboardPage({ walletPublicKey }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12, padding: '4px 0' }}>
                     {[
                         { label: 'Total Lunas',    value: paidSales.length,   color: '#4CAF50', icon: '✓' },
-                        { label: 'Total Kopi',     value: totalKg >= 1000 ? `${(totalKg/1000).toFixed(1)} Ton` : `${totalKg.toFixed(1)} kg`, color: '#F5A623', icon: '☕' },
+                        { label: 'Total Kopi',     value: totalKg >= 1000 ? `${(totalKg/1000).toFixed(1)} Ton` : `${totalKg.toFixed(1)} kg`, color: '#F5A623', icon: '' },
                         { label: 'Total Revenue',  value: totalRevenue >= 1_000_000 ? `Rp ${(totalRevenue/1_000_000).toFixed(1)} Jt` : `Rp ${totalRevenue.toLocaleString('id-ID')}`, color: '#7ED44A', icon: 'Rp' },
                         { label: 'Hari Ini',       value: `${dayCountSeries[dayCountSeries.length - 1]} entri`, color: '#00D4FF', icon: '○' },
                     ].map((s, i) => (

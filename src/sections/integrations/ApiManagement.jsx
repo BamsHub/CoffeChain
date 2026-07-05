@@ -317,7 +317,7 @@ export default function ApiManagement() {
                                 <div className="flex gap-2">
                                     <button onClick={() => openModal(platform)}
                                         className="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all bg-green-600 hover:bg-green-500 text-white">
-                                        {isConnected ? '⚙ Edit API Key' : '+ Tambah API Key'}
+                                        {isConnected ? ' Edit API Key' : '+ Tambah API Key'}
                                     </button>
                                     {isConnected && (
                                         <button onClick={() => handleDisconnect(platform.id)}
@@ -420,7 +420,7 @@ export default function ApiManagement() {
                                     <div className="flex gap-2">
                                         <button onClick={() => openModal(courier)}
                                             className="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all bg-orange-700 hover:bg-orange-600 text-white">
-                                            {isConnected ? '⚙ Edit API Key' : '+ Hubungkan'}
+                                            {isConnected ? ' Edit API Key' : '+ Hubungkan'}
                                         </button>
                                         {isConnected && (
                                             <button onClick={() => handleDisconnect(courier.id)}

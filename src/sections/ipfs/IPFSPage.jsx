@@ -57,7 +57,7 @@ function ParticleCanvas() {
 }
 
 // ── Copy Button Component ───────────────────────────────────────
-function CopyButton({ text, label = '📋 Copy' }) {
+function CopyButton({ text, label = ' Copy' }) {
     const [copied, setCopied] = useState(false);
     const handleCopy = async () => {
         if (!text) return;
@@ -81,7 +81,7 @@ function RecentPinItem({ item }) {
     return (
         <div style={styles.recentPinItem}>
             <div style={styles.recentPinLeft}>
-                <div style={styles.recentPinIcon}>{item.isImage ? '🖼️' : item.isJson ? '📄' : '📦'}</div>
+                <div style={styles.recentPinIcon}>{item.isImage ? '' : item.isJson ? '' : ''}</div>
                 <div style={styles.recentPinInfo}>
                     <span style={styles.recentPinName}>{item.name || 'Unnamed'}</span>
                     <span style={styles.recentPinCid} title={item.cid}>{truncateCid(item.cid, 12)}</span>
@@ -358,7 +358,7 @@ export default function IPFSPage() {
             {/* ── Header ─────────────────────────────────────────── */}
             <header style={styles.header}>
                 <a href="/" style={styles.logoLink}>
-                    <span style={styles.logoIcon}>☕</span>
+                    <span style={styles.logoIcon}></span>
                     <span style={styles.logoText}>CoffeeChain</span>
                 </a>
                 <nav style={styles.nav}>
@@ -370,7 +370,7 @@ export default function IPFSPage() {
             <div style={styles.container}>
                 {/* ── Title Section ──────────────────────────────── */}
                 <div style={styles.titleSection}>
-                    <div style={styles.titleBadge}>🌐 Desentralisasi</div>
+                    <div style={styles.titleBadge}> Desentralisasi</div>
                     <h1 style={styles.title}>
                         IPFS <span style={styles.titleAccent}>Off-Chain Storage</span>
                     </h1>
@@ -386,7 +386,7 @@ export default function IPFSPage() {
                 {/* ═══ UPLOAD SECTION ═════════════════════════════ */}
                 <div style={styles.sectionCard}>
                     <div style={styles.sectionHeader}>
-                        <span style={styles.sectionTitle}>📤 Upload ke IPFS</span>
+                        <span style={styles.sectionTitle}> Upload ke IPFS</span>
                         <span style={styles.sectionDesc}>Drag & drop atau pilih file — gambar, dokumen, atau data lainnya</span>
                     </div>
 
@@ -418,13 +418,13 @@ export default function IPFSPage() {
                                 </div>
                             ) : selectedFile ? (
                                 <div style={styles.dropZoneContent}>
-                                    <div style={styles.dropZoneIcon}>📄</div>
+                                    <div style={styles.dropZoneIcon}></div>
                                     <div style={styles.dropZoneText}><strong>{selectedFile.name}</strong></div>
                                     <div style={styles.dropZoneHint}>{selectedFile.type || 'Unknown type'} · {formatFileSize(selectedFile.size)}</div>
                                 </div>
                             ) : (
                                 <div style={styles.dropZoneContent}>
-                                    <div style={styles.dropZoneIcon}>🌐</div>
+                                    <div style={styles.dropZoneIcon}></div>
                                     <div style={styles.dropZoneText}><strong>Klik atau drag & drop file</strong></div>
                                     <div style={styles.dropZoneHint}>Gambar, dokumen, JSON — semua format didukung · Max 10MB</div>
                                 </div>
@@ -441,13 +441,13 @@ export default function IPFSPage() {
                                 style={{ ...styles.uploadBtn, ...(isUploading || !selectedFile ? styles.uploadBtnDisabled : {}) }}
                                 disabled={isUploading || !selectedFile}
                             >
-                                {isUploading ? '⏳ Mengupload...' : '🚀 Upload ke IPFS'}
+                                {isUploading ? ' Mengupload...' : ' Upload ke IPFS'}
                             </button>
                             <button
                                 onClick={() => setShowJsonInput(!showJsonInput)}
                                 style={styles.jsonToggleBtn}
                             >
-                                {showJsonInput ? '✕ Tutup JSON' : '📝 Pin JSON Metadata'}
+                                {showJsonInput ? '✕ Tutup JSON' : ' Pin JSON Metadata'}
                             </button>
                         </div>
 
@@ -455,7 +455,7 @@ export default function IPFSPage() {
                         {showJsonInput && (
                             <div style={styles.jsonSection}>
                                 <div style={styles.jsonHeader}>
-                                    <span style={styles.jsonTitle}>📄 JSON Metadata</span>
+                                    <span style={styles.jsonTitle}> JSON Metadata</span>
                                     <span style={styles.jsonHint}>Paste atau tulis JSON metadata untuk di-pin ke IPFS</span>
                                 </div>
                                 <textarea
@@ -471,59 +471,59 @@ export default function IPFSPage() {
                                     style={{ ...styles.uploadBtn, width: '100%', ...(isUploadingJson ? styles.uploadBtnDisabled : {}) }}
                                     disabled={isUploadingJson}
                                 >
-                                    {isUploadingJson ? '⏳ Pinning JSON...' : '📌 Pin JSON ke IPFS'}
+                                    {isUploadingJson ? ' Pinning JSON...' : ' Pin JSON ke IPFS'}
                                 </button>
                             </div>
                         )}
 
                         {/* Error Display */}
-                        {error && <div style={styles.errorMsg}>⚠️ {error}</div>}
+                        {error && <div style={styles.errorMsg}> {error}</div>}
 
                         {/* Upload Result */}
                         {uploadResult && (
                             <div style={styles.resultCard}>
                                 <div style={styles.resultHeader}>
-                                    <span style={styles.resultTitle}>✅ Upload Berhasil!</span>
+                                    <span style={styles.resultTitle}> Upload Berhasil!</span>
                                     <span style={styles.resultBadge}>IPFS Pinned</span>
                                 </div>
 
                                 <div style={styles.resultGrid}>
                                     {/* CID */}
                                     <div style={styles.resultRow}>
-                                        <span style={styles.resultLabel}>📌 CID</span>
+                                        <span style={styles.resultLabel}> CID</span>
                                         <div style={styles.resultValueRow}>
                                             <code style={styles.cidCode}>{uploadResult.cid}</code>
-                                            <CopyButton text={uploadResult.cid} label="📋" />
+                                            <CopyButton text={uploadResult.cid} label="" />
                                         </div>
                                     </div>
 
                                     {/* IPFS URL */}
                                     <div style={styles.resultRow}>
-                                        <span style={styles.resultLabel}>🔗 IPFS URL</span>
+                                        <span style={styles.resultLabel}> IPFS URL</span>
                                         <div style={styles.resultValueRow}>
                                             <code style={styles.urlCode}>{uploadResult.ipfsUrl}</code>
-                                            <CopyButton text={uploadResult.ipfsUrl} label="📋" />
+                                            <CopyButton text={uploadResult.ipfsUrl} label="" />
                                         </div>
                                     </div>
 
                                     {/* Gateway URL */}
                                     <div style={styles.resultRow}>
-                                        <span style={styles.resultLabel}>🌍 Gateway URL</span>
+                                        <span style={styles.resultLabel}> Gateway URL</span>
                                         <div style={styles.resultValueRow}>
                                             <a href={uploadResult.gatewayUrl} target="_blank" rel="noopener noreferrer" style={styles.resultLink}>
                                                 {truncateCid(uploadResult.gatewayUrl, 24)}
                                             </a>
-                                            <CopyButton text={uploadResult.gatewayUrl} label="📋" />
+                                            <CopyButton text={uploadResult.gatewayUrl} label="" />
                                         </div>
                                     </div>
 
                                     {/* Local URL */}
                                     {uploadResult.localUrl && (
                                         <div style={styles.resultRow}>
-                                            <span style={styles.resultLabel}>📁 Local URL</span>
+                                            <span style={styles.resultLabel}> Local URL</span>
                                             <div style={styles.resultValueRow}>
                                                 <code style={styles.urlCode}>{uploadResult.localUrl}</code>
-                                                <CopyButton text={uploadResult.localUrl} label="📋" />
+                                                <CopyButton text={uploadResult.localUrl} label="" />
                                             </div>
                                         </div>
                                     )}
@@ -539,7 +539,7 @@ export default function IPFSPage() {
                                 {/* Compression Stats */}
                                 {uploadResult.compression && (
                                     <div style={styles.statsCard}>
-                                        <div style={styles.statsTitle}>📊 Compression Stats</div>
+                                        <div style={styles.statsTitle}> Compression Stats</div>
                                         <div style={styles.statsGrid}>
                                             <div style={styles.statItem}>
                                                 <span style={styles.statLabel}>Original</span>
@@ -557,7 +557,7 @@ export default function IPFSPage() {
                                         </div>
                                         {uploadResult.compression.saved && (
                                             <div style={styles.statsSaved}>
-                                                💾 Hemat: <strong>{uploadResult.compression.saved}</strong>
+                                                 Hemat: <strong>{uploadResult.compression.saved}</strong>
                                             </div>
                                         )}
                                     </div>
@@ -571,7 +571,7 @@ export default function IPFSPage() {
                 {uploadResult && (
                     <div style={{ ...styles.sectionCard, animation: 'fadeInUp 0.6s ease both' }}>
                         <div style={styles.sectionHeader}>
-                            <span style={styles.sectionTitle}>⛓️ Pin On-Chain (Solana)</span>
+                            <span style={styles.sectionTitle}> Pin On-Chain (Solana)</span>
                             <span style={styles.sectionDesc}>Simpan CID hash ke Solana blockchain melalui Memo Program</span>
                         </div>
                         <div style={styles.sectionBody}>
@@ -590,20 +590,20 @@ export default function IPFSPage() {
                                         <span style={styles.spinnerSmall} />
                                         Menyimpan ke Solana...
                                     </span>
-                                ) : '⛓️ Simpan CID ke Solana'}
+                                ) : ' Simpan CID ke Solana'}
                             </button>
 
                             {pinResult && (
                                 <div style={styles.pinResultCard}>
                                     <div style={styles.pinResultHeader}>
-                                        <span style={styles.pinResultIcon}>✅</span>
+                                        <span style={styles.pinResultIcon}></span>
                                         <span style={styles.pinResultTitle}>Berhasil disimpan on-chain!</span>
                                     </div>
                                     <div style={styles.resultRow}>
-                                        <span style={styles.resultLabel}>🔑 TX Signature</span>
+                                        <span style={styles.resultLabel}> TX Signature</span>
                                         <div style={styles.resultValueRow}>
                                             <code style={styles.cidCode}>{truncateCid(pinResult.txSignature, 20)}</code>
-                                            <CopyButton text={pinResult.txSignature} label="📋" />
+                                            <CopyButton text={pinResult.txSignature} label="" />
                                         </div>
                                     </div>
                                     <a
@@ -612,7 +612,7 @@ export default function IPFSPage() {
                                         rel="noopener noreferrer"
                                         style={styles.explorerLink}
                                     >
-                                        🔍 Lihat di Solana Explorer →
+                                         Lihat di Solana Explorer →
                                     </a>
                                 </div>
                             )}
@@ -623,7 +623,7 @@ export default function IPFSPage() {
                 {/* ═══ LOOKUP SECTION ═════════════════════════════ */}
                 <div style={{ ...styles.sectionCard, animation: 'fadeInUp 0.7s ease both' }}>
                     <div style={styles.sectionHeader}>
-                        <span style={styles.sectionTitle}>🔍 Lookup CID</span>
+                        <span style={styles.sectionTitle}> Lookup CID</span>
                         <span style={styles.sectionDesc}>Cari dan preview file dari IPFS menggunakan Content Identifier (CID)</span>
                     </div>
                     <div style={styles.sectionBody}>
@@ -641,7 +641,7 @@ export default function IPFSPage() {
                                 style={{ ...styles.lookupBtn, ...(isLookingUp ? styles.uploadBtnDisabled : {}) }}
                                 disabled={isLookingUp || !lookupCid.trim()}
                             >
-                                {isLookingUp ? '⏳ Mencari...' : '🔍 Lookup'}
+                                {isLookingUp ? ' Mencari...' : ' Lookup'}
                             </button>
                         </div>
 
@@ -649,7 +649,7 @@ export default function IPFSPage() {
                             <div style={styles.lookupResultCard}>
                                 <div style={styles.lookupResultHeader}>
                                     <span style={styles.resultTitle}>
-                                        {lookupResult.type === 'image' ? '🖼️' : '📄'} Hasil Lookup
+                                        {lookupResult.type === 'image' ? '' : ''} Hasil Lookup
                                     </span>
                                     <a
                                         href={`https://gateway.pinata.cloud/ipfs/${lookupResult.cid}`}
@@ -687,7 +687,7 @@ export default function IPFSPage() {
                 {recentPins.length > 0 && (
                     <div style={styles.recentSection}>
                         <div style={styles.recentHeader}>
-                            <h3 style={styles.recentTitle}>🕐 Recent Pins</h3>
+                            <h3 style={styles.recentTitle}> Recent Pins</h3>
                             <button onClick={() => setRecentPins([])} style={styles.clearHistoryBtn}>Hapus</button>
                         </div>
                         <div style={styles.recentList}>
@@ -701,22 +701,22 @@ export default function IPFSPage() {
                 {/* ═══ INFO CARDS ════════════════════════════════ */}
                 <div style={styles.infoGrid}>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>🌐</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Desentralisasi</h3>
                         <p style={styles.infoDesc}>File disimpan di jaringan IPFS — tidak bergantung pada satu server. Data tersebar di seluruh dunia.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>🔒</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Immutable</h3>
                         <p style={styles.infoDesc}>Setiap file memiliki CID unik berdasarkan kontennya. File tidak bisa diubah setelah di-pin — integritas terjamin.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>⛓️</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>On-Chain Reference</h3>
                         <p style={styles.infoDesc}>CID hash tercatat di Solana blockchain melalui Memo Program. Bukti tak terbantahkan bahwa data ada.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>💾</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Local Backup</h3>
                         <p style={styles.infoDesc}>File juga disimpan lokal di server sebagai cadangan. Akses cepat tanpa bergantung gateway IPFS.</p>
                     </div>
@@ -725,7 +725,7 @@ export default function IPFSPage() {
 
             {/* ── Footer ─────────────────────────────────────────── */}
             <footer style={styles.footer}>
-                <p>© 2025 CoffeeChain — Blockchain Industri Kopi Indonesia</p>
+                <p> 2025 CoffeeChain — Blockchain Industri Kopi Indonesia</p>
             </footer>
         </div>
     );

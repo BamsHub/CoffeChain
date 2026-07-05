@@ -1163,7 +1163,7 @@ export default function LandingPage() {
                             <span style={{ fontSize: 9, color: 'rgba(126,212,74,0.45)', letterSpacing: 1, textTransform: 'uppercase' }}>Blockchain Traceability</span>
                         </div>
                     </Link>
-                    <div style={{ color: 'rgba(232,245,224,0.3)', fontSize: 12 }}>© 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana</div>
+                    <div style={{ color: 'rgba(232,245,224,0.3)', fontSize: 12 }}> 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana</div>
                     <div className="lp-footer-links">
                         {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
                             <a key={label} href={href} style={{ color: 'rgba(232,245,224,0.4)', fontSize: 13, textDecoration: 'none' }}>{label}</a>
@@ -1555,7 +1555,7 @@ export default function LandingPage() {
                                                 </div>
                                                 {walletPublicKey && walletBalance < solAmount && (
                                                     <div style={{ marginTop:8, padding:'6px 10px', background:'rgba(244,67,54,0.1)', border:'1px solid rgba(244,67,54,0.2)', borderRadius:7, fontSize:11, color:'#f44336' }}>
-                                                        ⚠️ Saldo tidak cukup — Anda memiliki {walletBalance.toFixed(4)} SOL
+                                                         Saldo tidak cukup — Anda memiliki {walletBalance.toFixed(4)} SOL
                                                     </div>
                                                 )}
                                             </>

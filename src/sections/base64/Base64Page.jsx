@@ -69,7 +69,7 @@ function ParticleCanvas() {
 
 // ── History item ────────────────────────────────────────────────
 function HistoryItem({ item, onReuse }) {
-    const badgeLabel = item.action === 'encode' ? '🔒 Encode' : item.action === 'image' ? '🖼️ Image' : '🔓 Decode';
+    const badgeLabel = item.action === 'encode' ? ' Encode' : item.action === 'image' ? ' Image' : ' Decode';
     return (
         <div style={styles.historyItem} onClick={() => onReuse(item)}>
             <div style={styles.historyBadge}>{badgeLabel}</div>
@@ -89,7 +89,7 @@ function CompressionStats({ stats }) {
     if (!stats) return null;
     return (
         <div style={styles.statsCard}>
-            <div style={styles.statsTitle}>📊 Hasil Kompresi</div>
+            <div style={styles.statsTitle}> Hasil Kompresi</div>
             <div style={styles.statsGrid}>
                 <div style={styles.statItem}>
                     <span style={styles.statLabel}>Original</span>
@@ -118,12 +118,12 @@ function CompressionStats({ stats }) {
             </div>
             {stats.totalSaved && (
                 <div style={styles.statsSaved}>
-                    💾 Total hemat: <strong>{stats.totalSaved}</strong> ({stats.totalRatio} lebih kecil)
+                     Total hemat: <strong>{stats.totalSaved}</strong> ({stats.totalRatio} lebih kecil)
                 </div>
             )}
             {stats.localUrl && (
                 <div style={styles.statsLocal}>
-                    📁 Tersimpan lokal: <code style={styles.code}>{stats.localUrl}</code>
+                     Tersimpan lokal: <code style={styles.code}>{stats.localUrl}</code>
                 </div>
             )}
         </div>
@@ -396,7 +396,7 @@ export default function Base64Page() {
 
             <header style={styles.header}>
                 <a href="/" style={styles.logoLink}>
-                    <span style={styles.logoIcon}>☕</span>
+                    <span style={styles.logoIcon}></span>
                     <span style={styles.logoText}>CoffeeChain</span>
                 </a>
                 <nav style={styles.nav}>
@@ -407,7 +407,7 @@ export default function Base64Page() {
 
             <div style={styles.container}>
                 <div style={styles.titleSection}>
-                    <div style={styles.titleBadge}>🔐 Gratis & Tanpa Login</div>
+                    <div style={styles.titleBadge}> Gratis & Tanpa Login</div>
                     <h1 style={styles.title}>
                         Base64 <span style={styles.titleAccent}>Encoder / Decoder</span>
                     </h1>
@@ -423,10 +423,10 @@ export default function Base64Page() {
                 {/* Mode Selector */}
                 <div style={styles.modeSelector}>
                     {[
-                        { key: 'auto', label: '⚡ Auto-Detect', desc: 'Otomatis encode/decode' },
-                        { key: 'encode', label: '🔒 Encode', desc: 'Teks → Base64' },
-                        { key: 'decode', label: '🔓 Decode', desc: 'Base64 → Teks' },
-                        { key: 'image', label: '🖼️ Image', desc: 'Gambar ↔ Base64' },
+                        { key: 'auto', label: ' Auto-Detect', desc: 'Otomatis encode/decode' },
+                        { key: 'encode', label: ' Encode', desc: 'Teks → Base64' },
+                        { key: 'decode', label: ' Decode', desc: 'Base64 → Teks' },
+                        { key: 'image', label: ' Image', desc: 'Gambar  Base64' },
                     ].map((m) => (
                         <button
                             key={m.key}
@@ -444,7 +444,7 @@ export default function Base64Page() {
                     <div style={styles.imageSection}>
                         {/* Compression Settings */}
                         <div style={styles.settingsCard}>
-                            <div style={styles.settingsTitle}>⚙️ Pengaturan Kompresi</div>
+                            <div style={styles.settingsTitle}> Pengaturan Kompresi</div>
                             <div style={styles.settingsGrid}>
                                 <div style={styles.settingItem}>
                                     <label style={styles.settingLabel}>Max Size (MB)</label>
@@ -498,12 +498,12 @@ export default function Base64Page() {
                                             ...(compressSettings.useBackend ? styles.toggleBtnActive : {}),
                                         }}
                                     >
-                                        {compressSettings.useBackend ? '✅ Aktif' : '❌ Off'}
+                                        {compressSettings.useBackend ? ' Aktif' : ' Off'}
                                     </button>
                                 </div>
                             </div>
                             <div style={styles.settingsInfo}>
-                                💡 <strong>browser-image-compression</strong> mengkompresi di browser terlebih dulu →
+                                 <strong>browser-image-compression</strong> mengkompresi di browser terlebih dulu →
                                 lalu <strong>Sharp</strong> di backend standarisasi format & ukuran → disimpan <strong>lokal</strong> di server
                             </div>
                         </div>
@@ -511,7 +511,7 @@ export default function Base64Page() {
                         {/* Section 1: Image → Base64 */}
                         <div style={styles.imageSectionCard}>
                             <div style={styles.imageSectionHeader}>
-                                <span style={styles.imageSectionTitle}>📤 Gambar → Base64 String</span>
+                                <span style={styles.imageSectionTitle}> Gambar → Base64 String</span>
                                 <span style={styles.imageSectionDesc}>Upload foto → kompresi frontend → proses Sharp backend → simpan lokal + Base64</span>
                             </div>
 
@@ -542,14 +542,14 @@ export default function Base64Page() {
                                                         <span>{imageInfo.name}</span>
                                                         <span>
                                                             {imageInfo.width}×{imageInfo.height} · {formatFileSize(imageInfo.size)}
-                                                            {imageInfo.localUrl && ` · 📁 Lokal`}
+                                                            {imageInfo.localUrl && ` ·  Lokal`}
                                                         </span>
                                                     </div>
                                                 )}
                                             </div>
                                         ) : (
                                             <div style={styles.dropZoneContent}>
-                                                <div style={styles.dropZoneIcon}>📁</div>
+                                                <div style={styles.dropZoneIcon}></div>
                                                 <div style={styles.dropZoneText}><strong>Klik atau drag & drop gambar</strong></div>
                                                 <div style={styles.dropZoneHint}>JPG, PNG, WEBP, GIF, SVG · Max 10MB</div>
                                             </div>
@@ -566,7 +566,7 @@ export default function Base64Page() {
                                 <div style={styles.stringCol}>
                                     <div style={styles.stringOutputPanel}>
                                         <div style={styles.stringOutputHeader}>
-                                            <span style={styles.panelTitle}>📋 Base64 String</span>
+                                            <span style={styles.panelTitle}> Base64 String</span>
                                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                                 {imageBase64String && (
                                                     <span style={styles.charCounter}>{formatFileSize(imageBase64String.length)}</span>
@@ -576,7 +576,7 @@ export default function Base64Page() {
                                                     style={{ ...styles.copyBtn, ...(copiedImageString ? styles.copyBtnSuccess : {}) }}
                                                     disabled={!imageBase64String}
                                                 >
-                                                    {copiedImageString ? '✓ Tersalin!' : '📋 Copy'}
+                                                    {copiedImageString ? '✓ Tersalin!' : ' Copy'}
                                                 </button>
                                             </div>
                                         </div>
@@ -589,7 +589,7 @@ export default function Base64Page() {
                                 </div>
                             </div>
 
-                            {error && <div style={{ ...styles.errorMsg, margin: '0 24px 16px' }}>⚠️ {error}</div>}
+                            {error && <div style={{ ...styles.errorMsg, margin: '0 24px 16px' }}> {error}</div>}
 
                             {/* Compression Stats */}
                             {compressionStats && (
@@ -609,15 +609,15 @@ export default function Base64Page() {
                         {/* Section 2: String → Image */}
                         <div style={styles.imageSectionCard}>
                             <div style={styles.imageSectionHeader}>
-                                <span style={styles.imageSectionTitle}>📥 Base64 String → Gambar</span>
+                                <span style={styles.imageSectionTitle}> Base64 String → Gambar</span>
                                 <span style={styles.imageSectionDesc}>Paste Base64 image string untuk melihat gambar</span>
                             </div>
                             <div style={styles.imageContentRow}>
                                 <div style={styles.stringCol}>
                                     <div style={styles.stringOutputPanel}>
                                         <div style={styles.stringOutputHeader}>
-                                            <span style={styles.panelTitle}>📝 Paste Base64</span>
-                                            <button onClick={handlePasteExample} style={styles.exampleBtn}>📌 Contoh</button>
+                                            <span style={styles.panelTitle}> Paste Base64</span>
+                                            <button onClick={handlePasteExample} style={styles.exampleBtn}> Contoh</button>
                                         </div>
                                         <textarea
                                             style={{ ...styles.textarea, minHeight: 200 }}
@@ -628,7 +628,7 @@ export default function Base64Page() {
                                         />
                                     </div>
                                     {stringToImageError && (
-                                        <div style={{ ...styles.errorMsg, borderRadius: 10, marginTop: 8 }}>⚠️ {stringToImageError}</div>
+                                        <div style={{ ...styles.errorMsg, borderRadius: 10, marginTop: 8 }}> {stringToImageError}</div>
                                     )}
                                 </div>
                                 <div style={styles.arrowCol}><div style={styles.arrowCircle}>→</div></div>
@@ -637,11 +637,11 @@ export default function Base64Page() {
                                         {stringToImagePreview ? (
                                             <div style={styles.imagePreviewContainer}>
                                                 <img src={stringToImagePreview} alt="Decoded" style={styles.imagePreviewImg} />
-                                                <div style={styles.imageMetaOverlay}><span>✅ Gambar berhasil di-render</span></div>
+                                                <div style={styles.imageMetaOverlay}><span> Gambar berhasil di-render</span></div>
                                             </div>
                                         ) : (
                                             <div style={styles.dropZoneContent}>
-                                                <div style={styles.dropZoneIcon}>🖼️</div>
+                                                <div style={styles.dropZoneIcon}></div>
                                                 <div style={styles.dropZoneText}><strong>Preview gambar</strong></div>
                                                 <div style={styles.dropZoneHint}>Paste Base64 string di sebelah kiri</div>
                                             </div>
@@ -659,7 +659,7 @@ export default function Base64Page() {
                         <div style={styles.panel}>
                             <div style={styles.panelHeader}>
                                 <span style={styles.panelTitle}>
-                                    📝 Input
+                                     Input
                                     {detectedAction && mode === 'auto' && (
                                         <span style={styles.detectedBadge}>Auto: {detectedAction === 'encode' ? 'akan di-encode' : 'akan di-decode'}</span>
                                     )}
@@ -671,7 +671,7 @@ export default function Base64Page() {
                                 placeholder={mode === 'decode' ? 'Paste Base64 string...\nContoh: SGVsbG8gV29ybGQ=' : mode === 'encode' ? 'Ketik teks...\nContoh: Hello World' : 'Ketik atau paste apa saja...\nAuto-detect encode/decode'}
                                 value={input} onChange={handleInputChange} spellCheck={false}
                             />
-                            {error && <div style={styles.errorMsg}>⚠️ {error}</div>}
+                            {error && <div style={styles.errorMsg}> {error}</div>}
                         </div>
                         <div style={styles.actionCol}>
                             <button onClick={handleSwap} style={styles.swapBtn} title="Tukar" disabled={!output}>⇄</button>
@@ -679,11 +679,11 @@ export default function Base64Page() {
                         </div>
                         <div style={styles.panel}>
                             <div style={styles.panelHeader}>
-                                <span style={styles.panelTitle}>📋 Output</span>
+                                <span style={styles.panelTitle}> Output</span>
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                     <span style={styles.charCounter}>{charCount.output} karakter</span>
                                     <button onClick={handleCopy} style={{ ...styles.copyBtn, ...(copied ? styles.copyBtnSuccess : {}) }} disabled={!output}>
-                                        {copied ? '✓ Tersalin!' : '📋 Copy'}
+                                        {copied ? '✓ Tersalin!' : ' Copy'}
                                     </button>
                                 </div>
                             </div>
@@ -698,7 +698,7 @@ export default function Base64Page() {
                 {history.length > 0 && (
                     <div style={styles.historySection}>
                         <div style={styles.historySectionHeader}>
-                            <h3 style={styles.historyTitle}>🕐 Riwayat</h3>
+                            <h3 style={styles.historyTitle}> Riwayat</h3>
                             <button onClick={() => setHistory([])} style={styles.clearHistoryBtn}>Hapus</button>
                         </div>
                         <div style={styles.historyList}>
@@ -710,22 +710,22 @@ export default function Base64Page() {
                 {/* Info Cards */}
                 <div style={styles.infoGrid}>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>📦</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>2-Step Compression</h3>
                         <p style={styles.infoDesc}>browser-image-compression di frontend, lalu Sharp di backend untuk hasil optimal.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>💾</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Local Storage</h3>
                         <p style={styles.infoDesc}>Gambar disimpan ke server lokal di <code style={styles.code}>/uploads/</code>, tidak perlu cloud.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>⚙️</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>Kustomisasi</h3>
                         <p style={styles.infoDesc}>Atur max size, dimensi, quality, dan format output sesuai kebutuhan.</p>
                     </div>
                     <div style={styles.infoCard}>
-                        <div style={styles.infoIcon}>📡</div>
+                        <div style={styles.infoIcon}></div>
                         <h3 style={styles.infoTitle}>API Tersedia</h3>
                         <p style={styles.infoDesc}>Endpoint <code style={styles.code}>/api/base64</code> mendukung FormData upload + Sharp processing.</p>
                     </div>
@@ -733,7 +733,7 @@ export default function Base64Page() {
             </div>
 
             <footer style={styles.footer}>
-                <p>© 2025 CoffeeChain — Blockchain Industri Kopi Indonesia</p>
+                <p> 2025 CoffeeChain — Blockchain Industri Kopi Indonesia</p>
             </footer>
         </div>
     );

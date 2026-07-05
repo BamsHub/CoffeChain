@@ -190,7 +190,7 @@ export default function LoginPage() {
 
                 <div className={styles.footer}>
                     <span className={styles.footerBadge}> SHA-256</span>
-                    <span className={styles.footerBadge}>⛓️ Solana Blockchain</span>
+                    <span className={styles.footerBadge}> Solana Blockchain</span>
                     <span className={styles.footerBadge}> CoffeeChain v1.0</span>
                 </div>
             </div>

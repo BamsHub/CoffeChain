@@ -53,7 +53,7 @@ export async function POST(request) {
             slug: name.trim().toLowerCase().replace(/\s+/g, '-'),
             region: region.trim(),
             description: (description || '').trim(),
-            icon: icon || '☕',
+            icon: icon || '',
             coverColor: coverColor || '#2D5016',
             type: type || 'Arabika',
             status: 'active',

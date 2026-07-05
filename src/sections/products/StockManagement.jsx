@@ -54,6 +54,7 @@ export default function StockManagement() {
     const [stageModal, setStageModal] = useState(null);
     const [stageForm, setStageForm] = useState(initialStageForm);
     const [photoUrl, setPhotoUrl] = useState('');
+    const [photoIpfs, setPhotoIpfs] = useState(null);
     const [msg, setMsg] = useState(null);
     const [search, setSearch] = useState('');
     const [detailLog, setDetailLog] = useState(null);
@@ -118,9 +119,13 @@ export default function StockManagement() {
         setSaving(true);
         setMsg(null);
         try {
+            const token = await getToken();
             const res = await fetch('/api/production-batches', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     ...batchForm,
                     weightKg: Number(batchForm.weightKg) || null,
@@ -142,6 +147,8 @@ export default function StockManagement() {
 
     async function uploadPhoto(file) {
         setUploading(true);
+        setPhotoUrl('');
+        setPhotoIpfs(null);
         setMsg(null);
         try {
             const token = await getToken();
@@ -154,7 +161,12 @@ export default function StockManagement() {
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Upload gagal');
-            setPhotoUrl(data.url);
+            if (data.storage !== 'ipfs' || !data.cid || !data.ipfsUri || !data.gatewayUrl) {
+                throw new Error('Server tidak mengembalikan bukti pinning IPFS yang valid');
+            }
+            setPhotoUrl(data.gatewayUrl);
+            setPhotoIpfs({ cid: data.cid, uri: data.ipfsUri, gatewayUrl: data.gatewayUrl });
+            setMsg({ type: 'ok', text: `Foto berhasil dipin ke IPFS. CID: ${data.cid}` });
         } catch (err) {
             setMsg({ type: 'err', text: err.message });
         }
@@ -164,6 +176,7 @@ export default function StockManagement() {
     function openStageModal(batch, stage) {
         setStageModal({ batch, stage });
         setPhotoUrl('');
+        setPhotoIpfs(null);
         setStageForm({
             ...initialStageForm,
             weightIn: batch.weightKg || '',
@@ -178,13 +191,14 @@ export default function StockManagement() {
         if (!stageModal) return;
 
         const { batch, stage } = stageModal;
-        if (!photoUrl) {
-            setMsg({ type: 'err', text: 'Upload bukti foto wajib sebelum menyimpan tahap produksi.' });
+        if (!photoUrl || !photoIpfs?.cid || !photoIpfs?.uri) {
+            setMsg({ type: 'err', text: 'Upload dan pin bukti foto ke IPFS wajib sebelum menyimpan tahap produksi.' });
             return;
         }
         setSaving(true);
         setMsg(null);
         try {
+            const token = await getToken();
             const isFinal = stage.id === 6;
             const stageData = {
                 notes: stageForm.notes,
@@ -196,6 +210,11 @@ export default function StockManagement() {
                 levelRoast: stageForm.levelRoast,
                 ukuranGiling: stageForm.ukuranGiling,
                 gasReleaseHours: Number(stageForm.gasReleaseHours) || null,
+                evidencePhoto: {
+                    cid: photoIpfs.cid,
+                    uri: photoIpfs.uri,
+                    gatewayUrl: photoIpfs.gatewayUrl,
+                },
                 ...(isFinal ? {
                     productName: stageForm.productName || batch.name,
                     stock: Number(stageForm.stock) || 0,
@@ -209,12 +228,17 @@ export default function StockManagement() {
 
             const res = await fetch('/api/production-stages', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     batchId: batch.id,
                     stage: stage.id,
                     stageData,
-                    photoUrl: photoUrl || null,
+                    photoUrl,
+                    photoCid: photoIpfs.cid,
+                    ipfsUri: photoIpfs.uri,
                     loggedBy: user?.id || null,
                     loggedByName: user?.name || user?.email || null,
                 }),
@@ -435,15 +459,15 @@ export default function StockManagement() {
                         </div>
 
                         <div style={{ marginTop: 12 }}>
-                            <label style={label}>Bukti Foto</label>
+                            <label style={label}>Bukti Foto IPFS *</label>
                             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 800, cursor: uploading ? 'wait' : 'pointer' }}>
-                                {uploading ? 'Mengunggah...' : 'Upload Foto'}
-                                <input type="file" accept="image/*" disabled={uploading} style={{ display: 'none' }} onChange={event => { const file = event.target.files?.[0]; if (file) uploadPhoto(file); }} />
+                                {uploading ? 'Mengunggah ke IPFS...' : 'Upload Foto ke IPFS'}
+                                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" required={!photoIpfs?.cid} disabled={uploading} style={{ display: 'none' }} onChange={event => { const file = event.target.files?.[0]; if (file) uploadPhoto(file); }} />
                             </label>
                             {photoUrl && (
                                 <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', color: 'var(--color-text-muted)', fontSize: 12 }}>
                                     <img src={photoUrl} alt="Bukti tahap" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
-                                    Foto siap disimpan ke trace log.
+                                    <span>Foto sudah dipin ke IPFS.<br />CID: <code style={{ wordBreak: 'break-all' }}>{photoIpfs?.cid}</code></span>
                                 </div>
                             )}
                         </div>
@@ -455,7 +479,7 @@ export default function StockManagement() {
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                             <button type="button" style={mutedButton} onClick={() => setStageModal(null)}>Batal</button>
-                            <button type="submit" style={primaryButton} disabled={saving || uploading}>
+                            <button type="submit" style={{ ...primaryButton, opacity: photoIpfs?.cid ? 1 : 0.6 }} disabled={saving || uploading || !photoIpfs?.cid}>
                                 {saving ? 'Menyimpan...' : stageModal.stage.id === 6 ? 'Jadikan Produk' : 'Simpan & Lanjut Tahap'}
                             </button>
                         </div>

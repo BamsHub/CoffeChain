@@ -88,7 +88,7 @@ export const ROLE_LABELS = {
     farmer: { label: 'Petani', emoji: '', color: 'var(--color-success)', bg: 'color-mix(in srgb, var(--color-success) 15%, transparent)' },
     koperasi: { label: 'Koperasi', emoji: '', color: 'var(--color-accent)', bg: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' },
     developer: { label: 'Developer', emoji: '', color: 'var(--color-crypto)', bg: 'color-mix(in srgb, var(--color-crypto) 15%, transparent)' },
-    admin: { label: 'Administrator', emoji: '🛡️', color: '#2196F3', bg: 'rgba(33, 150, 243, 0.15)' },
+    admin: { label: 'Administrator', emoji: '', color: '#2196F3', bg: 'rgba(33, 150, 243, 0.15)' },
 };
 
 // Nav items per role

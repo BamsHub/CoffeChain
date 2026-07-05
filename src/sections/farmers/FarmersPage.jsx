@@ -104,7 +104,7 @@ export default function FarmersPage() {
                                 <div className={styles.statItemLabel}>Pendapatan</div>
                             </div>
                             <div className={styles.statItem}>
-                                <div className={styles.statItemVal}>{f.rating ?? '—'} ⭐</div>
+                                <div className={styles.statItemVal}>{f.rating ?? '—'} </div>
                                 <div className={styles.statItemLabel}>Rating</div>
                             </div>
                         </div>

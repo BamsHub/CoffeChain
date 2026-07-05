@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './supabase';
 
-// ── Key converters: camelCase ↔ snake_case ──────────────────────
+// ── Key converters: camelCase  snake_case ──────────────────────
 function toCamel(str) {
     return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }

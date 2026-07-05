@@ -279,7 +279,7 @@ export function BlockchainQRModal({ open, onClose, explorerUrl, traceUrl, coffee
 
                 {/* Header */}
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                    <div style={{ fontSize: 22, marginBottom: 4 }}>⛓</div>
+                    <div style={{ fontSize: 22, marginBottom: 4 }}></div>
                     <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--color-text, #E8F5E0)' }}>
                         Sertifikasi
                     </div>

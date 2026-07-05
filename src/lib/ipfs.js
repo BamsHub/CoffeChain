@@ -9,7 +9,10 @@ let pinataClient = null;
 
 /** Check if Pinata IPFS credentials are configured */
 export function isIPFSConfigured() {
-    return !!(process.env.PINATA_API_KEY && process.env.PINATA_API_SECRET);
+    return !!(
+        process.env.PINATA_JWT
+        || (process.env.PINATA_API_KEY && process.env.PINATA_API_SECRET)
+    );
 }
 
 /** Lazy-init Pinata SDK client */
@@ -17,13 +20,15 @@ export function getPinataClient() {
     if (pinataClient) return pinataClient;
 
     if (!isIPFSConfigured()) {
-        throw new Error('PINATA_API_KEY and PINATA_API_SECRET environment variables are required');
+        throw new Error('PINATA_JWT or PINATA_API_KEY and PINATA_API_SECRET environment variables are required');
     }
 
-    pinataClient = new PinataSDK({
-        pinataApiKey: process.env.PINATA_API_KEY,
-        pinataSecretApiKey: process.env.PINATA_API_SECRET,
-    });
+    pinataClient = new PinataSDK(process.env.PINATA_JWT
+        ? { pinataJWTKey: process.env.PINATA_JWT }
+        : {
+            pinataApiKey: process.env.PINATA_API_KEY,
+            pinataSecretApiKey: process.env.PINATA_API_SECRET,
+        });
 
     console.log('[IPFS] Pinata client initialized');
     return pinataClient;
@@ -115,7 +120,11 @@ export async function unpinFromIPFS(cid) {
 
 /** Get public Pinata gateway URL for a CID */
 export function getIPFSGatewayUrl(cid) {
-    return `https://gateway.pinata.cloud/ipfs/${cid}`;
+    const configured = process.env.IPFS_GATEWAY_URL
+        || process.env.NEXT_PUBLIC_IPFS_GATEWAY
+        || 'https://gateway.pinata.cloud/ipfs';
+    const base = configured.trim().replace(/\/+$/, '');
+    return `${base.endsWith('/ipfs') ? base : `${base}/ipfs`}/${cid}`;
 }
 
 /** Get IPFS protocol URL for a CID */
