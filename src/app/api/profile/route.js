@@ -14,7 +14,7 @@ async function findUser(userId) {
 
 export async function GET(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -39,7 +39,7 @@ export async function GET(request) {
 
 export async function PATCH(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });

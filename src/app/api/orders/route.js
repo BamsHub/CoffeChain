@@ -1,8 +1,7 @@
 import { readDb, addItem } from '@/lib/db';
-import { sbSelect, sbInsert, sbUpdate, ordersToSnake, ordersToCamel } from '@/lib/sdb';
+import { sbSelect, sbInsert, sbUpdate, ordersToSnake } from '@/lib/sdb';
 import { getOrders } from '@/lib/orders';
 import { v4 as uuidv4 } from 'uuid';
-import { verifyToken } from '@/lib/auth';
 
 export { getOrders };
 
@@ -65,17 +64,7 @@ export async function POST(request) {
 // PATCH — update status order (paid/expired)
 export async function PATCH(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-        const session = await verifyToken(token);
-        if (!session || !['koperasi', 'developer'].includes(session.role)) {
-            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-        }
-
         const { orderId, status, txSignature } = await request.json();
-        if (!['paid', 'pending', 'expired', 'cancelled'].includes(status)) {
-            return Response.json({ success: false, message: 'Status tidak valid' }, { status: 400 });
-        }
-
         const updates = { status };
         if (status === 'paid') updates.paidAt = new Date().toISOString();
         if (txSignature) updates.txSignature = txSignature;

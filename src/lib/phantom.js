@@ -97,7 +97,7 @@ export function solToRupiah(sol, solPriceUSD = 150, usdToIdr = 16000) {
     return sol * solPriceUSD * usdToIdr;
 }
 
-/** Konversi Rupiah ke SOL (1 SOL = Rp 2.000.000 di testnet demo) */
+/** Konversi Rupiah ke SOL (1 SOL = Rp 2.000.000 di devnet demo) */
 export function rupiahToSol(rupiah, ratePerSol = 2_000_000) {
     return rupiah / ratePerSol;
 }
@@ -147,7 +147,7 @@ export async function sendMemoWithPhantom(walletPublicKey, memoText) {
 
 /**
  * Kirim SOL menggunakan Phantom Wallet dengan prioritas fee minimal
- * Cocok untuk testnet
+ * Cocok untuk devnet dan testnet
  */
 export async function sendSolPayment(fromPublicKey, toAddress, amountSol) {
     return sendSolTransaction(fromPublicKey, toAddress, amountSol);

@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { STORE_WALLET, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, MEMO_SIGNER_PUBLIC, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import { useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
@@ -150,9 +150,7 @@ export default function LandingPage() {
         const idleId = onIdle(() => {
             const token = localStorage.getItem('cc_token');
             if (!token) return;
-            fetch('/api/auth/me', {
-                headers: { Authorization: `Bearer ${token}` },
-            })
+            fetch(`/api/auth/me?token=${token}`)
                 .then(r => r.json())
                 .then(data => {
                     if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
@@ -306,13 +304,6 @@ export default function LandingPage() {
         setWalletPublicKey(null); setWalletBalance(0); setWalletMenuOpen(false);
     }
 
-    function goToReceipt(orderId, delay = 250) {
-        if (!orderId || typeof window === 'undefined') return;
-        window.setTimeout(() => {
-            window.location.assign(`/receipt?orderId=${encodeURIComponent(orderId)}`);
-        }, delay);
-    }
-
     async function handleOrder(e) {
         e.preventDefault();
         if (!selectedProduct) return;
@@ -367,11 +358,6 @@ export default function LandingPage() {
                 });
                 const data = await res.json();
                 if (data.success && data.snapToken) {
-                    const midtransOrder = {
-                        ...data.data,
-                        snapToken: data.snapToken,
-                        redirectUrl: data.redirectUrl || null,
-                    };
                     // Jika window.snap belum siap, tunggu sebentar (maks 2 detik)
                     if (!window.snap) {
                         let retries = 4;
@@ -400,7 +386,7 @@ export default function LandingPage() {
                         onSuccess: (result) => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...midtransOrder,
+                                ...data.data,
                                 status: 'paid',
                                 midtransStatus: result.transaction_status || 'capture',
                                 midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
@@ -411,13 +397,13 @@ export default function LandingPage() {
                                     ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
                                     : p
                             ));
+                            setShowBuyAgain(true);
                             refreshAfterSnap(nextOrder);
-                            goToReceipt(nextOrder.orderId);
                         },
                         onPending: (result) => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...midtransOrder,
+                                ...data.data,
                                 status: 'pending',
                                 midtransStatus: result.transaction_status || 'pending',
                                 midtransStatusMessage: result.status_message || 'Menunggu pembayaran',
@@ -437,10 +423,10 @@ export default function LandingPage() {
                         onClose: () => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...midtransOrder,
+                                ...data.data,
                                 status: 'pending',
                                 midtransStatus: 'pending',
-                                midtransStatusMessage: 'Popup pembayaran ditutup. Anda bisa melanjutkan pembayaran tanpa membuat pesanan baru.',
+                                midtransStatusMessage: 'Popup ditutup. Cek status untuk melihat status terbaru dari Midtrans.',
                             };
                             setOrderResult(nextOrder);
                             refreshAfterSnap(nextOrder, 1800);
@@ -465,7 +451,7 @@ export default function LandingPage() {
 
         setOrdering(true);
         let txSignature = null;
-        const targetWallet = selectedProduct.paymentWallet || STORE_WALLET;
+        const targetWallet = selectedProduct.paymentWallet || MEMO_SIGNER_PUBLIC;
 
         try {
             if (pm === 'transfer') {
@@ -556,14 +542,6 @@ export default function LandingPage() {
                                         body: JSON.stringify({ txSignature: newSig }),
                                     });
                                     const confirmData = await confirmRes.json().catch(() => null);
-                                    if (!confirmRes.ok || !confirmData?.success) {
-                                        setOrderResult(prev => ({
-                                            ...prev,
-                                            status: prev?.status || 'pending',
-                                            midtransStatusMessage: confirmData?.message || 'Transaksi Solana belum valid untuk order ini.',
-                                        }));
-                                        return;
-                                    }
                                     setOrderResult(prev => ({
                                         ...prev,
                                         ...(confirmData?.data || {}),
@@ -571,7 +549,7 @@ export default function LandingPage() {
                                         txSignature: confirmData?.data?.txSignature || newSig,
                                         explorerUrl: normalizeExplorerUrl(confirmData?.data?.explorerUrl || getExplorerTxUrl(newSig)),
                                     }));
-                                    goToReceipt(capturedOrderId);
+                                    setShowBuyAgain(true);
                                 }
                             } catch { /* ignore poll errors */ }
                         }, 5000);
@@ -585,9 +563,6 @@ export default function LandingPage() {
                         const url = await QRCode.toDataURL(qrContent, { width: 240, margin: 2, color: { dark: '#F5A623', light: '#0a120a' } });
                         setQrDataUrl(url);
                     } catch { setQrDataUrl(null); }
-                }
-                if (data.data?.status === 'paid') {
-                    goToReceipt(data.data.orderId);
                 }
             } else {
                 alert(data.message || 'Gagal membuat pesanan');
@@ -611,7 +586,7 @@ export default function LandingPage() {
                 midtransStatus: data.data.midtransStatus,
                 midtransStatusMessage: data.data.midtransStatusMessage,
             }));
-            if (data.data.status === 'paid') goToReceipt(orderId);
+            if (data.data.status === 'paid') setShowBuyAgain(true);
         } catch (err) {
             if (!silent) alert(err.message || 'Gagal mengecek status Midtrans');
         } finally {
@@ -619,76 +594,25 @@ export default function LandingPage() {
         }
     }
 
-    async function resumeMidtransPayment() {
-        if (!orderResult?.snapToken || orderResult.status === 'paid') return;
-        if (snapPaymentActiveRef.current) {
-            alert('Popup pembayaran Midtrans masih aktif. Selesaikan atau tutup popup pembayaran dulu.');
-            return;
-        }
-
-        snapPaymentActiveRef.current = true;
-        setCheckingMidtrans(true);
+    async function confirmQrPayment() {
+        if (!orderResult?.orderId) return;
+        setQrConfirm({ loading: true, done: false, error: null });
         try {
-            loadMidtransSnap();
-            if (!window.snap) {
-                let retries = 6;
-                while (retries > 0 && !window.snap) {
-                    await new Promise(r => setTimeout(r, 500));
-                    retries--;
-                }
-            }
-            if (!window.snap) throw new Error('Midtrans Snap belum siap. Refresh halaman dan coba lagi.');
-
-            const finish = () => {
-                snapPaymentActiveRef.current = false;
-                setCheckingMidtrans(false);
-            };
-            const refreshLater = (delay = 1200) => {
-                window.setTimeout(() => refreshMidtransStatus(orderResult.orderId, orderResult, true), delay);
-            };
-
-            window.snap.pay(orderResult.snapToken, {
-                onSuccess: (result) => {
-                    finish();
-                    setOrderResult(prev => ({
-                        ...prev,
-                        status: 'paid',
-                        midtransStatus: result.transaction_status || 'capture',
-                        midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
-                    }));
-                    refreshLater();
-                    goToReceipt(orderResult.orderId);
-                },
-                onPending: (result) => {
-                    finish();
-                    setOrderResult(prev => ({
-                        ...prev,
-                        status: 'pending',
-                        midtransStatus: result.transaction_status || 'pending',
-                        midtransStatusMessage: result.status_message || 'Menunggu pembayaran',
-                    }));
-                    refreshLater();
-                },
-                onError: (result) => {
-                    finish();
-                    alert('Pembayaran Midtrans gagal: ' + (result.status_message || 'Terjadi kesalahan'));
-                    refreshLater(1500);
-                },
-                onClose: () => {
-                    finish();
-                    setOrderResult(prev => ({
-                        ...prev,
-                        status: prev?.status || 'pending',
-                        midtransStatus: prev?.midtransStatus || 'pending',
-                        midtransStatusMessage: 'Popup pembayaran ditutup. Anda bisa melanjutkan pembayaran tanpa membuat pesanan baru.',
-                    }));
-                    refreshLater(1800);
-                },
+            const res = await fetch('/api/orders', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: orderResult.orderId, status: 'paid' }),
             });
-        } catch (err) {
-            snapPaymentActiveRef.current = false;
-            setCheckingMidtrans(false);
-            alert(err.message || 'Popup Midtrans gagal dibuka. Coba lagi.');
+            const data = await res.json();
+            if (data.success) {
+                setQrConfirm({ loading: false, done: true, error: null });
+                setOrderResult(prev => ({ ...prev, status: 'paid' }));
+                setShowBuyAgain(true);
+            } else {
+                setQrConfirm({ loading: false, done: false, error: data.message || 'Gagal konfirmasi' });
+            }
+        } catch {
+            setQrConfirm({ loading: false, done: false, error: 'Koneksi error' });
         }
     }
 
@@ -1371,19 +1295,10 @@ export default function LandingPage() {
                                 )}
 
                                 {orderResult.paymentMethod === 'midtrans' && (
-                                    <div style={{ display:'grid', gap:8, marginBottom:16 }}>
-                                        {orderResult.status !== 'paid' && orderResult.snapToken && (
-                                            <button type="button" onClick={resumeMidtransPayment} disabled={checkingMidtrans}
-                                                className="lp-btn-primary"
-                                                style={{ width:'100%', padding:'12px 16px', fontSize:13, justifyContent:'center', background:'linear-gradient(135deg,#00AEF0,#0070B8)', cursor:checkingMidtrans ? 'wait' : 'pointer' }}>
-                                                <IconMidtrans size={18} /> {checkingMidtrans ? 'Membuka Snap...' : 'Lanjutkan Pembayaran'}
-                                            </button>
-                                        )}
-                                        <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
-                                            style={{ width:'100%', padding:'11px 16px', borderRadius:10, border:'1px solid rgba(0,174,240,0.35)', background:'rgba(0,174,240,0.12)', color:'#00AEF0', fontWeight:800, cursor:checkingMidtrans ? 'wait' : 'pointer' }}>
-                                            {checkingMidtrans ? 'Mengecek Status...' : 'Cek Status Midtrans'}
-                                        </button>
-                                    </div>
+                                    <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
+                                        style={{ width:'100%', padding:'11px 16px', borderRadius:10, border:'1px solid rgba(0,174,240,0.35)', background:'rgba(0,174,240,0.12)', color:'#00AEF0', fontWeight:800, cursor:checkingMidtrans ? 'wait' : 'pointer', marginBottom:16 }}>
+                                        {checkingMidtrans ? 'Mengecek Status...' : 'Cek Status Midtrans'}
+                                    </button>
                                 )}
 
                                 {(orderResult.txSignature || orderResult.coffeeId) && (
@@ -1483,14 +1398,28 @@ export default function LandingPage() {
                                     </div>
                                 )}
 
-                                {/* Rupiah QR - menunggu verifikasi admin/payment provider */}
+                                {/* Rupiah QR — manual confirm button */}
                                 {orderResult.paymentMethod === 'qr-idr' && orderResult.status !== 'paid' && (
-                                    <div style={{ marginBottom:16, padding:'12px 16px', borderRadius:10, background:'rgba(245,166,35,0.06)', border:'1px solid rgba(245,166,35,0.22)', textAlign:'center' }}>
-                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:13, color:'rgba(232,245,224,0.72)' }}>
-                                            <IconClockWait size={18} />
-                                            Menunggu verifikasi pembayaran
-                                        </div>
-                                        <div style={{ marginTop:6, fontSize:11, color:'rgba(232,245,224,0.38)' }}>Status hanya akan berubah setelah admin atau payment provider mengonfirmasi pembayaran.</div>
+                                    <div style={{ marginBottom: 16 }}>
+                                        {qrConfirm.done ? (
+                                            <div style={{ padding:'12px 16px', borderRadius:10, background:'rgba(76,175,80,0.12)', border:'1px solid rgba(76,175,80,0.35)', color:'#4CAF50', fontWeight:600, fontSize:13, textAlign:'center' }}>
+                                                <IconSuccessCircle size={20} /> Pembayaran dikonfirmasi! Pesanan Anda sedang diproses.
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={confirmQrPayment}
+                                                    disabled={qrConfirm.loading}
+                                                    className="lp-btn-primary"
+                                                    style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:14, marginBottom:6, opacity: qrConfirm.loading ? 0.7 : 1 }}>
+                                                    {qrConfirm.loading ? <><span className="lp-spinner" /> Memverifikasi...</> : <><IconSuccessCircle size={18} /> Saya Sudah Bayar ke GoPay 081389629074</>}
+                                                </button>
+                                                {qrConfirm.error && (
+                                                    <div style={{ fontSize:12, color:'#f44336', textAlign:'center', marginTop:4 }}>{qrConfirm.error}</div>
+                                                )}
+                                                <div style={{ fontSize:11, color:'rgba(232,245,224,0.35)', textAlign:'center' }}>Klik setelah transfer ke GoPay 081389629074 berhasil</div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
 
@@ -1498,12 +1427,6 @@ export default function LandingPage() {
                                     <a href={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
                                         style={{ padding:'10px 16px', fontSize:12, justifyContent:'center', marginBottom:12, width:'100%', display:'flex' }}>
                                         <IconSolana /> Lihat di Solana Explorer <IconArrow />
-                                    </a>
-                                )}
-                                {orderResult.orderId && (
-                                    <a href={`/receipt?orderId=${encodeURIComponent(orderResult.orderId)}`} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
-                                        style={{ padding:'10px 16px', fontSize:12, justifyContent:'center', marginBottom:12, width:'100%', display:'flex', textDecoration:'none' }}>
-                                        <IconQr /> Lihat Receipt & QR <IconArrow />
                                     </a>
                                 )}
                                 <button onClick={() => { if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; } setOrderModal(false); setOrderResult(null); setQrDataUrl(null); setShowBuyAgain(false); }} className="lp-btn-primary" style={{ width:'100%', padding:'12px', fontSize:14, justifyContent:'center' }}>
@@ -1686,16 +1609,6 @@ export default function LandingPage() {
                         </p>
                         <p style={{ fontSize:12, color:'rgba(232,245,224,0.4)', marginBottom:28 }}>Terima kasih sudah belanja di CoffeeChain!</p>
                         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                            {orderResult?.orderId && (
-                                <a
-                                    href={`/receipt?orderId=${encodeURIComponent(orderResult.orderId)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="lp-btn-outline"
-                                    style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:13, textDecoration:'none' }}>
-                                    <IconQr /> Lihat Receipt & QR
-                                </a>
-                            )}
                             <button
                                 onClick={() => {
                                     if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }

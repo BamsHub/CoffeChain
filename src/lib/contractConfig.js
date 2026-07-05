@@ -42,3 +42,9 @@ export const normalizeExplorerUrl = (url) => {
         return url.replace(/([?&]cluster=)[^&]+/, `$1${DEPLOY_NETWORK}`);
     }
 };
+
+// ── IPFS Configuration ──────────────────────────────────────────
+export const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs";
+export const IPFS_GATEWAY_ALT = "https://ipfs.io/ipfs";
+export const getIPFSGatewayUrl = (cid) => `${IPFS_GATEWAY}/${cid}`;
+export const getIPFSUrl = (cid) => `ipfs://${cid}`;

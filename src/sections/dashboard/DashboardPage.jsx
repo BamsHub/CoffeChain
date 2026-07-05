@@ -285,7 +285,7 @@ export default function DashboardPage({ walletPublicKey }) {
 
             {/* Blockchain Live Feed */}
             <div className={styles.blockchainFeed}>
-                <div className={styles.feedHeader}><span className={styles.feedDot} /><span className={styles.feedTitle}>Live Blockchain Feed — Solana Testnet</span></div>
+                <div className={styles.feedHeader}><span className={styles.feedDot} /><span className={styles.feedTitle}>Live Blockchain Feed — Solana Devnet</span></div>
                 <div className={styles.feedRow}>
                     {[1, 2, 3, 4, 5, 6].map((b) => (
                         <div key={b} className={styles.blockCard}>

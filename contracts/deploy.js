@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Deploy Script: CoffeeChain Smart Contract ke Solana Testnet
+ * Deploy Script: CoffeeChain Smart Contract ke Solana Devnet
  * ---------------------------------------------------------------------------
  * Jalankan setelah Solana CLI + Anchor terinstall:
  *   node contracts/deploy.js
@@ -8,7 +8,7 @@
  * Atau manual:
  *   cd contracts
  *   anchor build
- *   anchor deploy --provider.cluster testnet
+ *   anchor deploy --provider.cluster devnet
  * ---------------------------------------------------------------------------
  */
 
@@ -26,16 +26,16 @@ function run(cmd, cwd = CONTRACTS_DIR) {
 }
 
 async function main() {
-    console.log('🚀 CoffeeChain Smart Contract — Deploy ke Solana Testnet');
+    console.log('🚀 CoffeeChain Smart Contract — Deploy ke Solana Devnet');
     console.log('━'.repeat(60));
 
-    // 1. Set Solana ke testnet
-    run('solana config set --url testnet');
+    // 1. Set Solana ke devnet
+    run('solana config set --url devnet');
 
     // 2. Tampilkan wallet address
     run('solana address');
 
-    // 3. Airdrop SOL untuk gas deployment testnet (dapat terkena rate limit)
+    // 3. Airdrop SOL untuk gas deployment (devnet only)
     console.log('\n💧 Airdrop SOL untuk deploy...');
     try { run('solana airdrop 2'); } catch { console.log('Airdrop gagal, pastikan ada SOL di wallet'); }
 
@@ -71,8 +71,8 @@ async function main() {
     run('anchor build');
 
     // 9. Deploy
-    console.log('\n🚀 Deploying ke Solana Testnet...');
-    run('anchor deploy --provider.cluster testnet');
+    console.log('\n🚀 Deploying ke Solana Devnet...');
+    run('anchor deploy --provider.cluster devnet');
 
     // 10. Update IDL file frontend
     let idlJs = fs.readFileSync(IDL_OUTPUT, 'utf-8');
@@ -87,7 +87,7 @@ async function main() {
 export const COFFEE_PROGRAM_ID = "${programId}";
 export const STORE_WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 export const IS_CONTRACT_DEPLOYED = true;
-export const DEPLOY_NETWORK = "testnet";
+export const DEPLOY_NETWORK = "devnet";
 export const DEPLOY_DATE = "${new Date().toISOString()}";
 `;
     fs.mkdirSync(path.dirname(FRONTEND_CONFIG), { recursive: true });
@@ -95,7 +95,7 @@ export const DEPLOY_DATE = "${new Date().toISOString()}";
 
     console.log('\n✅ Deploy berhasil!');
     console.log(`📋 Program ID: ${programId}`);
-    console.log(`🔗 Explorer: https://explorer.solana.com/address/${programId}?cluster=testnet`);
+    console.log(`🔗 Explorer: https://explorer.solana.com/address/${programId}?cluster=devnet`);
     console.log(`📄 IDL updated: ${IDL_OUTPUT}`);
     console.log(`⚙️  Config: ${FRONTEND_CONFIG}`);
     console.log('\n💡 Selanjutnya: restart Next.js dev server untuk load config baru');

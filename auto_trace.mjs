@@ -7,7 +7,7 @@ const SUPABASE_URL = 'https://yjdauinnnilqjfwhytis.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqZGF1aW5ubmlscWpmd2h5dGlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjczMTEsImV4cCI6MjA4OTMwMzMxMX0.YCN-_xyGDBJ3tl-udY5d8m-thDX8BI41C344G11jvB4';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const connection = new Connection('https://api.testnet.solana.com', 'confirmed');
+const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 const MEMO_SIGNER_PUBKEY = new PublicKey('5NgY9MPpHiUAZz8GmerbfzSdKeXf91FAXUGEm9t6S2h3');
 
 async function delay(ms) {
@@ -16,7 +16,7 @@ async function delay(ms) {
 
 async function run() {
     console.log('🔄 MENUNGGU SALDO SOL MASUK KE DOMPET SERVER...');
-    console.log(`Silakan transfer 0.05 atau max 1 SOL testnet ke: ${MEMO_SIGNER_PUBKEY.toBase58()}`);
+    console.log(`Silakan transfer 0.05 atau max 1 SOL devnet ke: ${MEMO_SIGNER_PUBKEY.toBase58()}`);
     console.log('Mengecek otomatis setiap 5 detik...\n');
 
     let balance = 0;

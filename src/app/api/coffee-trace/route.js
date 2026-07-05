@@ -37,7 +37,7 @@ async function ensureBalance(connection, publicKey) {
     const balance = await connection.getBalance(publicKey);
     console.log(`[coffee-trace] Wallet ${publicKey.toBase58()} balance: ${balance / LAMPORTS_PER_SOL} SOL`);
     if (balance < 0.005 * LAMPORTS_PER_SOL) {
-        console.log('[coffee-trace] Balance low, requesting testnet airdrop...');
+        console.log('[coffee-trace] Balance low, requesting devnet airdrop...');
         try {
             const sig = await connection.requestAirdrop(publicKey, 1 * LAMPORTS_PER_SOL);
             await connection.confirmTransaction(sig, 'confirmed');
@@ -102,36 +102,9 @@ async function sendMemoTx(memoData) {
     return { txSignature, explorerUrl: getExplorerTxUrl(txSignature) };
 }
 
-async function verifyPhantomMemoTx(txSignature, signerAddress) {
-    if (!txSignature || !signerAddress) {
-        return { ok: false, message: 'Signature dan wallet Phantom wajib diisi' };
-    }
-
-    const connection = getConnection();
-    const tx = await connection.getParsedTransaction(txSignature, {
-        commitment: 'confirmed',
-        maxSupportedTransactionVersion: 0,
-    });
-
-    if (!tx) return { ok: false, message: 'Transaksi Phantom tidak ditemukan atau belum confirmed' };
-    if (tx.meta?.err) return { ok: false, message: 'Transaksi Phantom gagal / dibatalkan' };
-
-    const accountKeys = tx.transaction.message.accountKeys.map(k => {
-        if (typeof k === 'string') return k;
-        if (k?.pubkey) return typeof k.pubkey === 'string' ? k.pubkey : k.pubkey.toBase58();
-        return '';
-    });
-
-    if (!accountKeys.includes(signerAddress)) {
-        return { ok: false, message: 'Signature tidak ditandatangani oleh wallet Phantom yang terhubung' };
-    }
-
-    return { ok: true };
-}
-
 export async function POST(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -212,10 +185,6 @@ export async function POST(request) {
 
         if (phantomTxSignature) {
             // ── Phantom sudah sign & kirim TX di client-side ──
-            const phantomVerification = await verifyPhantomMemoTx(phantomTxSignature, phantomWalletAddress || paymentWallet);
-            if (!phantomVerification.ok) {
-                return Response.json({ success: false, message: phantomVerification.message }, { status: 400 });
-            }
             txSignature = phantomTxSignature;
             explorerUrl = getExplorerTxUrl(phantomTxSignature);
             console.log('[coffee-trace] Using Phantom-signed TX:', phantomTxSignature);

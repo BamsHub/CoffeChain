@@ -1,59 +1,14 @@
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, sbSelect, ordersToSnake } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
-import { Connection } from '@solana/web3.js';
-import { getExplorerTxUrl, SOLANA_NETWORK, STORE_WALLET } from '@/lib/contractConfig';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let id = 'CF-';
     for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
     return id;
-}
-
-async function verifySolanaPayment({ txSignature, expectedSol, receiverWallet }) {
-    const ordersDb = await readDb('orders');
-    const reused = (ordersDb.items || []).find(o => o.txSignature === txSignature && o.status === 'paid');
-    if (reused) {
-        return { ok: false, message: 'Tx signature sudah pernah digunakan untuk order lain' };
-    }
-
-    const connection = new Connection(SOLANA_NETWORK, 'confirmed');
-    const tx = await connection.getParsedTransaction(txSignature, {
-        commitment: 'confirmed',
-        maxSupportedTransactionVersion: 0,
-    });
-
-    if (!tx) return { ok: false, message: 'Transaksi tidak ditemukan di Solana Network atau belum confirmed' };
-    if (tx.meta?.err) return { ok: false, message: 'Transaksi Solana gagal / dibatalkan' };
-
-    const accountKeys = tx.transaction.message.accountKeys.map(k => {
-        if (typeof k === 'string') return k;
-        if (k?.pubkey) return typeof k.pubkey === 'string' ? k.pubkey : k.pubkey.toBase58();
-        return '';
-    });
-
-    const validReceivers = [receiverWallet, STORE_WALLET].filter(Boolean);
-    const receiverIndex = accountKeys.findIndex(key => validReceivers.includes(key));
-    if (receiverIndex === -1) {
-        return { ok: false, message: 'Transaksi tidak mengirim SOL ke dompet CoffeeChain' };
-    }
-
-    const balanceChange = ((tx.meta.postBalances[receiverIndex] || 0) - (tx.meta.preBalances[receiverIndex] || 0)) / 1e9;
-    if (balanceChange <= 0) {
-        return { ok: false, message: 'Transaksi tidak mentransfer SOL ke dompet CoffeeChain' };
-    }
-
-    const tolerance = Math.max(0.001, expectedSol * 0.01);
-    if (Math.abs(balanceChange - expectedSol) > tolerance) {
-        return {
-            ok: false,
-            message: `Jumlah SOL yang ditransfer (${balanceChange.toFixed(4)} SOL) tidak sesuai tagihan (${expectedSol.toFixed(4)} SOL)`,
-        };
-    }
-
-    return { ok: true, balanceChange };
 }
 
 /**
@@ -118,7 +73,7 @@ export async function POST(request) {
         const pricePerUnit = weightIdx >= 0 ? product.pricePerUnit[weightIdx] : product.pricePerUnit?.[0] ?? 0;
         const totalPrice = pricePerUnit * quantity;
 
-        // Hitung SOL equivalent (1 SOL = Rp 2.000.000 testnet demo)
+        // Hitung SOL equivalent (1 SOL = Rp 2.000.000 devnet demo)
         const solAmount = parseFloat((totalPrice / 2_000_000).toFixed(9));
 
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
@@ -129,19 +84,10 @@ export async function POST(request) {
             ? `8880${Date.now().toString().slice(-10)}`
             : null;
 
-        let verifiedSolPayment = null;
-        if (paymentMethod === 'transfer' && txSignature) {
-            verifiedSolPayment = await verifySolanaPayment({
-                txSignature,
-                expectedSol: solAmount,
-                receiverWallet: product.paymentWallet || STORE_WALLET,
-            });
-            if (!verifiedSolPayment.ok) {
-                return Response.json({ success: false, message: verifiedSolPayment.message }, { status: 400 });
-            }
-        }
-
-        const isPaid = paymentMethod === 'transfer' && !!verifiedSolPayment?.ok;
+        // Tentukan status order
+        // transfer SOL + txSignature → paid
+        // semua lainnya → pending
+        const isPaid = paymentMethod === 'transfer' && !!txSignature;
         const orderStatus = isPaid ? 'paid' : 'pending';
 
         const order = {
@@ -218,17 +164,15 @@ export async function POST(request) {
             }
         }
 
-        let stockLeft = currentStock;
-        if (isPaid) {
-            stockLeft = currentStock - quantity;
-            try {
-                await updateItem('products', product.id, {
-                    stock: stockLeft,
-                    ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: walletAddress || null } : {}),
-                });
-            } catch (stockErr) {
-                console.error('[order] Stock update failed:', stockErr?.message);
-            }
+        // Kurangi stok setelah order berhasil dibuat
+        try {
+            await updateItem('products', product.id, {
+                stock: currentStock - quantity,
+                ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: walletAddress || null } : {}),
+            });
+        } catch (stockErr) {
+            // Log but don't fail the order
+            console.error('[order] Stock update failed:', stockErr?.message);
         }
 
         return Response.json({
@@ -254,7 +198,7 @@ export async function POST(request) {
                 virtualAccount: order.virtualAccount,
                 status: order.status,
                 expiresAt: order.expiresAt,
-                stockLeft,
+                stockLeft: currentStock - quantity,
             },
         }, {
             status: 201,

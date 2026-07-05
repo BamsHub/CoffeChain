@@ -6,33 +6,6 @@ import { normalizeMidtransStatus, getPaidAtForStatus } from '@/lib/midtrans';
 import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
 import crypto from 'crypto';
 
-async function deductPaidOrderStock(order) {
-    if (!order?.product_id) return null;
-    const { data: product, error } = await supabaseAdmin
-        .from('products')
-        .select('id, stock')
-        .eq('id', order.product_id)
-        .maybeSingle();
-
-    if (error || !product) {
-        console.warn('[midtrans-notification] Product not found for stock deduction:', order.product_id);
-        return null;
-    }
-
-    const quantity = Number(order.quantity || 1);
-    const stockLeft = Math.max(0, Number(product.stock || 0) - quantity);
-    const { error: updateErr } = await supabaseAdmin
-        .from('products')
-        .update({ stock: stockLeft })
-        .eq('id', product.id);
-
-    if (updateErr) {
-        console.warn('[midtrans-notification] Stock deduction failed:', updateErr.message);
-        return null;
-    }
-    return stockLeft;
-}
-
 /**
  * POST /api/midtrans/notification
  * Webhook handler dari Midtrans untuk update status pembayaran
@@ -51,18 +24,12 @@ export async function POST(request) {
 
         // Verifikasi signature dari Midtrans
         const serverKey = process.env.MIDTRANS_SERVER_KEY;
-        if (!serverKey) {
-            console.error('[midtrans-notification] MIDTRANS_SERVER_KEY is not configured');
-            return Response.json({ success: false, message: 'Payment webhook is not configured' }, { status: 500 });
-        }
         const expectedSignature = crypto
             .createHash('sha512')
             .update(`${order_id}${status_code}${gross_amount}${serverKey}`)
             .digest('hex');
 
-        const provided = Buffer.from(String(signature_key || ''), 'hex');
-        const expected = Buffer.from(expectedSignature, 'hex');
-        if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+        if (signature_key !== expectedSignature) {
             console.warn('[midtrans-notification] Invalid signature for order:', order_id);
             // Return 200 anyway to stop Midtrans retry loops; log for debugging
             return Response.json({ success: false, message: 'Invalid signature' });
@@ -75,7 +42,7 @@ export async function POST(request) {
         // Update order di Supabase (primary DB on Vercel)
         const { data: orders } = await supabaseAdmin
             .from('orders')
-            .select('id, status, product_id, quantity')
+            .select('id')
             .eq('order_id', order_id)
             .limit(1);
 
@@ -88,8 +55,7 @@ export async function POST(request) {
                 .update(updatePayload)
                 .eq('order_id', order_id);
 
-            if (newStatus === 'paid' && orders[0].status !== 'paid') {
-                await deductPaidOrderStock(orders[0]);
+            if (newStatus === 'paid') {
                 await ensureMidtransSolanaTrace(order_id, body);
             }
 

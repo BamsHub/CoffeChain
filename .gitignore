@@ -32,3 +32,12 @@ rechain_testnet.mjs
 # vercel
 .vercel
 .env
+*.zip
+
+# uploads
+/public/uploads/*
+!/public/uploads/**/.gitkeep
+
+# solana/anchor
+/contracts/target/
+/contracts/.anchor/

@@ -13,7 +13,7 @@ import { verifyToken } from '@/lib/auth';
  */
 export async function POST(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
         if (!session || !['koperasi', 'developer'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
@@ -95,7 +95,7 @@ export async function POST(request) {
                     results.push({ id: p.id, name: p.name, status: 'failed', error: data.message });
                 }
 
-                // 2.5 detik jeda antar TX supaya tidak rate-limited Solana testnet
+                // 2.5 detik jeda antar TX supaya tidak rate-limited Solana devnet
                 await new Promise(r => setTimeout(r, 2500));
             } catch (err) {
                 results.push({ id: p.id, name: p.name, status: 'error', error: err.message });
@@ -122,7 +122,7 @@ export async function POST(request) {
 /** GET — cek berapa produk yang belum terverifikasi on-chain */
 export async function GET(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
         if (!session || !['koperasi', 'developer'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });

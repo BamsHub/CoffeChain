@@ -9,7 +9,7 @@ export async function GET() {
 
 export async function PATCH(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
         if (!session || !['koperasi', 'developer'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });

@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import WalletConnect from '@/components/WalletConnect/WalletConnect';
 import styles from './Header.module.css';
 
@@ -53,22 +52,8 @@ const IconBell = ({ size = 16 }) => (
     </svg>
 );
 
-const IconMoon = ({ size = 16 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M21 12.8A8.5 8.5 0 1111.2 3 6.7 6.7 0 0021 12.8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-
-const IconSun = ({ size = 16 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" />
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-);
-
 export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisconnect }) {
     const { user, logout } = useAuth();
-    const { theme, toggleTheme, mounted } = useTheme();
     const router = useRouter();
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showNotifMenu, setShowNotifMenu] = useState(false);
@@ -79,7 +64,6 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
     const userMenuRef = useRef(null);
 
     const roleInfo = user ? (ROLE_LABELS[user.role] || ROLE_LABELS.farmer) : null;
-    const isDark = theme === 'dark';
 
     function handleConnect({ publicKey }) {
         setWalletPublicKey(publicKey);
@@ -93,12 +77,8 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
     // Fetch notifications
     async function fetchNotifications() {
         if (!user) return;
-        const token = localStorage.getItem('cc_token');
-        if (!token) return;
         try {
-            const res = await fetch(`/api/notifications?userId=${user.id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await fetch(`/api/notifications?userId=${user.id}`);
             const data = await res.json();
             if (data.success) {
                 setNotifications(data.data || []);
@@ -125,11 +105,9 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
 
     async function markAllRead() {
         if (!user) return;
-        const token = localStorage.getItem('cc_token');
-        if (!token) return;
         await fetch('/api/notifications', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ markAllRead: true, userId: user.id }),
         });
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -137,11 +115,9 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
     }
 
     async function markOneRead(id) {
-        const token = localStorage.getItem('cc_token');
-        if (!token) return;
         await fetch('/api/notifications', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id }),
         });
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -198,17 +174,6 @@ export default function Header({ sidebarCollapsed, onWalletConnect, onWalletDisc
             <div className={styles.right}>
                 {/* Phantom Wallet */}
                 <WalletConnect onConnect={handleConnect} onDisconnect={handleDisconnect} />
-
-                <button
-                    type="button"
-                    className={styles.themeBtn}
-                    onClick={toggleTheme}
-                    title={mounted ? `Switch ke ${isDark ? 'Light' : 'Dark'} Mode` : 'Ganti tema'}
-                    aria-label={mounted ? `Switch ke ${isDark ? 'Light' : 'Dark'} Mode` : 'Ganti tema'}
-                >
-                    {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
-                    <span>{isDark ? 'Light' : 'Dark'}</span>
-                </button>
 
                 {/* Notifications */}
                 <div className={styles.notifWrapper} ref={notifRef}>

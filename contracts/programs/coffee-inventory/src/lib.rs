@@ -4,7 +4,7 @@ declare_id!("7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu");
 
 /// =============================================================
 ///  CoffeeChain — Coffee Inventory (Traceability Layer)
-///  Network: Solana Testnet / Mainnet
+///  Network: Solana Devnet / Mainnet
 ///
 ///  Program ini mengelola lifecycle seri kopi dari panen sampai
 ///  distribusi. Setiap CoffeeBatch disimpan sebagai PDA on-chain

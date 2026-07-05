@@ -1,8 +1,8 @@
 export const runtime = 'nodejs';
 
-import { readDb, addItem } from '@/lib/db';
+import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, ordersToSnake } from '@/lib/sdb';
-import { getMidtransAuthHeader, getMidtransSnapBaseUrl } from '@/lib/midtrans';
+import { getMidtransSnapBaseUrl } from '@/lib/midtrans';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -49,6 +49,9 @@ export async function POST(request) {
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
         // Buat transaksi Midtrans Snap
+        const serverKey = process.env.MIDTRANS_SERVER_KEY;
+        const authString = Buffer.from(`${serverKey}:`).toString('base64');
+
         const host = request.headers.get('host') || 'coffe-chain.vercel.app';
         const proto = request.headers.get('x-forwarded-proto') || 'https';
         const appUrl = `${proto}://${host}`;
@@ -94,7 +97,7 @@ export async function POST(request) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': getMidtransAuthHeader(),
+                'Authorization': `Basic ${authString}`,
             },
             body: JSON.stringify(midtransPayload),
         });
@@ -147,6 +150,13 @@ export async function POST(request) {
             await addItem('orders', order);
         }
 
+        // Kurangi stok
+        try {
+            await updateItem('products', product.id, { stock: currentStock - quantity });
+        } catch (stockErr) {
+            console.error('[midtrans] Stock update failed:', stockErr?.message);
+        }
+
         return Response.json({
             success: true,
             snapToken: midtransData.token,
@@ -160,7 +170,7 @@ export async function POST(request) {
                 paymentMethod: 'midtrans',
                 status: 'pending',
                 coffeeId: order.coffeeId,
-                stockLeft: currentStock,
+                stockLeft: currentStock - quantity,
             },
         }, { status: 201 });
 
