@@ -85,12 +85,35 @@ export default function ContactPage() {
         return text;
     };
 
-    const handleSendWhatsApp = () => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [dbSaved, setDbSaved] = useState(false);
+
+    const handleSendWhatsApp = async () => {
         setError('');
 
         if (!category) { setError('Pilih kategori pengaduan'); return; }
         if (!message.trim()) { setError('Tulis pesan pengaduan Anda'); return; }
 
+        // Save to database first
+        setIsSaving(true);
+        try {
+            const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, phone, category, urgency, subject, message }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDbSaved(true);
+                setTimeout(() => setDbSaved(false), 8000);
+            }
+        } catch (e) {
+            console.warn('[Contact] DB save failed, continuing to WhatsApp:', e.message);
+        } finally {
+            setIsSaving(false);
+        }
+
+        // Open WhatsApp
         const text = buildWhatsAppMessage();
         const encoded = encodeURIComponent(text);
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
@@ -102,7 +125,7 @@ export default function ContactPage() {
 
     const handleClear = () => {
         setName(''); setPhone(''); setCategory(''); setSubject('');
-        setMessage(''); setUrgency('normal'); setError(''); setSent(false);
+        setMessage(''); setUrgency('normal'); setError(''); setSent(false); setDbSaved(false);
     };
 
     const charCount = message.length;
@@ -254,15 +277,21 @@ export default function ContactPage() {
                                 </button>
                                 <button
                                     onClick={handleSendWhatsApp}
-                                    style={{ ...styles.sendBtn, ...(sent ? styles.sendBtnSent : {}) }}
+                                    disabled={isSaving}
+                                    style={{ ...styles.sendBtn, ...(sent ? styles.sendBtnSent : {}), ...(isSaving ? { opacity: 0.7, cursor: 'wait' } : {}) }}
                                 >
-                                    {sent ? '✅ WhatsApp Terbuka!' : '💬 Kirim via WhatsApp'}
+                                    {isSaving ? '⏳ Menyimpan...' : sent ? '✅ WhatsApp Terbuka!' : '💬 Kirim via WhatsApp'}
                                 </button>
                             </div>
 
                             {sent && (
                                 <div style={styles.successMsg}>
                                     ✅ Jendela WhatsApp sudah terbuka! Klik <strong>Kirim</strong> di WhatsApp untuk menyelesaikan pengaduan.
+                                </div>
+                            )}
+                            {dbSaved && (
+                                <div style={{ ...styles.successMsg, color: '#2196F3', background: 'rgba(33, 150, 243, 0.08)', border: '1px solid rgba(33, 150, 243, 0.2)' }}>
+                                    💾 Pengaduan juga tersimpan di database! Tim admin akan meninjau pesan Anda.
                                 </div>
                             )}
                         </div>
