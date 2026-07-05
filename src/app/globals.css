@@ -2,80 +2,119 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── DARK THEME (default) ── */
+/* ── NEW DESIGN SYSTEM: CoffeeChain Premium Dark Theme ── */
 :root {
-  --color-primary: #2D5016;
-  --color-primary-light: #4A7C28;
-  --color-secondary: #8B5E3C;
-  --color-accent: #F5A623;
-  --color-bg: #0A0F0A;
-  --color-bg-surface: #111811;
-  --color-bg-card: #161E16;
-  --color-bg-card2: #1C261C;
-  --color-border: rgba(74, 124, 40, 0.2);
-  --color-text: #E8F5E0;
-  --color-text-secondary: #9DB89A;
-  --color-text-muted: #5E7A5A;
-  --color-success: #4CAF50;
-  --color-warning: #FF9800;
-  --color-crypto: #00D4FF;
-  --color-phantom: #c084fc;
-  --color-logo-text: #E8F5E0;
-  --color-logo-sub: #7ED44A;
-  --color-input-bg: #1C261C;
-  --color-input-border: rgba(74, 124, 40, 0.3);
+  /* Brand Colors */
+  --cc-green: #84e068;
+  --cc-green-dark: #5cba3c;
+  --cc-gold: #f0c020;
+  --cc-purple: #ab9ff2;
+  --cc-purple-dark: #6b46c4;
+
+  /* Background */
+  --cc-bg: #111113;
+  --cc-bg-grad: linear-gradient(160deg, #1c1c1e 0%, #141416 40%, #111113 100%);
+  --cc-nav-bg: rgba(20,20,22,0.88);
+  --cc-card-bg: rgba(255,255,255,0.03);
+  --cc-card-border: rgba(255,255,255,0.08);
+  --cc-card-hover: rgba(255,255,255,0.05);
+  --cc-dropdown-bg: #1e1e22;
+  --cc-input-bg: rgba(255,255,255,0.05);
+  --cc-input-border: rgba(255,255,255,0.1);
+  --cc-footer-bg: #070a08;
+
+  /* Text */
+  --cc-text: #f0f0f0;
+  --cc-text-secondary: #9ca3af;
+  --cc-text-muted: #6b7280;
+  --cc-text-dim: #4b5563;
+
+  /* Borders */
+  --cc-divider: rgba(255,255,255,0.06);
+  --cc-nav-border: rgba(255,255,255,0.06);
+
+  /* Legacy compat */
+  --color-primary: #5cba3c;
+  --color-primary-light: #84e068;
+  --color-secondary: #ab9ff2;
+  --color-accent: #f0c020;
+  --color-bg: #111113;
+  --color-bg-surface: #1c1c1e;
+  --color-bg-card: rgba(255,255,255,0.03);
+  --color-bg-card2: rgba(255,255,255,0.05);
+  --color-border: rgba(255,255,255,0.08);
+  --color-text: #f0f0f0;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  --color-success: #84e068;
+  --color-warning: #f0c020;
+  --color-crypto: #ab9ff2;
+  --color-phantom: #ab9ff2;
+  --color-logo-text: #f0f0f0;
+  --color-logo-sub: #84e068;
+  --color-input-bg: rgba(255,255,255,0.05);
+  --color-input-border: rgba(255,255,255,0.1);
   --color-shadow: rgba(0,0,0,0.4);
   --sidebar-width: 260px;
   --header-height: 64px;
   --border-radius: 12px;
   --transition: all 0.2s ease;
+  --cc-text-gradient: linear-gradient(135deg, #84e068, #c8e830 40%, #f0c020);
+  --cc-img-bg: rgba(0,0,0,0.3);
+  --cc-modal-backdrop: rgba(0,0,0,0.88);
+  --cc-box-bg: rgba(0,0,0,0.35);
+  --cc-nav-mobile-bg: rgba(17,17,19,0.98);
+  --cc-text-highlight: #84e068;
+  --cc-sol-text: rgba(171,159,242,0.8);
 }
 
 /* ── LIGHT THEME — Warm & Comfortable ── */
 [data-theme="light"] {
-  /* Warm cream backgrounds — nyaman di mata */
-  --color-bg: #F7F3EE;
-  --color-bg-surface: #EDE8E1;
-  --color-bg-card: #FEFCFA;
-  --color-bg-card2: #F0EBE4;
+  --cc-bg: #f0ebe2;
+  --cc-bg-grad: linear-gradient(160deg, #f7f3ec 0%, #f0ebe2 40%, #e9e3d8 100%);
+  --cc-nav-bg: rgba(245,240,233,0.92);
+  --cc-card-bg: #ffffff;
+  --cc-card-border: rgba(0,0,0,0.12);
+  --cc-text: #1a0f08;
+  --cc-text-secondary: #4a2c17;
+  --cc-text-muted: #7a4a28;
+  --cc-text-dim: #9a6b4a;
+  --cc-divider: rgba(0,0,0,0.07);
+  --cc-input-bg: rgba(0,0,0,0.04);
+  --cc-input-border: rgba(0,0,0,0.1);
+  --cc-footer-bg: #d8e8cc;
+  --cc-nav-border: rgba(0,0,0,0.08);
 
-  /* Earth-tone greens — tidak terlalu saturated */
-  --color-primary: #3A6B18;
-  --color-primary-light: #4E8C24;
-  --color-secondary: #7A5235;
-  --color-accent: #C47A0A;
-
-  /* Borders lebih jelas bernuansa hijau */
-  --color-border: rgba(58, 107, 24, 0.35);
-
-  /* Text — Lebih gelap agar sangat jelas terbaca */
-  --color-text: #1A1208;
-  --color-text-secondary: #3D2915;
-  --color-text-muted: #664E36;
-
-  /* Status */
-  --color-success: #2A6B2A;
-  --color-warning: #C46000;
-  --color-error: #B02020;
-  --color-crypto: #0A356A; /* Biru yang lebih tua agar tidak nyaru */
-  --color-phantom: #581c87; /* Ungu gelap agar sangat fokus dan kontras */
-
-  /* Logo */
-  --color-logo-text: #2C1F10;
-  --color-logo-sub: #3A6B18;
-
-  /* Inputs */
-  --color-input-bg: #FDFAF6;
-  --color-input-border: rgba(58, 107, 24, 0.4);
-  --color-shadow: rgba(80, 60, 30, 0.12);
-
-  --sidebar-width: 260px;
-  --header-height: 64px;
-  --border-radius: 12px;
-  --transition: all 0.2s ease;
+  /* Legacy compat */
+  --color-bg: #f0ebe2;
+  --color-bg-surface: #ede8e1;
+  --color-bg-card: rgba(255,255,255,0.65);
+  --color-bg-card2: rgba(240,235,228,0.8);
+  --color-primary: #3a6b18;
+  --color-primary-light: #5cba3c;
+  --color-secondary: #7a5235;
+  --color-accent: #c47a0a;
+  --color-border: rgba(58,107,24,0.35);
+  --color-text: #1a0f08;
+  --color-text-secondary: #3d2915;
+  --color-text-muted: #664e36;
+  --color-success: #2a6b2a;
+  --color-warning: #c46000;
+  --color-crypto: #6b46c4;
+  --color-phantom: #6b46c4;
+  --color-logo-text: #2c1f10;
+  --color-logo-sub: #3a6b18;
+  --color-input-bg: #fdfaf6;
+  --color-input-border: rgba(58,107,24,0.4);
+  --color-shadow: rgba(80,60,30,0.12);
+  --cc-text-gradient: linear-gradient(135deg, #2a6b2a, #4a9e22 40%, #c47a0a);
+  --cc-img-bg: rgba(0,0,0,0.04);
+  --cc-modal-backdrop: rgba(0,0,0,0.5);
+  --cc-box-bg: rgba(0,0,0,0.03);
+  --cc-nav-mobile-bg: rgba(245,240,233,0.98);
+  --cc-text-highlight: #2a6b2a;
+  --cc-sol-text: rgba(107,70,196,0.9);
 }
-
-
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -89,8 +128,8 @@ html {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  background-color: var(--cc-bg);
+  color: var(--cc-text);
   min-height: 100vh;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -119,13 +158,13 @@ select {
 }
 
 select option {
-  background-color: #ffffff !important;
-  color: #14210f !important;
+  background-color: #1e1e22 !important;
+  color: #f0f0f0 !important;
 }
 
 select option:checked {
-  background-color: #8ec5ff !important;
-  color: #081208 !important;
+  background-color: rgba(132,224,104,0.2) !important;
+  color: #84e068 !important;
 }
 
 select option:disabled {
@@ -134,7 +173,7 @@ select option:disabled {
 
 [data-theme="light"] select option {
   background-color: #ffffff !important;
-  color: #1A1208 !important;
+  color: #1a0f08 !important;
 }
 
 ::-webkit-scrollbar {
@@ -142,11 +181,14 @@ select option:disabled {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-surface);
+  background: rgba(255,255,255,0.02);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-primary-light);
+  background: rgba(132,224,104,0.3);
   border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(132,224,104,0.5);
 }
 
 /* Animations */
@@ -157,7 +199,7 @@ select option:disabled {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.4; }
 }
 
 @keyframes spin {
@@ -167,6 +209,17 @@ select option:disabled {
 @keyframes blockAppear {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes wa-slide-up {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes wa-pop {
+  0%   { transform: scale(0.8); }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
 }
 
 /* Performance optimizations */

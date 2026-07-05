@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { STORE_WALLET, MEMO_SIGNER_PUBLIC, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import { useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
@@ -80,6 +80,8 @@ const IconClockWait = ({ size = 44 }) => <svg width={size} height={size} viewBox
 const IconSuccessCircle = ({ size = 48 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>;
 const IconMidtrans = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
 const IconAlert = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.7 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>;
+const IconSun = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>;
+const IconMoon = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>;
 
 /* ── Market Data ── */
 const coffeeTypes = [
@@ -130,6 +132,9 @@ export default function LandingPage() {
     const [walletConnecting, setWalletConnecting] = useState(false);
     const [walletMenuOpen, setWalletMenuOpen] = useState(false);
 
+    /* ── Theme State ── */
+    const [theme, setTheme] = useState('dark');
+
     useEffect(() => {
         let ticking = false;
         const handleScroll = () => {
@@ -151,7 +156,9 @@ export default function LandingPage() {
         const idleId = onIdle(() => {
             const token = localStorage.getItem('cc_token');
             if (!token) return;
-            fetch(`/api/auth/me?token=${token}`)
+            fetch('/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` },
+            })
                 .then(r => r.json())
                 .then(data => {
                     if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
@@ -305,6 +312,13 @@ export default function LandingPage() {
         setWalletPublicKey(null); setWalletBalance(0); setWalletMenuOpen(false);
     }
 
+    function goToReceipt(orderId, delay = 250) {
+        if (!orderId || typeof window === 'undefined') return;
+        window.setTimeout(() => {
+            window.location.assign(`/receipt?orderId=${encodeURIComponent(orderId)}`);
+        }, delay);
+    }
+
     async function handleOrder(e) {
         e.preventDefault();
         if (!selectedProduct) return;
@@ -359,6 +373,11 @@ export default function LandingPage() {
                 });
                 const data = await res.json();
                 if (data.success && data.snapToken) {
+                    const midtransOrder = {
+                        ...data.data,
+                        snapToken: data.snapToken,
+                        redirectUrl: data.redirectUrl || null,
+                    };
                     // Jika window.snap belum siap, tunggu sebentar (maks 2 detik)
                     if (!window.snap) {
                         let retries = 4;
@@ -387,7 +406,7 @@ export default function LandingPage() {
                         onSuccess: (result) => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...data.data,
+                                ...midtransOrder,
                                 status: 'paid',
                                 midtransStatus: result.transaction_status || 'capture',
                                 midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
@@ -398,13 +417,13 @@ export default function LandingPage() {
                                     ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
                                     : p
                             ));
-                            setShowBuyAgain(true);
                             refreshAfterSnap(nextOrder);
+                            goToReceipt(nextOrder.orderId);
                         },
                         onPending: (result) => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...data.data,
+                                ...midtransOrder,
                                 status: 'pending',
                                 midtransStatus: result.transaction_status || 'pending',
                                 midtransStatusMessage: result.status_message || 'Menunggu pembayaran',
@@ -424,10 +443,10 @@ export default function LandingPage() {
                         onClose: () => {
                             finishSnapPayment();
                             const nextOrder = {
-                                ...data.data,
+                                ...midtransOrder,
                                 status: 'pending',
                                 midtransStatus: 'pending',
-                                midtransStatusMessage: 'Popup ditutup. Cek status untuk melihat status terbaru dari Midtrans.',
+                                midtransStatusMessage: 'Popup pembayaran ditutup. Anda bisa melanjutkan pembayaran tanpa membuat pesanan baru.',
                             };
                             setOrderResult(nextOrder);
                             refreshAfterSnap(nextOrder, 1800);
@@ -452,7 +471,7 @@ export default function LandingPage() {
 
         setOrdering(true);
         let txSignature = null;
-        const targetWallet = selectedProduct.paymentWallet || MEMO_SIGNER_PUBLIC;
+        const targetWallet = selectedProduct.paymentWallet || STORE_WALLET;
 
         try {
             if (pm === 'transfer') {
@@ -543,6 +562,14 @@ export default function LandingPage() {
                                         body: JSON.stringify({ txSignature: newSig }),
                                     });
                                     const confirmData = await confirmRes.json().catch(() => null);
+                                    if (!confirmRes.ok || !confirmData?.success) {
+                                        setOrderResult(prev => ({
+                                            ...prev,
+                                            status: prev?.status || 'pending',
+                                            midtransStatusMessage: confirmData?.message || 'Transaksi Solana belum valid untuk order ini.',
+                                        }));
+                                        return;
+                                    }
                                     setOrderResult(prev => ({
                                         ...prev,
                                         ...(confirmData?.data || {}),
@@ -550,7 +577,7 @@ export default function LandingPage() {
                                         txSignature: confirmData?.data?.txSignature || newSig,
                                         explorerUrl: normalizeExplorerUrl(confirmData?.data?.explorerUrl || getExplorerTxUrl(newSig)),
                                     }));
-                                    setShowBuyAgain(true);
+                                    goToReceipt(capturedOrderId);
                                 }
                             } catch { /* ignore poll errors */ }
                         }, 5000);
@@ -564,6 +591,9 @@ export default function LandingPage() {
                         const url = await QRCode.toDataURL(qrContent, { width: 240, margin: 2, color: { dark: '#F5A623', light: '#0a120a' } });
                         setQrDataUrl(url);
                     } catch { setQrDataUrl(null); }
+                }
+                if (data.data?.status === 'paid') {
+                    goToReceipt(data.data.orderId);
                 }
             } else {
                 alert(data.message || 'Gagal membuat pesanan');
@@ -587,7 +617,7 @@ export default function LandingPage() {
                 midtransStatus: data.data.midtransStatus,
                 midtransStatusMessage: data.data.midtransStatusMessage,
             }));
-            if (data.data.status === 'paid') setShowBuyAgain(true);
+            if (data.data.status === 'paid') goToReceipt(orderId);
         } catch (err) {
             if (!silent) alert(err.message || 'Gagal mengecek status Midtrans');
         } finally {
@@ -595,25 +625,76 @@ export default function LandingPage() {
         }
     }
 
-    async function confirmQrPayment() {
-        if (!orderResult?.orderId) return;
-        setQrConfirm({ loading: true, done: false, error: null });
+    async function resumeMidtransPayment() {
+        if (!orderResult?.snapToken || orderResult.status === 'paid') return;
+        if (snapPaymentActiveRef.current) {
+            alert('Popup pembayaran Midtrans masih aktif. Selesaikan atau tutup popup pembayaran dulu.');
+            return;
+        }
+
+        snapPaymentActiveRef.current = true;
+        setCheckingMidtrans(true);
         try {
-            const res = await fetch('/api/orders', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId: orderResult.orderId, status: 'paid' }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setQrConfirm({ loading: false, done: true, error: null });
-                setOrderResult(prev => ({ ...prev, status: 'paid' }));
-                setShowBuyAgain(true);
-            } else {
-                setQrConfirm({ loading: false, done: false, error: data.message || 'Gagal konfirmasi' });
+            loadMidtransSnap();
+            if (!window.snap) {
+                let retries = 6;
+                while (retries > 0 && !window.snap) {
+                    await new Promise(r => setTimeout(r, 500));
+                    retries--;
+                }
             }
-        } catch {
-            setQrConfirm({ loading: false, done: false, error: 'Koneksi error' });
+            if (!window.snap) throw new Error('Midtrans Snap belum siap. Refresh halaman dan coba lagi.');
+
+            const finish = () => {
+                snapPaymentActiveRef.current = false;
+                setCheckingMidtrans(false);
+            };
+            const refreshLater = (delay = 1200) => {
+                window.setTimeout(() => refreshMidtransStatus(orderResult.orderId, orderResult, true), delay);
+            };
+
+            window.snap.pay(orderResult.snapToken, {
+                onSuccess: (result) => {
+                    finish();
+                    setOrderResult(prev => ({
+                        ...prev,
+                        status: 'paid',
+                        midtransStatus: result.transaction_status || 'capture',
+                        midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
+                    }));
+                    refreshLater();
+                    goToReceipt(orderResult.orderId);
+                },
+                onPending: (result) => {
+                    finish();
+                    setOrderResult(prev => ({
+                        ...prev,
+                        status: 'pending',
+                        midtransStatus: result.transaction_status || 'pending',
+                        midtransStatusMessage: result.status_message || 'Menunggu pembayaran',
+                    }));
+                    refreshLater();
+                },
+                onError: (result) => {
+                    finish();
+                    alert('Pembayaran Midtrans gagal: ' + (result.status_message || 'Terjadi kesalahan'));
+                    refreshLater(1500);
+                },
+                onClose: () => {
+                    finish();
+                    setOrderResult(prev => ({
+                        ...prev,
+                        status: prev?.status || 'pending',
+                        midtransStatus: prev?.midtransStatus || 'pending',
+                        midtransStatusMessage: 'Popup pembayaran ditutup. Anda bisa melanjutkan pembayaran tanpa membuat pesanan baru.',
+                    }));
+                    refreshLater(1800);
+                },
+            });
+        } catch (err) {
+            snapPaymentActiveRef.current = false;
+            setCheckingMidtrans(false);
+            alert(err.message || 'Popup Midtrans gagal dibuka. Coba lagi.');
         }
     }
 
@@ -636,591 +717,600 @@ export default function LandingPage() {
     const solAmount = rupiahToSol(totalPrice);
 
     return (
-        <div style={{ background: '#030d06', minHeight: '100vh', color: '#E8F5E0', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+        <div data-theme={theme} style={{ minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background:'var(--cc-bg)', color:'var(--cc-text)', position: 'relative', overflowX: 'hidden' }}>
 
             {/* ── GLOBAL RESPONSIVE STYLES ── */}
             <style>{`
-                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+                *, *::before, *::after { box-sizing: border-box; }
                 html { scroll-behavior: smooth; }
                 body { overflow-x: hidden; }
                 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
                 @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
                 @keyframes spin { to{transform:rotate(360deg)} }
-                .lp-nav-links { display:flex; gap:4px; align-items:center; }
-                .lp-mobile-toggle { display:none; background:none; border:none; color:#E8F5E0; cursor:pointer; padding:8px; }
-                .lp-hero-btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-                .lp-stats { display:flex; gap:32px; justify-content:center; flex-wrap:wrap; margin-top:56px; }
-                .lp-products-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:20px; }
-                .lp-how-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:16px; }
-                .lp-cta-btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-                .lp-footer-inner { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
-                .lp-footer-links { display:flex; gap:20px; }
-                .lp-modal-grid { display:flex; flex-direction:column; gap:12px; }
-                .lp-weight-btns { display:flex; gap:8px; flex-wrap:wrap; }
-                .lp-pay-btns { display:flex; gap:8px; }
-                .lp-card { background:linear-gradient(145deg,rgba(22,30,22,0.95),rgba(12,18,12,0.95)); border:1px solid rgba(74,124,40,0.2); border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:10px; transition:transform 0.2s,border-color 0.2s; }
-                .lp-card:hover { transform:translateY(-4px); border-color:rgba(126,212,74,0.4); }
-                .lp-btn-primary { background:linear-gradient(135deg,#4A7C28,#7ED44A); color:#fff; font-weight:700; border:none; border-radius:10px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:opacity 0.2s,transform 0.1s; text-decoration:none; }
-                .lp-btn-primary:hover { opacity:0.9; transform:translateY(-1px); }
-                .lp-btn-outline { border:1px solid rgba(126,212,74,0.35); color:#7ED44A; background:transparent; border-radius:10px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
-                .lp-btn-outline:hover { background:rgba(126,212,74,0.06); }
-                .lp-btn-phantom { background:linear-gradient(135deg,#512da8,#9c27b0); color:#fff; font-weight:700; border:none; border-radius:10px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:opacity 0.2s; text-decoration:none; }
-                .lp-btn-phantom:hover { opacity:0.88; }
-                .lp-spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
-                .lp-stock-in { background:rgba(76,175,80,0.15); color:#7ED44A; border:1px solid rgba(76,175,80,0.3); }
-                .lp-stock-low { background:rgba(255,152,0,0.15); color:#FFB300; border:1px solid rgba(255,152,0,0.3); }
-                .lp-stock-out { background:rgba(244,67,54,0.12); color:#f44336; border:1px solid rgba(244,67,54,0.25); }
-                .lp-stock-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 8px; border-radius:100px; }
-                .lp-inp { width:100%; padding:10px 13px; border-radius:9px; background:rgba(255,255,255,0.04); border:1px solid rgba(74,124,40,0.25); color:#E8F5E0; font-size:14px; outline:none; box-sizing:border-box; }
-                .lp-inp:focus { border-color:rgba(126,212,74,0.5); }
+                @keyframes wa-slide-up { from{opacity:0;transform:translateY(16px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+                @keyframes wa-pop { 0%{transform:scale(0.8)} 60%{transform:scale(1.08)} 100%{transform:scale(1)} }
+                @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+                /* Navigation */
+                .cc-nav-links { display:flex; gap:4px; align-items:center; }
+                .cc-mobile-toggle { display:none; background:none; border:none; color:#f0f0f0; cursor:pointer; padding:8px; }
+
+                /* Grids */
+                .cc-products-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:20px; }
+                .cc-market-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:16px; }
+                .cc-how-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:20px; }
+                .cc-hero-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+                .cc-stats-row { display:flex; align-items:stretch; flex-wrap:wrap; border-radius:20px; overflow:hidden; background:var(--cc-card-bg); border:1px solid var(--cc-card-border); backdrop-filter:blur(8px); }
+
+                /* Cards */
+                .cc-card { background:var(--cc-card-bg); border:1px solid var(--cc-card-border); border-radius:16px; transition:transform 0.3s,border-color 0.3s,box-shadow 0.3s; }
+                .cc-card:hover { transform:translateY(-4px); border-color:rgba(132,224,104,0.25); box-shadow:0 12px 40px rgba(0,0,0,0.3),0 0 20px rgba(132,224,104,0.05); }
+
+                /* Buttons */
+                .cc-btn-green { background:linear-gradient(135deg,#5cba3c,#84e068); color:#0d1f08; font-weight:700; border:none; border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; text-decoration:none; }
+                .cc-btn-green:hover { opacity:0.9; transform:scale(1.02); }
+                .cc-btn-green:active { transform:scale(0.96); }
+                .cc-btn-phantom { background:linear-gradient(135deg,#6b46c4,#9b59e8); color:#fff; font-weight:700; border:1px solid rgba(171,159,242,0.4); border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; text-decoration:none; }
+                .cc-btn-phantom:hover { opacity:0.9; transform:scale(1.02); }
+                .cc-btn-phantom:active { transform:scale(0.96); }
+                .cc-btn-outline { border:1px solid var(--cc-card-border); color:var(--cc-text); background:var(--cc-input-bg); border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; text-decoration:none; transition:all 0.2s; }
+                .cc-btn-outline:hover { border-color:rgba(132,224,104,0.3); color:#84e068; }
+                .cc-btn-midtrans { background:linear-gradient(135deg,#0070b8,#00aef0); color:#fff; font-weight:700; border:none; border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
+                .cc-btn-midtrans:hover { opacity:0.9; }
+
+                /* Inputs */
+                .cc-inp { width:100%; padding:11px 14px; border-radius:12px; background:var(--cc-input-bg); border:1px solid var(--cc-input-border); color:var(--cc-text); font-size:14px; outline:none; box-sizing:border-box; font-family:'Inter',sans-serif; transition:border-color 0.2s; }
+                .cc-inp:focus { border-color:rgba(132,224,104,0.4); box-shadow:0 0 0 3px rgba(132,224,104,0.08); }
+                .cc-inp::placeholder { color:#4b5563; }
+                .cc-inp select { background:rgba(20,20,22,0.9); }
+
+                /* Stock badges */
+                .cc-stock-in { background:rgba(132,224,104,0.12); color:#84e068; border:1px solid rgba(132,224,104,0.3); }
+                .cc-stock-low { background:rgba(240,192,32,0.12); color:#f0c020; border:1px solid rgba(240,192,32,0.3); }
+                .cc-stock-out { background:rgba(248,113,113,0.1); color:#f87171; border:1px solid rgba(248,113,113,0.25); }
+                .cc-stock-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 9px; border-radius:100px; }
+
+                /* Spinner */
+                .cc-spinner { width:14px; height:14px; border:2px solid var(--cc-divider); border-top-color:var(--cc-text); border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; flex-shrink:0; }
+
+                /* Responsive */
                 @media (max-width: 768px) {
-                    .lp-nav-links { display:none; }
-                    .lp-nav-links.open { display:flex; flex-direction:column; position:fixed; top:72px; left:0; right:0; background:rgba(3,13,6,0.98); padding:16px; gap:4px; z-index:99; border-bottom:1px solid rgba(74,124,40,0.2); }
-                    .lp-mobile-toggle { display:flex; }
-                    .lp-hero-btns { flex-direction:column; align-items:center; }
-                    .lp-stats { gap:20px; }
-                    .lp-products-grid { grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; }
-                    .lp-how-grid { grid-template-columns:1fr 1fr; }
-                    .lp-cta-btns { flex-direction:column; align-items:center; }
-                    .lp-footer-inner { flex-direction:column; text-align:center; }
-                    .lp-footer-links { justify-content:center; }
-                    .lp-pay-btns { flex-direction:column; }
+                    .cc-nav-links { display:none; }
+                    .cc-nav-links.open { display:flex; flex-direction:column; position:fixed; top:72px; left:0; right:0; background:var(--cc-nav-mobile-bg); padding:16px; gap:4px; z-index:99; border-bottom:1px solid var(--cc-divider); backdrop-filter:blur(16px); }
+                    .cc-mobile-toggle { display:flex; }
+                    .cc-products-grid { grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:12px; }
+                    .cc-how-grid { grid-template-columns:1fr 1fr; }
+                    .cc-market-grid { grid-template-columns:1fr; }
+                    .cc-stats-row { flex-direction:column; }
+                    .cc-hero-btns { flex-direction:column; align-items:center; }
                 }
                 @media (max-width: 480px) {
-                    .lp-how-grid { grid-template-columns:1fr; }
-                    .lp-products-grid { grid-template-columns:1fr 1fr; gap:8px; }
+                    .cc-how-grid { grid-template-columns:1fr; }
+                    .cc-products-grid { grid-template-columns:1fr 1fr; gap:8px; }
                 }
-                @keyframes phantomFloat {
-                    0%,100% { transform:translateY(0) rotate(-2deg); }
-                    50% { transform:translateY(-10px) rotate(2deg); }
-                }
-                .phantom-float { animation:phantomFloat 3.5s ease-in-out infinite; }
             `}</style>
 
+            {/* ── AMBIENT GLOW ── */}
+            <div aria-hidden="true" style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, background:'radial-gradient(ellipse 60% 40% at 50% -10%, rgba(132,224,104,0.07) 0%, transparent 70%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(171,159,242,0.05) 0%, transparent 60%)' }} />
+
             {/* ── NAVBAR ── */}
-            <nav style={{
-                position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-                background: scrolled ? 'rgba(3,13,6,0.97)' : 'transparent',
-                backdropFilter: scrolled ? 'blur(20px)' : 'none',
-                borderBottom: scrolled ? '1px solid rgba(74,124,40,0.2)' : 'none',
-                transition: 'all 0.3s ease', padding: '0 20px',
-            }}>
-                <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 68 }}>
-                    {/* Logo */}
-                    <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <img src="/coffeechain-logo-20260528.png" alt="CoffeeChain Logo" width={36} height={36} style={{ borderRadius: 6, objectFit: 'contain' }} />
-                        <div>
-                            <div style={{ fontWeight: 800, fontSize: 17, color: '#7ED44A', letterSpacing: '-0.5px', lineHeight: 1 }}>CoffeeChain</div>
-                            <div style={{ fontSize: 9, color: 'rgba(126,212,74,0.55)', letterSpacing: 1.2, textTransform: 'uppercase' }}>Blockchain Kopi</div>
-                        </div>
-                    </Link>
-
-                    {/* Desktop Nav */}
-                    <div className={`lp-nav-links${mobileMenu ? ' open' : ''}`}>
-                        {[['#products', 'Produk'], ['#market', 'Harga Pasar'], ['#how', 'Cara Kerja'], ['/trace', 'Trace Kopi'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
-                            <a key={href} href={href} onClick={() => setMobileMenu(false)} style={{ color: 'rgba(232,245,224,0.7)', fontSize: 14, padding: '9px 14px', borderRadius: 8, textDecoration: 'none', display: 'block' }}>{label}</a>
-                        ))}
-
-                        {/* Phantom Wallet Button */}
-                        {walletPublicKey ? (
-                            <div style={{ position: 'relative' }}>
-                                <button onClick={() => setWalletMenuOpen(o => !o)}
-                                    style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderRadius:10, background:'rgba(81,45,168,0.25)', border:'1px solid rgba(147,51,234,0.4)', color:'#E8F5E0', cursor:'pointer', fontSize:13, fontWeight:600 }}>
-                                    <IconPhantomLogo size={18} />
-                                    <span>{shortenAddress(walletPublicKey)}</span>
-                                    <span style={{ color:'rgba(126,212,74,0.8)', fontSize:11 }}>{walletBalance.toFixed(3)} SOL</span>
-                                    <span style={{ width:6, height:6, borderRadius:'50%', background:'#7ED44A', display:'inline-block' }} />
-                                </button>
-                                {walletMenuOpen && (
-                                    <div style={{ position:'absolute', top:'110%', right:0, background:'#0e1a0e', border:'1px solid rgba(74,124,40,0.3)', borderRadius:10, padding:8, minWidth:180, zIndex:200 }}>
-                                        <div style={{ padding:'6px 10px', fontSize:11, color:'rgba(232,245,224,0.4)', borderBottom:'1px solid rgba(74,124,40,0.15)', marginBottom:6 }}>
-                                            {shortenAddress(walletPublicKey, 6)}<br />
-                                            <span style={{ color:'#7ED44A' }}>{walletBalance.toFixed(4)} SOL</span>
-                                        </div>
-                                        <button onClick={disconnectWallet} style={{ width:'100%', padding:'8px 10px', background:'rgba(244,67,54,0.1)', border:'1px solid rgba(244,67,54,0.2)', borderRadius:7, color:'#f44336', cursor:'pointer', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:6 }}>
-                                            <IconClose /> Putuskan Koneksi
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <button onClick={connectWallet} disabled={walletConnecting} className="lp-btn-phantom" style={{ padding:'9px 16px', fontSize:13 }}>
-                                {walletConnecting ? <span className="lp-spinner" /> : <IconPhantomLogo />}
-                                {walletConnecting ? 'Menghubungkan...' : 'Phantom Wallet'}
-                            </button>
-                        )}
-                        <Link href="/login" className="lp-btn-outline" onClick={() => setMobileMenu(false)} style={{ padding: '9px 14px', fontSize: 13 }}>
-                            <IconLock /> Masuk
-                        </Link>
-                        {adminUser && (
-                            <button
-                                onClick={handleLandingLogout}
-                                className="lp-btn-outline"
-                                style={{ padding: '9px 14px', fontSize: 13, color: '#f44336', borderColor: 'rgba(244,67,54,0.35)' }}>
-                                <IconClose /> Keluar
-                            </button>
-                        )}
+            <nav style={{ position:'sticky', top:0, zIndex:40, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 clamp(16px,3vw,32px)', height:72, background:'var(--cc-nav-bg)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', borderBottom:'1px solid var(--cc-divider)', transition:'all 0.3s' }}>
+                {/* Logo */}
+                <Link href="/" style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+                    <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#84e068,#4ab830)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0, boxShadow:'0 0 12px rgba(132,224,104,0.35)' }}>
+                        <img src="/coffeechain-logo.png" alt="CoffeeChain" width={28} height={28} style={{ objectFit:'contain' }} onError={(e) => { e.currentTarget.src = '/coffeechain-logo-20260528.png'; }} />
                     </div>
+                    <div>
+                        <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:16, color:'var(--cc-text)', letterSpacing:'-0.5px', lineHeight:1 }}>CoffeeChain</div>
+                        <div style={{ fontSize:9, color:'var(--cc-text-highlight)', letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:600 }}>BLOCKCHAIN KOPI</div>
+                    </div>
+                </Link>
 
-                    {/* Mobile hamburger */}
-                    <button className="lp-mobile-toggle" onClick={() => setMobileMenu(m => !m)} aria-label="Menu">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            {mobileMenu ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}
-                        </svg>
+                {/* Desktop Nav Links */}
+                <div className={`cc-nav-links${mobileMenu ? ' open' : ''}`}>
+                    {[['#products','Produk'],['#market','Harga Pasar'],['#how','Cara Kerja'],['/trace','Trace Kopi'],['/documentation','Dokumentasi'],['/contact','Kontak']].map(([href, label]) => (
+                        <a key={href} href={href} onClick={() => setMobileMenu(false)}
+                            style={{ color:'var(--cc-text-secondary)', fontSize:14, padding:'9px 14px', borderRadius:8, textDecoration:'none', fontWeight:500, transition:'color 0.2s' }}>
+                            {label}
+                        </a>
+                    ))}
+                    <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} aria-label="Toggle Theme" style={{ background:'var(--cc-input-bg)', border:'1px solid var(--cc-input-border)', color:'var(--cc-text)', borderRadius:8, padding:8, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: 'all 0.2s' }}>
+                        {theme === 'dark' ? <IconSun size={15} /> : <IconMoon size={15} />}
                     </button>
+                    {/* Phantom Wallet */}
+                    {walletPublicKey ? (
+                        <div style={{ position:'relative' }}>
+                            <button onClick={() => setWalletMenuOpen(o => !o)}
+                                style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderRadius:10, background:'rgba(107,70,196,0.25)', border:'1px solid rgba(171,159,242,0.4)', color:'var(--cc-text)', cursor:'pointer', fontSize:13, fontWeight:600 }}>
+                                <IconPhantomLogo size={16} />
+                                <span>{shortenAddress(walletPublicKey)}</span>
+                                <span style={{ color:'var(--cc-text-highlight)', fontSize:11 }}>{walletBalance.toFixed(3)} SOL</span>
+                                <span style={{ width:6, height:6, borderRadius:'50%', background:'#84e068', display:'inline-block', animation:'pulse 2s infinite' }} />
+                            </button>
+                            {walletMenuOpen && (
+                                <div style={{ position:'absolute', top:'110%', right:0, background:'#1e1e22', border:'1px solid var(--cc-divider)', borderRadius:12, padding:8, minWidth:200, zIndex:200, boxShadow:'0 20px 40px rgba(0,0,0,0.4)' }}>
+                                    <div style={{ padding:'6px 10px', fontSize:11, color:'var(--cc-text-muted)', borderBottom:'1px solid var(--cc-divider)', marginBottom:6 }}>
+                                        {shortenAddress(walletPublicKey, 6)}<br />
+                                        <span style={{ color:'var(--cc-text-highlight)', fontWeight:700 }}>{walletBalance.toFixed(4)} SOL</span>
+                                    </div>
+                                    <button onClick={disconnectWallet} style={{ width:'100%', padding:'8px 10px', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', borderRadius:8, color:'#f87171', cursor:'pointer', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:6 }}>
+                                        <IconClose /> Putuskan Koneksi
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <button onClick={connectWallet} disabled={walletConnecting} className="cc-btn-phantom" style={{ padding:'9px 16px', fontSize:13 }}>
+                            {walletConnecting ? <span className="cc-spinner" /> : <IconPhantomLogo size={16} />}
+                            {walletConnecting ? 'Menghubungkan...' : 'Phantom Wallet'}
+                        </button>
+                    )}
+                    <Link href="/login" className="cc-btn-outline" onClick={() => setMobileMenu(false)} style={{ padding:'9px 14px', fontSize:13 }}>
+                        <IconLock /> Masuk
+                    </Link>
+                    {adminUser && (
+                        <button onClick={handleLandingLogout} style={{ padding:'9px 14px', fontSize:13, borderRadius:12, background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', color:'#f87171', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
+                            <IconClose /> Keluar
+                        </button>
+                    )}
                 </div>
+
+                {/* Mobile toggle */}
+                <button className="cc-mobile-toggle" onClick={() => setMobileMenu(m => !m)} aria-label="Menu">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        {mobileMenu ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}
+                    </svg>
+                </button>
             </nav>
 
-            {/* ── ADMIN PANEL BAR (visible only when admin/developer/koperasi is logged in) ── */}
+            {/* ── ADMIN BAR ── */}
             {adminUser && (
-                <div style={{
-                    position: 'fixed', top: 68, left: 0, right: 0, zIndex: 99,
-                    background: 'linear-gradient(135deg, rgba(10,20,10,0.98), rgba(22,40,14,0.98))',
-                    backdropFilter: 'blur(16px)',
-                    borderBottom: '1px solid rgba(126,212,74,0.3)',
-                    padding: '0 20px',
-                }}>
-                    <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: 44, gap: 8, flexWrap: 'wrap' }}>
-                        <div style={{ display: 'none', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(232,245,224,0.7)' }}>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7ED44A', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-                            <span style={{ fontWeight: 700, color: '#7ED44A', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                {adminUser.role === 'developer' ? 'Developer' : adminUser.role === 'koperasi' ? 'Koperasi' : 'Admin'}
-                            </span>
-                            <span style={{ color: 'rgba(232,245,224,0.45)' }}>·</span>
-                            <span>{adminUser.name || adminUser.email}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(126,212,74,0.12)', border: '1px solid rgba(126,212,74,0.25)', color: '#7ED44A', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-                                <IconPackage /> Dashboard
-                            </Link>
-                            <Link href="/dashboard?section=products" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(74,124,40,0.2)', color: 'rgba(232,245,224,0.8)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
-                                <IconCart /> Produk
-                            </Link>
-                            <Link href="/coffee-register" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(74,124,40,0.2)', color: 'rgba(232,245,224,0.8)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
-                                <IconChain /> Register Kopi
-                            </Link>
-                            <Link href="/documentation" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(74,124,40,0.1)', border: '1px solid rgba(74,124,40,0.2)', color: 'rgba(232,245,224,0.8)', fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
-                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg> Dokumentasi
-                            </Link>
-                            <button
-                                onClick={async () => { await logout(); setAdminUser(null); }}
-                                style={{ display: 'none', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.2)', color: '#f44336', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                                <IconClose /> Keluar
-                            </button>
-                        </div>
+                <div style={{ position:'relative', zIndex:30, background:'rgba(17,17,19,0.98)', backdropFilter:'blur(16px)', borderBottom:'1px solid rgba(132,224,104,0.2)', padding:'0 clamp(16px,3vw,32px)' }}>
+                    <div style={{ maxWidth:1200, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'flex-end', height:44, gap:8, flexWrap:'wrap' }}>
+                        <Link href="/dashboard" style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background:'rgba(132,224,104,0.12)', border:'1px solid rgba(132,224,104,0.25)', color:'var(--cc-text-highlight)', fontSize:12, fontWeight:600, textDecoration:'none' }}>
+                            <IconPackage /> Dashboard
+                        </Link>
+                        <Link href="/coffee-register" style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background:'var(--cc-card-bg)', border:'1px solid var(--cc-divider)', color:'var(--cc-text-secondary)', fontSize:12, fontWeight:500, textDecoration:'none' }}>
+                            <IconChain /> Register Kopi
+                        </Link>
+                        <Link href="/documentation" style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background:'var(--cc-card-bg)', border:'1px solid var(--cc-divider)', color:'var(--cc-text-secondary)', fontSize:12, fontWeight:500, textDecoration:'none' }}>
+                            Dokumentasi
+                        </Link>
                     </div>
                 </div>
             )}
 
-            {/* ── HERO ── */}
-            <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', paddingTop: adminUser ? 112 : 68 }}>
-                <div style={{ position: 'absolute', width: '70vw', maxWidth: 600, height: '70vw', maxHeight: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(74,124,40,0.1) 0%,transparent 70%)', top: '5%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }} />
+            {/* ── HERO SECTION ── */}
+            <section style={{ position:'relative', zIndex:10, display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center', padding:'80px clamp(16px,4vw,32px) 64px', animation:'fadeUp 0.6s ease' }}>
+                <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'6px 16px', borderRadius:100, background:'rgba(132,224,104,0.08)', border:'1px solid rgba(132,224,104,0.25)', color:'var(--cc-text-highlight)', fontSize:11, fontWeight:600, letterSpacing:'0.12em', marginBottom:36, textTransform:'uppercase' }}>
+                    <span style={{ width:6, height:6, borderRadius:'50%', background:'#84e068', animation:'pulse 2s infinite', flexShrink:0 }} />
+                    <IconChain /> Blockchain Transparan · On Solana
+                </div>
 
-                <div style={{ textAlign: 'center', maxWidth: 820, padding: '0 20px', position: 'relative', zIndex: 1, animation: 'fadeUp 0.6s ease' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 100, padding: '6px 16px', fontSize: 11, color: '#7ED44A', letterSpacing: 1, fontWeight: 600, marginBottom: 28, textTransform: 'uppercase' }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7ED44A', display: 'inline-block', animation: 'pulse 2s infinite', flexShrink: 0 }} />
-                        <IconChain /> Blockchain Transparan · On Solana
-                    </div>
+                <h1 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(2.2rem,6vw,4rem)', fontWeight:900, lineHeight:1.1, letterSpacing:'-0.03em', marginBottom:24, maxWidth:720 }}>
+                    <span style={{ background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>Kopi Premium</span>
+                    <br /><span style={{ color:'var(--cc-text)' }}>Langsung dari</span>
+                    <br /><span style={{ background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>Petani Nusantara</span>
+                </h1>
 
-                    <h1 style={{ fontSize: 'clamp(36px,7vw,80px)', fontWeight: 900, lineHeight: 1.05, background: 'linear-gradient(135deg,#E8F5E0 0%,#7ED44A 50%,#F5A623 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: 20, letterSpacing: '-1.5px' }}>
-                        Kopi Premium<br />Langsung dari<br />Petani Nusantara
-                    </h1>
+                <p style={{ maxWidth:520, fontSize:'clamp(14px,1.8vw,17px)', color:'var(--cc-text-secondary)', lineHeight:1.8, marginBottom:44 }}>
+                    Platform blockchain pertama untuk industri kopi Indonesia. Bayar via{' '}
+                    <strong style={{ color:'var(--cc-text-highlight)', display:'inline-flex', alignItems:'center', gap:4 }}><IconBank /> Transfer Bank / QR Rupiah</strong>
+                    {' '}atau{' '}
+                    <strong style={{ color:'#ab9ff2', display:'inline-flex', alignItems:'center', gap:4 }}><IconPhantomLogo size={14} /> Phantom Wallet Solana</strong>.
+                </p>
 
-                    <p style={{ fontSize: 'clamp(15px,2vw,18px)', color: 'rgba(232,245,224,0.6)', maxWidth: 520, margin: '0 auto 36px', lineHeight: 1.7 }}>
-                        Platform blockchain pertama untuk industri kopi Indonesia. Bayar via{' '}
-                        <strong style={{ color: '#F5A623', display:'inline-flex', alignItems:'center', gap:4 }}><IconBank /> Transfer Bank / QR Rupiah</strong> atau{' '}
-                        <strong style={{ color: '#a855f7', display:'inline-flex', alignItems:'center', gap:4 }}><IconPhantomLogo /> Phantom Wallet Solana</strong>.
-                    </p>
+                <div className="cc-hero-btns" style={{ marginBottom:64 }}>
+                    <a href="#products" className="cc-btn-green" style={{ padding:'14px 32px', fontSize:15, boxShadow:'0 0 24px rgba(132,224,104,0.3)' }}>
+                        <IconCart /> Belanja Sekarang
+                    </a>
+                    {walletPublicKey ? (
+                        <div style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'12px 20px', borderRadius:12, background:'rgba(107,70,196,0.2)', border:'1px solid rgba(171,159,242,0.35)', fontSize:13, color:'var(--cc-text)' }}>
+                            <IconPhantomLogo size={18} />
+                            <span style={{ fontWeight:600 }}>{shortenAddress(walletPublicKey)}</span>
+                            <span style={{ color:'var(--cc-text-highlight)', fontWeight:700 }}>{walletBalance.toFixed(3)} SOL</span>
+                        </div>
+                    ) : (
+                        <button onClick={connectWallet} disabled={walletConnecting} className="cc-btn-phantom" style={{ padding:'14px 28px', fontSize:15, boxShadow:'0 0 24px rgba(107,70,196,0.25)' }}>
+                            {walletConnecting ? <span className="cc-spinner" /> : <IconPhantomLogo size={18} />}
+                            {walletConnecting ? 'Menghubungkan...' : 'Connect Phantom'}
+                        </button>
+                    )}
+                </div>
 
-                    <div className="lp-hero-btns">
-                        <a href="#products" className="lp-btn-primary" style={{ padding: '14px 32px', fontSize: 15 }}>
-                            <IconCart /> Belanja Sekarang
-                        </a>
-                        {walletPublicKey ? (
-                            <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'12px 20px', borderRadius:10, background:'rgba(81,45,168,0.2)', border:'1px solid rgba(147,51,234,0.35)', fontSize:13, color:'#E8F5E0' }}>
-                                <IconPhantomLogo size={18} />
-                                <span style={{ fontWeight:600 }}>{shortenAddress(walletPublicKey)}</span>
-                                <span style={{ color:'#7ED44A' }}>{walletBalance.toFixed(3)} SOL</span>
-                            </div>
-                        ) : (
-                            <button onClick={connectWallet} disabled={walletConnecting} className="lp-btn-phantom" style={{ padding:'14px 28px', fontSize:15 }}>
-                                {walletConnecting ? <span className="lp-spinner" /> : <IconPhantomLogo />}
-                                {walletConnecting ? 'Menghubungkan...' : 'Connect Phantom'}
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="lp-stats">
-                        {[
-                            { icon: <IconFarmer />, label: 'Petani Bergabung', value: loading ? '–' : `${stats.farmers}+` },
-                            { icon: <IconPackage />, label: 'Produk Kopi', value: loading ? '–' : `${stats.products}+` },
-                            { icon: <IconTx />, label: 'Transaksi', value: loading ? '–' : `${stats.transactions}+` },
-                            { icon: <IconSolana />, label: 'On-Chain Solana', value: '100%' },
-                        ].map(({ icon, label, value }) => (
-                            <div key={label} style={{ textAlign: 'center', minWidth: 80 }}>
-                                <div style={{ color: 'rgba(126,212,74,0.4)', marginBottom: 4, display: 'flex', justifyContent: 'center' }}>{icon}</div>
-                                <div style={{ fontSize: 'clamp(26px,5vw,36px)', fontWeight: 800, color: '#7ED44A', lineHeight: 1 }}>{value}</div>
-                                <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 4 }}>{label}</div>
-                            </div>
-                        ))}
-                    </div>
+                {/* Stats bar */}
+                <div className="cc-stats-row">
+                    {[
+                        { icon:<IconFarmer />, value: loading ? '–' : `${stats.farmers}+`, label:'Petani Bergabung' },
+                        { icon:<IconPackage />, value: loading ? '–' : `${stats.products}+`, label:'Produk Kopi' },
+                        { icon:<IconTx />, value: loading ? '–' : `${stats.transactions}+`, label:'Transaksi' },
+                        { icon:<IconSolana />, value:'100%', label:'On-Chain Solana' },
+                    ].map(({ icon, value, label }, i, arr) => (
+                        <div key={label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, padding:'20px 28px', borderRight: i < arr.length-1 ? '1px solid var(--cc-divider)' : 'none', minWidth:120 }}>
+                            <div style={{ color:'rgba(132,224,104,0.6)', display:'flex' }}>{icon}</div>
+                            <span style={{ fontSize:'clamp(22px,4vw,32px)', fontWeight:800, background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', fontFamily:"'Space Grotesk',sans-serif", lineHeight:1 }}>{value}</span>
+                            <span style={{ fontSize:11, color:'var(--cc-text-muted)', textAlign:'center', lineHeight:1.3 }}>{label}</span>
+                        </div>
+                    ))}
                 </div>
             </section>
 
-            {/* ── PRODUCTS GRID ── */}
-            <section id="products" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
-                <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-                    <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                        <h2 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 10, letterSpacing: '-0.5px' }}>Katalog Kopi Premium</h2>
-                        <p style={{ color: 'rgba(232,245,224,0.5)', fontSize: 15, maxWidth: 480, margin: '0 auto' }}>
-                            Kopi pilihan terbaik dari petani bersertifikat · Bayar via <strong style={{ color: '#a855f7', display:'inline-flex', alignItems:'center', gap:4, verticalAlign:'middle' }}><IconPhantomLogo /> Phantom Wallet</strong>
-                        </p>
+            {/* ── PRODUCTS CATALOG ── */}
+            <section id="products" style={{ position:'relative', zIndex:10, padding:'clamp(40px,8vw,80px) clamp(16px,4vw,32px)', scrollMarginTop:72 }}>
+                <div style={{ width:'100%', height:1, marginBottom:56, background:'linear-gradient(90deg,transparent,rgba(132,224,104,0.2) 30%,rgba(240,192,32,0.2) 70%,transparent)' }} />
+                <div style={{ textAlign:'center', marginBottom:40 }}>
+                    <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(1.8rem,4vw,3rem)', fontWeight:800, background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', marginBottom:12 }}>Katalog Kopi Premium</h2>
+                    <p style={{ color:'var(--cc-text-secondary)', fontSize:14, maxWidth:480, margin:'0 auto' }}>
+                        Kopi pilihan terbaik dari petani bersertifikat · Bayar via <strong style={{ color:'#ab9ff2', display:'inline-flex', alignItems:'center', gap:3 }}><IconPhantomLogo size={13} /> Phantom Wallet</strong>
+                    </p>
+                </div>
+
+                {/* Filter bar */}
+                <div style={{ display:'flex', gap:10, marginBottom:32, flexWrap:'wrap', alignItems:'center', maxWidth:1200, margin:'0 auto 32px' }}>
+                    <div style={{ position:'relative', flex:'1 1 220px', maxWidth:320 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--cc-text-dim)', pointerEvents:'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input value={catalogSearch} onChange={e => setCatalogSearch(e.target.value)} placeholder="Cari nama, asal, varietas..." className="cc-inp" style={{ paddingLeft:36 }} />
                     </div>
-
-                    {/* ── FILTER & SEARCH BAR ── */}
-                    <div style={{ display:'flex', gap:10, marginBottom:28, flexWrap:'wrap', alignItems:'center' }}>
-                        {/* Search */}
-                        <div style={{ position:'relative', flex:'1 1 220px', maxWidth:320 }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'rgba(232,245,224,0.3)', pointerEvents:'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input
-                                value={catalogSearch}
-                                onChange={e => setCatalogSearch(e.target.value)}
-                                placeholder="Cari nama, asal, varietas..."
-                                style={{ width:'100%', padding:'9px 12px 9px 32px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.25)', color:'#E8F5E0', fontSize:13, outline:'none', boxSizing:'border-box' }}
-                            />
-                        </div>
-
-                        {/* Grade Filter */}
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                            {['', 'Specialty', 'Premium', 'A', 'B', 'C'].map(g => (
-                                <button key={g} onClick={() => setCatalogGrade(g)}
-                                    style={{ padding:'7px 14px', borderRadius:100, fontSize:12, fontWeight:600, cursor:'pointer', border:'1px solid', transition:'all 0.15s',
-                                        background: catalogGrade === g ? 'linear-gradient(135deg,#4A7C28,#7ED44A)' : 'rgba(255,255,255,0.03)',
-                                        borderColor: catalogGrade === g ? 'transparent' : 'rgba(74,124,40,0.22)',
-                                        color: catalogGrade === g ? '#fff' : 'rgba(232,245,224,0.55)',
-                                    }}>
-                                    {g === '' ? 'Semua' : `Grade ${g}`}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Sort */}
-                        <select value={catalogSort} onChange={e => setCatalogSort(e.target.value)} aria-label="Urutkan produk"
-                            style={{ padding:'8px 12px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.25)', color:'rgba(232,245,224,0.7)', fontSize:12, outline:'none', cursor:'pointer' }}>
-                            <option value="newest">Terbaru</option>
-                            <option value="price_asc">Harga: Rendah → Tinggi</option>
-                            <option value="price_desc">Harga: Tinggi → Rendah</option>
-                            <option value="popular">Terlaris</option>
-                            <option value="rating">Rating Tertinggi</option>
-                        </select>
-
-                        {/* Result count */}
-                        {!loading && (
-                            <span style={{ fontSize:12, color:'rgba(232,245,224,0.35)', marginLeft:'auto', whiteSpace:'nowrap' }}>
-                                {(() => {
-                                    const q = catalogSearch.toLowerCase();
-                                    const count = products.filter(p =>
-                                        (!q || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q) || p.variety?.toLowerCase().includes(q)) &&
-                                        (!catalogGrade || p.grade === catalogGrade)
-                                    ).length;
-                                    return `${count} produk ditemukan`;
-                                })()}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="lp-products-grid">
-                        {loading && Array.from({ length: 8 }).map((_, i) => (
-                            <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(74,124,40,0.1)', borderRadius: 16, height: 280 }} />
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        {[['','Semua'],['Specialty','Specialty'],['Premium','Premium'],['A','Grade A'],['B','Grade B'],['C','Grade C']].map(([val, label]) => (
+                            <button key={val} onClick={() => setCatalogGrade(val)}
+                                style={{ padding:'8px 16px', borderRadius:12, fontSize:12, fontWeight:600, cursor:'pointer', border:'1px solid', transition:'all 0.15s',
+                                    background: catalogGrade === val ? 'linear-gradient(135deg,#5cba3c,#84e068)' : 'var(--cc-input-bg)',
+                                    borderColor: catalogGrade === val ? 'transparent' : 'var(--cc-input-border)',
+                                    color: catalogGrade === val ? '#0d1f08' : '#6b7280',
+                                    boxShadow: catalogGrade === val ? '0 0 12px rgba(132,224,104,0.25)' : 'none'
+                                }}>{label}</button>
                         ))}
-                        {!loading && products.length === 0 && (
-                            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 0', color: 'rgba(232,245,224,0.35)', fontSize: 14 }}>
-                                <IconPackage /> Belum ada produk tersedia
+                    </div>
+                    <select value={catalogSort} onChange={e => setCatalogSort(e.target.value)} className="cc-inp" style={{ width:'auto', flex:'0 0 auto', minWidth:160 }} aria-label="Urutkan produk">
+                        <option value="newest">Terbaru</option>
+                        <option value="price_asc">Harga: Rendah → Tinggi</option>
+                        <option value="price_desc">Harga: Tinggi → Rendah</option>
+                        <option value="popular">Terlaris</option>
+                        <option value="rating">Rating Tertinggi</option>
+                    </select>
+                    {!loading && (
+                        <span style={{ fontSize:12, color:'var(--cc-text-dim)', marginLeft:'auto', whiteSpace:'nowrap' }}>
+                            {(() => { const q = catalogSearch.toLowerCase(); return products.filter(p => (!q || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q) || p.variety?.toLowerCase().includes(q)) && (!catalogGrade || p.grade === catalogGrade)).length; })()} produk ditemukan
+                        </span>
+                    )}
+                </div>
+
+                {/* Products grid */}
+                <div className="cc-products-grid" style={{ maxWidth:1200, margin:'0 auto' }}>
+                    {loading && Array.from({ length:8 }).map((_, i) => (
+                        <div key={i} style={{ background:'var(--cc-card-bg)', border:'1px solid var(--cc-divider)', borderRadius:16, height:320, animation:'pulse 1.5s ease infinite' }} />
+                    ))}
+                    {!loading && products.length === 0 && (
+                        <div style={{ gridColumn:'1/-1', textAlign:'center', padding:'64px 0', color:'var(--cc-text-dim)', fontSize:14 }}>
+                            <div style={{ marginBottom:12, color:'rgba(132,224,104,0.3)' }}><IconPackage /></div> Belum ada produk tersedia
+                        </div>
+                    )}
+                    {!loading && products.length > 0 && (() => {
+                        const q = catalogSearch.toLowerCase();
+                        let filtered = products.filter(p =>
+                            (!q || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q) || p.variety?.toLowerCase().includes(q)) &&
+                            (!catalogGrade || p.grade === catalogGrade)
+                        );
+                        if (catalogSort === 'price_asc') filtered = [...filtered].sort((a, b) => (a.pricePerUnit?.[0] ?? 0) - (b.pricePerUnit?.[0] ?? 0));
+                        else if (catalogSort === 'price_desc') filtered = [...filtered].sort((a, b) => (b.pricePerUnit?.[0] ?? 0) - (a.pricePerUnit?.[0] ?? 0));
+                        else if (catalogSort === 'popular') filtered = [...filtered].sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
+                        else if (catalogSort === 'rating') filtered = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+                        if (filtered.length === 0) return (
+                            <div style={{ gridColumn:'1/-1', textAlign:'center', padding:'64px 0', color:'var(--cc-text-dim)', fontSize:14 }}>
+                                <div style={{ marginBottom:12 }}><IconPackage /></div> Tidak ada produk yang cocok dengan pencarian
                             </div>
-                        )}
-                        {!loading && products.length > 0 && (() => {
-                            const q = catalogSearch.toLowerCase();
-                            let filtered = products.filter(p =>
-                                (!q || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q) || p.variety?.toLowerCase().includes(q)) &&
-                                (!catalogGrade || p.grade === catalogGrade)
-                            );
-                            if (catalogSort === 'price_asc') filtered = [...filtered].sort((a, b) => (a.pricePerUnit?.[0] ?? 0) - (b.pricePerUnit?.[0] ?? 0));
-                            else if (catalogSort === 'price_desc') filtered = [...filtered].sort((a, b) => (b.pricePerUnit?.[0] ?? 0) - (a.pricePerUnit?.[0] ?? 0));
-                            else if (catalogSort === 'popular') filtered = [...filtered].sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
-                            else if (catalogSort === 'rating') filtered = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-                            if (filtered.length === 0) return (
-                                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 0', color: 'rgba(232,245,224,0.35)', fontSize: 14 }}>
-                                    <IconPackage /> Tidak ada produk yang cocok dengan pencarian
-                                </div>
-                            );
-                            return filtered;
-                        })()?.map?.(p => {
-                            const stock = p.stock ?? 0;
-                            const outOfStock = stock <= 0;
-                            const lowStock = stock > 0 && stock <= 10;
-                            return (
-                            <div key={p.id} className="lp-card" onClick={() => { setSelectedDetailProduct(p); setDetailModal(true); }} style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}>
-                                {/* Product photo */}
-                                <div style={{ width:'100%', height:160, position:'relative', background:'rgba(15,22,15,0.95)', overflow:'hidden', flexShrink:0 }}>
+                        );
+                        return filtered;
+                    })()?.map?.(p => {
+                        const stock = p.stock ?? 0;
+                        const outOfStock = stock <= 0;
+                        const lowStock = stock > 0 && stock <= 10;
+                        const gradeMap = {
+                            'Specialty': { text:'var(--cc-text-highlight)', bg:'rgba(132,224,104,0.12)', border:'rgba(132,224,104,0.3)', barColor:'#84e068' },
+                            'Premium':   { text:'#f0c020', bg:'rgba(240,192,32,0.12)',  border:'rgba(240,192,32,0.3)',  barColor:'#f0c020' },
+                            'A':         { text:'#60a5fa', bg:'rgba(96,165,250,0.12)',  border:'rgba(96,165,250,0.3)',  barColor:'#60a5fa' },
+                            'B':         { text:'#fb923c', bg:'rgba(251,146,60,0.12)', border:'rgba(251,146,60,0.3)', barColor:'#fb923c' },
+                            'C':         { text:'#94a3b8', bg:'rgba(148,163,184,0.12)',border:'rgba(148,163,184,0.3)',barColor:'#94a3b8' },
+                        };
+                        const gc = gradeMap[p.grade] || gradeMap['A'];
+                        return (
+                            <div key={p.id} className="cc-card" onClick={() => { setSelectedDetailProduct(p); setDetailModal(true); }} style={{ cursor:'pointer', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+                                <div style={{ height:3, width:'100%', background:`linear-gradient(90deg,${gc.barColor},transparent)` }} />
+                                <div style={{ height:148, position:'relative', background:'var(--cc-img-bg)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
                                     {p.image
                                         ? <img src={p.image} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                                        : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(126,212,74,0.25)' }}><IconCoffee /></div>
+                                        : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, color:'rgba(132,224,104,0.2)' }}><IconCoffee /></div>
                                     }
-                                    <span className={`lp-stock-badge ${outOfStock ? 'lp-stock-out' : lowStock ? 'lp-stock-low' : 'lp-stock-in'}`} style={{ position:'absolute', top:10, right:10 }}>
-                                        {outOfStock ? '● Habis' : lowStock ? `● Tersisa ${stock}` : `● Stok ${stock}`}
+                                    <span className={`cc-stock-badge ${outOfStock ? 'cc-stock-out' : lowStock ? 'cc-stock-low' : 'cc-stock-in'}`} style={{ position:'absolute', top:10, right:10 }}>
+                                        ● {outOfStock ? 'Habis' : lowStock ? `Tersisa ${stock}` : `Stok ${stock}`}
                                     </span>
-                                </div>
-                                <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, flex:1 }}>
-                                <div>
-                                    <div style={{ fontWeight:700, fontSize:15, color: outOfStock ? 'rgba(232,245,224,0.4)' : '#E8F5E0', marginBottom:2 }}>{p.name}</div>
-                                    <div style={{ fontSize:12, color:'rgba(232,245,224,0.45)' }}>{p.origin}{p.variety ? ` · ${p.variety}` : ''}</div>
-                                </div>
-                                <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
-                                    {[p.grade, p.roast].filter(Boolean).map(tag => (
-                                        <span key={tag} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.2)', fontWeight:600 }}>{tag}</span>
-                                    ))}
                                     {p.coffeeId && (
-                                        <a href={normalizeExplorerUrl(p.explorerUrl) || `/trace?id=${p.coffeeId}`} target={p.explorerUrl ? '_blank' : undefined} rel={p.explorerUrl ? 'noopener noreferrer' : undefined} onClick={e => e.stopPropagation()} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'rgba(74,124,40,0.15)', color:'#7ED44A', border:'1px solid rgba(126,212,74,0.3)', fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
-                                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                            {p.explorerUrl ? 'Solana' : 'Sertifikasi'}
-                                        </a>
-                                    )}
-                                    {p.coffeeId && (
-                                        <div onClick={e => e.stopPropagation()}>
-                                            <QRButton
-                                                explorerUrl={normalizeExplorerUrl(p.explorerUrl) || (p.txSignature ? getExplorerTxUrl(p.txSignature) : undefined)}
-                                                traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
-                                                coffeeId={p.coffeeId}
-                                                productName={p.name}
-                                                label="QR"
-                                            />
+                                        <div style={{ position:'absolute', top:10, left:10, display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:100, background:'rgba(17,17,19,0.8)', border:'1px solid rgba(132,224,104,0.3)', fontSize:9, color:'var(--cc-text-highlight)', fontWeight:700 }}>
+                                            <span style={{ width:5, height:5, borderRadius:'50%', background:'#84e068', animation:'pulse 1.5s infinite' }} /> On-Chain
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
-                                    <div style={{ display:'flex', alignItems:'center', gap:3 }}>
-                                        {[1,2,3,4,5].map(s => <span key={s} style={{ color:'#F5A623', fontSize:12 }}><IconStar filled={s <= Math.round(p.rating || 4)} /></span>)}
-                                        <span style={{ fontSize:11, color:'rgba(232,245,224,0.5)', marginLeft:3 }}>
-                                            {p.rating ? p.rating.toFixed(1) : '4.0'}
-                                        </span>
+                                <div style={{ padding:'16px', display:'flex', flexDirection:'column', gap:10, flex:1 }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                                        {p.grade && <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:100, background:gc.bg, color:gc.text, border:`1px solid ${gc.border}` }}>{p.grade}</span>}
+                                        {p.variety && <span style={{ fontSize:10, color:'var(--cc-text-muted)', fontWeight:500 }}>{p.variety}</span>}
                                     </div>
-                                    {p.sold > 0 ? (
-                                        <span style={{ fontSize:10, fontWeight:700, color:'#F5A623', background:'rgba(245,166,35,0.12)', border:'1px solid rgba(245,166,35,0.25)', borderRadius:100, padding:'2px 8px', display:'inline-flex', alignItems:'center', gap:3 }}>
-                                            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
-                                            {p.sold.toLocaleString('id-ID')} terjual
-                                        </span>
-                                    ) : (
-                                        <span style={{ fontSize:10, color:'rgba(126,212,74,0.6)', background:'rgba(74,124,40,0.1)', border:'1px solid rgba(74,124,40,0.2)', borderRadius:100, padding:'2px 8px' }}>Baru</span>
-                                    )}
-                                </div>
-                                <div style={{ marginTop:'auto', paddingTop:10, borderTop:'1px solid rgba(74,124,40,0.12)' }}>
-                                    <div style={{ marginBottom:8 }}>
-                                        <div style={{ fontSize:10, color:'rgba(232,245,224,0.35)' }}>mulai dari</div>
-                                        {p.pricePerUnit?.length > 0 ? (
-                                            <>
-                                                <div style={{ fontSize:16, fontWeight:700, color: outOfStock ? 'rgba(232,245,224,0.3)' : '#7ED44A' }}>
-                                                    Rp {(p.pricePerUnit[0]).toLocaleString('id-ID')}
-                                                    {p.weight?.length > 0 && <span style={{ fontSize:11, fontWeight:400, color:'rgba(232,245,224,0.35)', marginLeft:4 }}>/{p.weight[0]}g</span>}
-                                                </div>
-                                                <div style={{ fontSize:10, color:'rgba(147,51,234,0.6)' }}>≈ {rupiahToSol(p.pricePerUnit[0]).toFixed(4)} SOL</div>
-                                            </>
-                                        ) : (
-                                            <div style={{ fontSize:13, color:'rgba(232,245,224,0.3)', fontStyle:'italic' }}>Harga belum diatur</div>
+                                    <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:14, color: outOfStock ? 'var(--cc-text-muted)' : 'var(--cc-text)', lineHeight:1.3 }}>{p.name}</div>
+                                    <div style={{ fontSize:12, color:'var(--cc-text-muted)' }}>{p.origin}{p.farmer ? ` · ${p.farmer}` : ''}</div>
+                                    <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                                        {[p.roast].filter(Boolean).map(tag => (
+                                            <span key={tag} style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'var(--cc-card-bg)', color:'var(--cc-text-secondary)', border:'1px solid var(--cc-divider)' }}>{tag}</span>
+                                        ))}
+                                        {p.coffeeId && (
+                                            <a href={normalizeExplorerUrl(p.explorerUrl) || `/trace?id=${p.coffeeId}`} target={p.explorerUrl ? '_blank' : undefined} rel={p.explorerUrl ? 'noopener noreferrer' : undefined} onClick={e => e.stopPropagation()}
+                                                style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:gc.bg, color:gc.text, border:`1px solid ${gc.border}`, fontWeight:700, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:3 }}>
+                                                🛡 {p.explorerUrl ? 'Solana' : 'Sertifikasi'}
+                                            </a>
+                                        )}
+                                        {p.coffeeId && (
+                                            <div onClick={e => e.stopPropagation()}>
+                                                <QRButton
+                                                    explorerUrl={normalizeExplorerUrl(p.explorerUrl) || (p.txSignature ? getExplorerTxUrl(p.txSignature) : undefined)}
+                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${p.coffeeId}`}
+                                                    coffeeId={p.coffeeId}
+                                                    productName={p.name}
+                                                    label="QR"
+                                                />
+                                            </div>
                                         )}
                                     </div>
-                                    {outOfStock ? (
-                                        <div style={{ padding:'9px', fontSize:11, opacity:0.4, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(74,124,40,0.12)', borderRadius:10, color:'rgba(232,245,224,0.3)', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                                            <IconPackage /> Stok Habis
+                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                                        <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+                                            {[1,2,3,4,5].map(s => <span key={s} style={{ color: s <= Math.round(p.rating || 4) ? '#f0c020' : 'var(--cc-text-dim)', fontSize:11 }}><IconStar filled={s <= Math.round(p.rating || 4)} /></span>)}
+                                            <span style={{ fontSize:11, color:'var(--cc-text-muted)', marginLeft:3 }}>{p.rating?.toFixed(1) || '4.0'}</span>
                                         </div>
-                                    ) : (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); openOrder(p, 'midtrans'); }}
-                                            style={{ width:'100%', padding:'10px 10px', fontSize:12, fontWeight:800, background:'linear-gradient(135deg,#4A7C28,#7ED44A)', color:'#fff', border:'none', borderRadius:10, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                                            <IconCart /> Beli Sekarang
-                                        </button>
-                                    )}
-                                </div>
+                                        {p.sold > 0 ? (
+                                            <span style={{ fontSize:10, color:'#f0c020', background:'rgba(240,192,32,0.12)', border:'1px solid rgba(240,192,32,0.25)', borderRadius:100, padding:'2px 8px', fontWeight:700 }}>
+                                                {p.sold.toLocaleString('id-ID')} terjual
+                                            </span>
+                                        ) : <span style={{ fontSize:10, color:'var(--cc-text-highlight)', background:'rgba(132,224,104,0.1)', border:'1px solid rgba(132,224,104,0.2)', borderRadius:100, padding:'2px 8px' }}>Baru</span>}
+                                    </div>
+                                    <div style={{ marginTop:'auto', paddingTop:12, borderTop:'1px solid var(--cc-divider)' }}>
+                                        <div style={{ marginBottom:10 }}>
+                                            <div style={{ fontSize:10, color:'var(--cc-text-dim)' }}>mulai dari</div>
+                                            {p.pricePerUnit?.length > 0 ? (
+                                                <>
+                                                    <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:16, fontWeight:700, color: outOfStock ? 'var(--cc-text-muted)' : 'var(--cc-text-highlight)' }}>
+                                                        Rp {(p.pricePerUnit[0]).toLocaleString('id-ID')}
+                                                        {p.weight?.length > 0 && <span style={{ fontSize:11, fontWeight:400, color:'var(--cc-text-dim)', marginLeft:4 }}>/{p.weight[0]}g</span>}
+                                                    </div>
+                                                    <div style={{ fontSize:10, color:'var(--cc-sol-text)' }}>≈ {rupiahToSol(p.pricePerUnit[0]).toFixed(4)} SOL</div>
+                                                </>
+                                            ) : <div style={{ fontSize:13, color:'var(--cc-text-dim)', fontStyle:'italic' }}>Harga belum diatur</div>}
+                                        </div>
+                                        {outOfStock ? (
+                                            <div style={{ padding:'9px', fontSize:12, background:'var(--cc-card-bg)', border:'1px solid var(--cc-divider)', borderRadius:10, color:'var(--cc-text-dim)', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                                <IconPackage /> Stok Habis
+                                            </div>
+                                        ) : (
+                                            <button onClick={e => { e.stopPropagation(); openOrder(p, 'midtrans'); }} className="cc-btn-green" style={{ width:'100%', padding:'10px', fontSize:13, justifyContent:'center', boxShadow:'0 0 12px rgba(132,224,104,0.15)' }}>
+                                                <IconCart /> Beli Sekarang
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                            );
-                        })}
-                    </div>
+                        );
+                    })}
                 </div>
             </section>
 
             {/* ── HARGA PASAR ── */}
-            <section id="market" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)', background: 'radial-gradient(ellipse at top, rgba(74,124,40,0.05), transparent 70%)' }}>
-                <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-                    <div style={{ textAlign: 'center', marginBottom: 40 }}>
-                        <h2 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 10, letterSpacing: '-0.5px' }}>Harga Pasar Kopi Live</h2>
-                        <p style={{ color: 'rgba(232,245,224,0.5)', fontSize: 15, maxWidth: 460, margin: '0 auto' }}>Pantau pergerakan harga komoditas kopi Nusantara secara real-time</p>
+            <section id="market" style={{ position:'relative', zIndex:10, padding:'clamp(40px,8vw,80px) clamp(16px,4vw,32px)', scrollMarginTop:72 }}>
+                <div style={{ width:'100%', height:1, marginBottom:56, background:'linear-gradient(90deg,transparent,rgba(240,192,32,0.2) 30%,rgba(132,224,104,0.2) 70%,transparent)' }} />
+                <div style={{ textAlign:'center', marginBottom:40 }}>
+                    <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'5px 14px', borderRadius:100, background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', color:'#f87171', fontSize:11, fontWeight:600, marginBottom:20 }}>
+                        <span style={{ width:6, height:6, borderRadius:'50%', background:'#f87171', animation:'pulse 1.5s infinite' }} /> LIVE
                     </div>
-                    <div className="lp-products-grid">
-                        {coffeeTypes.map((c, i) => (
-                            <div key={i} className="lp-card">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(74,124,40,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7ED44A' }}><IconCoffee /></div>
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: 16, color: '#E8F5E0' }}>{c.name}</div>
-                                        <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)' }}>{c.origin} · <span style={{ color: '#7ED44A' }}>{c.grade}</span></div>
+                    <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(1.8rem,4vw,3rem)', fontWeight:800, background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', marginBottom:12 }}>Harga Pasar Kopi Live</h2>
+                    <p style={{ color:'var(--cc-text-secondary)', fontSize:14, maxWidth:440, margin:'0 auto' }}>Pantau pergerakan harga komoditas kopi Nusantara secara real-time</p>
+                </div>
+
+                {/* Ticker */}
+                <div style={{ display:'flex', alignItems:'center', gap:24, padding:'12px 24px', borderRadius:14, marginBottom:32, background:'var(--cc-card-bg)', border:'1px solid var(--cc-divider)', maxWidth:1200, margin:'0 auto 32px', overflowX:'auto' }}>
+                    <span style={{ color:'var(--cc-text-highlight)', fontWeight:700, fontSize:12, flexShrink:0 }}>📊 Market</span>
+                    <div style={{ width:1, height:20, background:'var(--cc-divider)', flexShrink:0 }} />
+                    {coffeeTypes.map((c, i) => (
+                        <div key={i} style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, fontSize:12 }}>
+                            <span style={{ color:'var(--cc-text-secondary)' }}>{c.name}</span>
+                            <span style={{ color:'var(--cc-text)', fontWeight:700, fontFamily:"'Space Grotesk',sans-serif" }}>Rp {c.price.toLocaleString('id-ID')}</span>
+                            <span style={{ color: c.change > 0 ? '#84e068' : '#f87171', fontWeight:600 }}>{c.change > 0 ? '▲' : '▼'} {Math.abs(c.change)}%</span>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="cc-market-grid" style={{ maxWidth:1200, margin:'0 auto' }}>
+                    {coffeeTypes.map((c, i) => (
+                        <div key={i} className="cc-card" style={{ overflow:'hidden' }}>
+                            <div style={{ height:2, width:'100%', background: c.change > 0 ? 'linear-gradient(90deg,rgba(132,224,104,0.5),transparent)' : 'linear-gradient(90deg,rgba(248,113,113,0.5),transparent)' }} />
+                            <div style={{ padding:20 }}>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                                        <div style={{ width:42, height:42, borderRadius:12, background:'rgba(132,224,104,0.1)', border:'1px solid rgba(132,224,104,0.2)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--cc-text-highlight)' }}>
+                                            <IconCoffee />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:14, color:'var(--cc-text)' }}>{c.name}</div>
+                                            <div style={{ fontSize:11, color:'var(--cc-text-muted)' }}>📍 {c.origin} · <span style={{ color:'var(--cc-text-highlight)' }}>{c.grade}</span></div>
+                                        </div>
+                                    </div>
+                                    <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:12, fontSize:12, fontWeight:700, background: c.change > 0 ? 'rgba(132,224,104,0.1)' : 'rgba(248,113,113,0.1)', color: c.change > 0 ? '#84e068' : '#f87171', border:`1px solid ${c.change > 0 ? 'rgba(132,224,104,0.25)' : 'rgba(248,113,113,0.25)'}` }}>
+                                        {c.change > 0 ? '▲' : '▼'} {Math.abs(c.change)}%
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.03)' }}>
-                                    <div>
-                                        <div style={{ fontSize: 11, color: 'rgba(232,245,224,0.4)', marginBottom: 4 }}>Harga per Kg</div>
-                                        <div style={{ fontSize: 18, fontWeight: 700, color: '#E8F5E0', letterSpacing: '-0.5px' }}>Rp {c.price.toLocaleString('id-ID')}</div>
-                                        <div style={{ fontSize: 10, color: 'rgba(147,51,234,0.7)', marginTop: 2 }}>≈ {rupiahToSol(c.price).toFixed(4)} SOL</div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: c.change > 0 ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)', color: c.change > 0 ? '#4CAF50' : '#f44336' }}>
-                                            {c.change > 0 ? '▲' : '▼'} {Math.abs(c.change)}%
-                                        </div>
-                                        <div style={{ fontSize: 10, color: 'rgba(232,245,224,0.3)', marginTop: 6 }}>Vol: {c.vol}</div>
-                                    </div>
+                                <div style={{ marginBottom:14 }}>
+                                    <div style={{ fontSize:10, color:'var(--cc-text-dim)', marginBottom:4 }}>Harga per Kg</div>
+                                    <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:20, fontWeight:800, color:'var(--cc-text)' }}>Rp {c.price.toLocaleString('id-ID')}</div>
+                                    <div style={{ fontSize:10, color:'var(--cc-sol-text)', marginTop:2 }}>≈ {rupiahToSol(c.price).toFixed(4)} SOL</div>
+                                </div>
+                                <div style={{ paddingTop:12, borderTop:'1px solid var(--cc-divider)', display:'flex', justifyContent:'space-between', fontSize:11 }}>
+                                    <div><div style={{ fontSize:9, color:'var(--cc-text-dim)', marginBottom:2 }}>Volume</div><div style={{ color:'var(--cc-text-secondary)', fontWeight:600 }}>{c.vol}</div></div>
+                                    <div style={{ textAlign:'right' }}><div style={{ fontSize:9, color:'var(--cc-text-dim)', marginBottom:2 }}>Origin</div><div style={{ color:'var(--cc-text-secondary)', fontWeight:600 }}>{c.origin}</div></div>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    ))}
                 </div>
             </section>
 
-            {/* ── HOW IT WORKS ── */}
-            <section id="how" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
-                <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-                    <h2 style={{ textAlign: 'center', fontSize: 'clamp(24px,5vw,38px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 10, letterSpacing: '-0.5px' }}>Cara Kerja CoffeeChain</h2>
-                    <p style={{ textAlign: 'center', color: 'rgba(232,245,224,0.45)', marginBottom: 40, fontSize: 15 }}>Transparan dari kebun hingga cangkir — bayar Rupiah atau SOL on-chain</p>
-                    <div className="lp-how-grid">
-                        {[
-                            { icon: <IconCart />, title: 'Pilih Kopi', desc: 'Pilih kopi premium dari katalog. Stok real-time, harga transparan.' },
-                            { icon: <IconBank />, title: 'Bayar Rupiah', desc: 'Transfer Bank via Virtual Account atau scan QR Code IDR. Tanpa wallet.' },
-                            { icon: <IconPhantomLogo size={28} />, title: 'Atau Bayar SOL', desc: 'Hubungkan Phantom Wallet Solana dan bayar langsung via Transfer SOL atau Solana Pay QR.' },
-                            { icon: <IconVerify />, title: 'Konfirmasi On-Chain', desc: 'Pesanan tercatat. Transaksi SOL permanen di Solana blockchain — lacak kapan saja.' },
-                        ].map(({ icon, title, desc }, i) => (
-                            <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(74,124,40,0.12)', borderRadius: 14, padding: 'clamp(16px,3vw,24px)', position: 'relative' }}>
-                                <div style={{ color: '#7ED44A', marginBottom: 12, display: 'flex', fontSize: 28 }}>{icon}</div>
-                                <div style={{ fontWeight: 700, fontSize: 15, color: '#E8F5E0', marginBottom: 6 }}>{title}</div>
-                                <div style={{ fontSize: 13, color: 'rgba(232,245,224,0.45)', lineHeight: 1.6 }}>{desc}</div>
-                                <div style={{ position: 'absolute', top: 14, right: 14, width: 24, height: 24, borderRadius: '50%', background: 'rgba(74,124,40,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#7ED44A' }}>{i + 1}</div>
+            {/* ── CARA KERJA ── */}
+            <section id="how" style={{ position:'relative', zIndex:10, padding:'clamp(40px,8vw,80px) clamp(16px,4vw,32px)', scrollMarginTop:72 }}>
+                <div style={{ width:'100%', height:1, marginBottom:56, background:'linear-gradient(90deg,transparent,rgba(171,159,242,0.2) 30%,rgba(132,224,104,0.2) 70%,transparent)' }} />
+                <div style={{ textAlign:'center', marginBottom:52 }}>
+                    <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(1.8rem,4vw,3rem)', fontWeight:800, background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', marginBottom:12 }}>Cara Kerja CoffeeChain</h2>
+                    <p style={{ color:'var(--cc-text-secondary)', fontSize:14, maxWidth:440, margin:'0 auto' }}>Transparan dari kebun hingga cangkir — <strong style={{ color:'var(--cc-text)' }}>bayar Rupiah atau SOL on-chain</strong></p>
+                </div>
+                <div className="cc-how-grid" style={{ maxWidth:1100, margin:'0 auto' }}>
+                    {[
+                        { num:1, icon:<IconCart />, title:'Pilih Kopi', desc:'Pilih kopi premium dari katalog. Stok real-time, harga transparan.', color:'var(--cc-text-highlight)', bg:'rgba(132,224,104,0.1)', border:'rgba(132,224,104,0.25)' },
+                        { num:2, icon:<IconBank />, title:'Bayar Rupiah', desc:'Transfer Bank via Virtual Account atau scan QR Code IDR. Tanpa wallet.', color:'#60a5fa', bg:'rgba(96,165,250,0.1)', border:'rgba(96,165,250,0.25)' },
+                        { num:3, icon:<IconPhantomLogo size={24} />, title:'Atau Bayar SOL', desc:'Hubungkan Phantom Wallet Solana dan bayar langsung via Transfer SOL atau Solana Pay QR.', color:'#ab9ff2', bg:'rgba(171,159,242,0.1)', border:'rgba(171,159,242,0.25)' },
+                        { num:4, icon:<IconVerify />, title:'Konfirmasi On-Chain', desc:'Pesanan tercatat. Transaksi SOL permanen di Solana blockchain — lacak kapan saja.', color:'#f0c020', bg:'rgba(240,192,32,0.1)', border:'rgba(240,192,32,0.25)' },
+                    ].map(step => (
+                        <div key={step.num} className="cc-card" style={{ padding:24 }}>
+                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+                                <div style={{ width:44, height:44, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', background:step.bg, border:`1px solid ${step.border}`, color:step.color }}>
+                                    {step.icon}
+                                </div>
+                                <div style={{ width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:step.bg, border:`1px solid ${step.border}`, color:step.color, fontSize:13, fontWeight:900, fontFamily:"'Space Grotesk',sans-serif" }}>{step.num}</div>
                             </div>
-                        ))}
-                    </div>
+                            <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:16, color:'var(--cc-text)', marginBottom:8 }}>{step.title}</div>
+                            <p style={{ fontSize:13, color:'var(--cc-text-secondary)', lineHeight:1.65 }}>{step.desc}</p>
+                            <div style={{ marginTop:18, height:2, width:36, borderRadius:4, background:`linear-gradient(90deg,${step.color},transparent)` }} />
+                        </div>
+                    ))}
                 </div>
             </section>
 
             {/* ── VERIFIKASI BLOCKCHAIN ── */}
-            <section id="verify" style={{ padding: 'clamp(40px,8vw,80px) 20px', borderTop: '1px solid rgba(74,124,40,0.12)', background: 'radial-gradient(ellipse at bottom, rgba(124,77,255,0.04), transparent 70%)' }}>
-                <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
-                    <div style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg,rgba(124,77,255,0.15),rgba(74,124,40,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#b388ff' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <section id="verify" style={{ position:'relative', zIndex:10, padding:'clamp(40px,8vw,80px) clamp(16px,4vw,32px)', scrollMarginTop:72 }}>
+                <div style={{ width:'100%', height:1, marginBottom:56, background:'linear-gradient(90deg,transparent,rgba(171,159,242,0.2) 30%,rgba(132,224,104,0.2) 70%,transparent)' }} />
+                <div style={{ maxWidth:600, margin:'0 auto', textAlign:'center' }}>
+                    <div style={{ width:64, height:64, borderRadius:18, background:'rgba(171,159,242,0.1)', border:'1px solid rgba(171,159,242,0.25)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 28px', color:'#ab9ff2' }}>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     </div>
-                    <h2 style={{ fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 10, letterSpacing: '-0.5px' }}>Verifikasi Keaslian Kopi</h2>
-                    <p style={{ color: 'rgba(232,245,224,0.45)', marginBottom: 28, fontSize: 14, maxWidth: 440, margin: '0 auto 28px' }}>
+                    <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(1.8rem,4vw,3rem)', fontWeight:800, background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', marginBottom:16 }}>Verifikasi Keaslian Kopi</h2>
+                    <p style={{ color:'var(--cc-text-secondary)', marginBottom:40, fontSize:14, maxWidth:440, margin:'0 auto 40px', lineHeight:1.7 }}>
                         Setiap kopi di CoffeeChain tercatat permanen di blockchain Solana. Masukkan Coffee ID untuk memverifikasi.
                     </p>
-                    <div style={{ display: 'flex', gap: 10, maxWidth: 440, margin: '0 auto' }}>
-                        <input
-                            type="text" placeholder="Coffee ID (contoh: CF-A1B2C3)"
-                            id="verifyInput"
-                            style={{ flex: 1, padding: '13px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(124,77,255,0.25)', color: '#E8F5E0', fontSize: 14, outline: 'none', fontWeight: 600, letterSpacing: '0.5px' }}
-                        />
-                        <a
-                            href="#"
-                            onClick={(e) => { e.preventDefault(); const v = document.getElementById('verifyInput')?.value?.trim(); if (v) window.location.href = `/trace?id=${encodeURIComponent(v)}`; }}
-                            style={{ padding: '13px 22px', borderRadius: 10, background: 'linear-gradient(135deg,#512da8,#7c4dff)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            Verifikasi
+                    <div style={{ display:'flex', gap:12, maxWidth:480, margin:'0 auto 16px' }}>
+                        <input type="text" placeholder="Coffee ID (contoh: CF-A1B2C3)" id="verifyInput" className="cc-inp" style={{ flex:1 }} />
+                        <a href="#" onClick={e => { e.preventDefault(); const v = document.getElementById('verifyInput')?.value?.trim(); if (v) window.location.href = `/trace?id=${encodeURIComponent(v)}`; }}
+                            className="cc-btn-green" style={{ padding:'11px 22px', fontSize:14, flexShrink:0, whiteSpace:'nowrap' }}>
+                            🔍 Verifikasi
                         </a>
                     </div>
-                    <p style={{ marginTop: 16, fontSize: 11, color: 'rgba(232,245,224,0.3)' }}>
-                        Atau buka halaman <a href="/trace" style={{ color: '#b388ff', textDecoration: 'none', fontWeight: 600 }}>Trace Kopi</a> untuk pencarian lengkap
+                    <p style={{ fontSize:12, color:'var(--cc-text-dim)' }}>
+                        Atau buka halaman <a href="/trace" style={{ color:'var(--cc-text-highlight)', textDecoration:'none', fontWeight:600 }}>Trace Kopi</a> untuk pencarian lengkap
                     </p>
                 </div>
             </section>
 
-            {/* ── CTA ── */}
-            <section style={{ padding: 'clamp(40px,8vw,80px) 20px', textAlign: 'center', background: 'linear-gradient(180deg,transparent,rgba(74,124,40,0.05))' }}>
-                <h2 style={{ fontSize: 'clamp(24px,5vw,38px)', fontWeight: 800, color: '#E8F5E0', marginBottom: 12, letterSpacing: '-0.5px' }}>
+            {/* ── CTA BANNER ── */}
+            <section style={{ position:'relative', zIndex:10, padding:'clamp(60px,10vw,100px) 24px', textAlign:'center' }}>
+                <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(132,224,104,0.04) 0%, transparent 70%)', pointerEvents:'none' }} />
+                <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(1.8rem,5vw,3.2rem)', fontWeight:800, lineHeight:1.2, letterSpacing:'-0.02em', background:'linear-gradient(135deg,#84e068,#c8e830 45%,#f0c020)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', marginBottom:16, maxWidth:680, margin:'0 auto 16px' }}>
                     Bergabunglah dengan Ekosistem<br />Kopi Blockchain Indonesia
                 </h2>
-                <p style={{ color: 'rgba(232,245,224,0.45)', marginBottom: 32, fontSize: 15 }}>Platform transparan yang menghubungkan petani, koperasi, dan konsumen secara langsung.</p>
-                <div className="lp-cta-btns">
-                    <a href="#products" className="lp-btn-primary" style={{ padding: '14px 36px', fontSize: 15 }}><IconCart /> Belanja Sekarang</a>
-                    <button onClick={connectWallet} disabled={!!walletPublicKey || walletConnecting} className="lp-btn-phantom" style={{ padding:'14px 36px', fontSize:15, opacity: walletPublicKey ? 0.6 : 1 }}>
-                        {walletPublicKey ? <><IconPhantomLogo /> {shortenAddress(walletPublicKey)}</> : walletConnecting ? <><span className="lp-spinner" /> Menghubungkan...</> : <><IconPhantomLogo /> Hubungkan Phantom</>}
+                <p style={{ color:'var(--cc-text-secondary)', fontSize:15, marginBottom:40, maxWidth:460, margin:'0 auto 40px' }}>
+                    Platform transparan yang menghubungkan petani, koperasi, dan konsumen secara langsung.
+                </p>
+                <div style={{ display:'flex', alignItems:'center', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
+                    <a href="#products" className="cc-btn-green" style={{ padding:'16px 32px', fontSize:15, boxShadow:'0 0 28px rgba(132,224,104,0.35)' }}>
+                        <IconCart /> Belanja Sekarang
+                    </a>
+                    <button onClick={connectWallet} disabled={!!walletPublicKey || walletConnecting} className="cc-btn-phantom" style={{ padding:'16px 32px', fontSize:15, opacity: walletPublicKey ? 0.6 : 1, boxShadow:'0 0 28px rgba(107,70,196,0.3)' }}>
+                        {walletPublicKey ? <><IconPhantomLogo size={18} /> {shortenAddress(walletPublicKey)}</> : walletConnecting ? <><span className="cc-spinner" /> Menghubungkan...</> : <><IconPhantomLogo size={18} /> Hubungkan Phantom</>}
                     </button>
                 </div>
             </section>
 
-
             {/* ── FOOTER ── */}
-            <footer style={{ padding: '32px 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
-                <div style={{ maxWidth: 1200, margin: '0 auto' }} className="lp-footer-inner">
-                    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                        <img src="/coffeechain-logo-20260528.png" alt="CoffeeChain Logo" width={32} height={32} style={{ borderRadius: 4, objectFit: 'contain' }} />
+            <footer style={{ position:'relative', zIndex:10, background:'var(--cc-footer-bg)', borderTop:'1px solid rgba(132,224,104,0.1)' }}>
+                <div style={{ maxWidth:1200, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px clamp(16px,3vw,32px)', gap:20, flexWrap:'wrap' }}>
+                    <Link href="/" style={{ display:'flex', alignItems:'center', gap:10, textDecoration:'none', flexShrink:0 }}>
+                        <div style={{ width:32, height:32, borderRadius:10, background:'linear-gradient(135deg,#84e068,#4ab830)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+                            <img src="/coffeechain-logo.png" alt="CoffeeChain" width={24} height={24} style={{ objectFit:'contain' }} onError={e => { e.currentTarget.src='/coffeechain-logo-20260528.png'; }} />
+                        </div>
                         <div>
-                            <span style={{ fontWeight: 700, color: '#7ED44A', fontSize: 15, display: 'block' }}>CoffeeChain</span>
-                            <span style={{ fontSize: 9, color: 'rgba(126,212,74,0.45)', letterSpacing: 1, textTransform: 'uppercase' }}>Blockchain Traceability</span>
+                            <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:14, color:'var(--cc-text-highlight)' }}>CoffeeChain</div>
+                            <div style={{ fontSize:9, color:'#2d4a2d', letterSpacing:'0.2em', textTransform:'uppercase' }}>BLOCKCHAIN TRACEABILITY</div>
                         </div>
                     </Link>
-                    <div style={{ color: 'rgba(232,245,224,0.3)', fontSize: 12 }}>© 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana</div>
-                    <div className="lp-footer-links">
+                    <p style={{ fontSize:12, color:'#2d4a2d', textAlign:'center', flex:1, minWidth:200 }}>
+                        2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana
+                    </p>
+                    <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
                         {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
-                            <a key={label} href={href} style={{ color: 'rgba(232,245,224,0.4)', fontSize: 13, textDecoration: 'none' }}>{label}</a>
+                            <a key={label} href={href} style={{ color:'#2d4a2d', fontSize:12, textDecoration:'none', transition:'color 0.2s' }}
+                                onMouseEnter={e => e.currentTarget.style.color='#84e068'}
+                                onMouseLeave={e => e.currentTarget.style.color='#2d4a2d'}
+                            >{label}</a>
                         ))}
                     </div>
                 </div>
             </footer>
 
+            {/* ── WHATSAPP FAB ── */}
+            <div style={{ position:'fixed', bottom:28, right:28, zIndex:90 }}>
+                <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer"
+                    style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#25d366,#128c7e)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 20px rgba(37,211,102,0.4)', textDecoration:'none', animation:'wa-pop 0.4s ease', transition:'transform 0.2s,box-shadow 0.2s' }}
+                    title="Chat di WhatsApp"
+                    onMouseEnter={e => { e.currentTarget.style.transform='scale(1.1)'; e.currentTarget.style.boxShadow='0 6px 28px rgba(37,211,102,0.55)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='0 4px 20px rgba(37,211,102,0.4)'; }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </a>
+            </div>
+
             {/* ══════════════════════════════════════════
                 MODAL: Order Form (Multi-Currency Payment)
             ══════════════════════════════════════════ */}
             {orderModal && selectedProduct && (
-                <div style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.85)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+                <div style={{ position:'fixed', inset:0, zIndex:1000, background:'var(--cc-modal-backdrop)', backdropFilter:'blur(10px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
                     onClick={() => { setOrderModal(false); setOrderResult(null); }}>
-                    <div style={{ background:'#0e1a0e', border:'1px solid rgba(74,124,40,0.3)', borderRadius:18, padding:'clamp(20px,4vw,32px)', maxWidth:660, width:'100%', maxHeight:'92dvh', overflowY:'auto' }}
+                    <div style={{ background:'var(--cc-bg)', border:'1px solid var(--cc-input-border)', borderRadius:20, padding:'clamp(20px,4vw,32px)', maxWidth:660, width:'100%', maxHeight:'92dvh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}
                         onClick={e => e.stopPropagation()}>
 
                         {orderResult ? (
                             /* ── Success / Result ── */
                             <div style={{ textAlign:'center' }}>
                                 <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}>
-                                    {orderResult.status === 'paid' ? <IconCheck /> : <div style={{ color:'rgba(232,245,224,0.5)' }}>
+                                    {orderResult.status === 'paid' ? <IconCheck /> : <div style={{ color:'rgba(240,240,240,0.5)' }}>
                                         {orderResult.paymentMethod === 'transfer-idr' ? <IconBank />
                                             : orderResult.paymentMethod === 'qr-idr' ? <IconMobileQR />
                                             : <IconClockWait />}
                                     </div>}
                                 </div>
-                                <h3 style={{ fontSize:20, fontWeight:700, color:'#E8F5E0', marginBottom:6 }}>
+                                <h3 style={{ fontSize:20, fontWeight:700, color:'var(--cc-text)', marginBottom:6, fontFamily:"'Space Grotesk',sans-serif" }}>
                                     {orderResult.status === 'paid' ? 'Pembayaran Berhasil'
                                         : orderResult.paymentMethod === 'midtrans' ? 'Pesanan Dicatat — Menunggu Konfirmasi'
                                         : orderResult.paymentMethod === 'transfer-idr' ? 'Transfer ke Virtual Account'
                                         : orderResult.paymentMethod === 'qr-idr' ? 'Scan QR Code Pembayaran'
                                         : 'Menunggu Pembayaran Solana'}
                                 </h3>
-                                <p style={{ color:'rgba(232,245,224,0.45)', marginBottom:20, fontSize:13 }}>
-                                    {orderResult.status === 'paid'
-                                        ? 'Pembayaran berhasil dikonfirmasi!'
-                                        : orderResult.paymentMethod === 'midtrans'
-                                            ? 'Pembayaran Midtrans masih dalam proses. Cek email untuk konfirmasi.'
-                                            : orderResult.paymentMethod === 'transfer-idr'
-                                                ? 'Transfer Rupiah ke nomor Virtual Account di bawah sebelum pesanan kadaluarsa.'
-                                                : orderResult.paymentMethod === 'qr-idr'
-                                                    ? 'Scan QR Code di bawah menggunakan aplikasi pembayaran Anda.'
-                                                    : 'Scan QR Solana Pay di bawah untuk menyelesaikan pembayaran.'}
+                                <p style={{ color:'var(--cc-text-secondary)', marginBottom:20, fontSize:13 }}>
+                                    {orderResult.status === 'paid' ? 'Pembayaran berhasil dikonfirmasi!'
+                                        : orderResult.paymentMethod === 'midtrans' ? 'Pembayaran Midtrans masih dalam proses. Cek email untuk konfirmasi.'
+                                        : orderResult.paymentMethod === 'transfer-idr' ? 'Transfer Rupiah ke nomor Virtual Account di bawah sebelum pesanan kadaluarsa.'
+                                        : orderResult.paymentMethod === 'qr-idr' ? 'Scan QR Code di bawah menggunakan aplikasi pembayaran Anda.'
+                                        : 'Scan QR Solana Pay di bawah untuk menyelesaikan pembayaran.'}
                                 </p>
 
-                                {/* Virtual Account Box */}
                                 {orderResult.virtualAccount && (
-                                    <div style={{ background:'rgba(245,166,35,0.08)', border:'1px solid rgba(245,166,35,0.3)', borderRadius:12, padding:'16px', marginBottom:16, textAlign:'center' }}>
-                                        <div style={{ fontSize:11, color:'rgba(232,245,224,0.45)', marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>Nomor Virtual Account</div>
-                                        <div style={{ fontSize:26, fontWeight:900, letterSpacing:3, color:'#F5A623', fontFamily:'monospace' }}>{orderResult.virtualAccount}</div>
-                                        <div style={{ fontSize:11, color:'rgba(232,245,224,0.4)', marginTop:6 }}>Bank CoffeeChain · Berlaku 30 menit</div>
+                                    <div style={{ background:'rgba(240,192,32,0.08)', border:'1px solid rgba(240,192,32,0.3)', borderRadius:12, padding:'16px', marginBottom:16, textAlign:'center' }}>
+                                        <div style={{ fontSize:11, color:'var(--cc-text-secondary)', marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>Nomor Virtual Account</div>
+                                        <div style={{ fontSize:26, fontWeight:900, letterSpacing:3, color:'#f0c020', fontFamily:'monospace' }}>{orderResult.virtualAccount}</div>
+                                        <div style={{ fontSize:11, color:'var(--cc-text-muted)', marginTop:6 }}>Bank CoffeeChain · Berlaku 30 menit</div>
                                     </div>
                                 )}
 
-                                <div style={{ background:'rgba(0,0,0,0.35)', borderRadius:10, padding:16, textAlign:'left', fontSize:12, marginBottom:16 }}>
+                                <div style={{ background:'var(--cc-box-bg)', borderRadius:12, padding:16, textAlign:'left', fontSize:12, marginBottom:16, border:'1px solid var(--cc-divider)' }}>
                                     {[
                                         ['ID Pesanan', orderResult.orderId],
                                         ['Produk', orderResult.productName],
@@ -1241,14 +1331,13 @@ export default function LandingPage() {
                                             ...(orderResult.paymentLabel ? [['Metode Midtrans', orderResult.paymentLabel]] : []),
                                             ...(orderResult.transactionId ? [['ID Transaksi Midtrans', orderResult.transactionId]] : []),
                                             ...(orderResult.expiryTime ? [['Batas Bayar', new Date(String(orderResult.expiryTime).replace(' ', 'T')).toLocaleString('id-ID')]] : []),
-                                            ...(orderResult.checkedAt ? [['Terakhir Dicek', new Date(orderResult.checkedAt).toLocaleString('id-ID')]] : []),
                                             ...(orderResult.midtransStatusMessage ? [['Pesan Midtrans', orderResult.midtransStatusMessage]] : []),
                                         ] : []),
                                         ['Stok Tersisa', `${orderResult.stockLeft ?? '–'} unit`],
                                     ].map(([k, v]) => (
-                                        <div key={k} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, padding:'7px 0', borderBottom:'1px solid rgba(74,124,40,0.1)' }}>
-                                            <span style={{ color:'rgba(232,245,224,0.45)', flexShrink:0 }}>{k}</span>
-                                            <span style={{ color:'#E8F5E0', fontWeight:600, textAlign:'right', wordBreak:'break-all' }}>{v}</span>
+                                        <div key={k} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, padding:'7px 0', borderBottom:'1px solid var(--cc-divider)' }}>
+                                            <span style={{ color:'var(--cc-text-muted)', flexShrink:0 }}>{k}</span>
+                                            <span style={{ color:'var(--cc-text)', fontWeight:600, textAlign:'right', wordBreak:'break-all' }}>{v}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1258,7 +1347,7 @@ export default function LandingPage() {
                                         <div style={{ color:'#00AEF0', fontWeight:900, fontSize:13, marginBottom:6 }}>
                                             {orderResult.displayStatus || 'Menunggu status Midtrans'}
                                         </div>
-                                        <div style={{ color:'rgba(232,245,224,0.65)', fontSize:12, lineHeight:1.6 }}>
+                                        <div style={{ color:'var(--cc-text-secondary)', fontSize:12, lineHeight:1.6 }}>
                                             {orderResult.paymentInstruction || 'Selesaikan pembayaran di aplikasi, lalu sistem akan mengecek status ke Midtrans otomatis.'}
                                         </div>
                                         {orderResult.qrCodeUrl && (
@@ -1269,14 +1358,12 @@ export default function LandingPage() {
                                         {(orderResult.deeplinkUrl || orderResult.qrCodeUrl) && (
                                             <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
                                                 {orderResult.deeplinkUrl && (
-                                                    <a href={orderResult.deeplinkUrl} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
-                                                        style={{ padding:'8px 12px', fontSize:12, textDecoration:'none' }}>
+                                                    <a href={orderResult.deeplinkUrl} target="_blank" rel="noopener noreferrer" className="cc-btn-outline" style={{ padding:'8px 12px', fontSize:12 }}>
                                                         Buka Aplikasi Bayar <IconArrow />
                                                     </a>
                                                 )}
                                                 {orderResult.qrCodeUrl && (
-                                                    <a href={orderResult.qrCodeUrl} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
-                                                        style={{ padding:'8px 12px', fontSize:12, textDecoration:'none' }}>
+                                                    <a href={orderResult.qrCodeUrl} target="_blank" rel="noopener noreferrer" className="cc-btn-outline" style={{ padding:'8px 12px', fontSize:12 }}>
                                                         Buka QR <IconArrow />
                                                     </a>
                                                 )}
@@ -1286,225 +1373,209 @@ export default function LandingPage() {
                                 )}
 
                                 {orderResult.paymentMethod === 'midtrans' && (
-                                    <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
-                                        style={{ width:'100%', padding:'11px 16px', borderRadius:10, border:'1px solid rgba(0,174,240,0.35)', background:'rgba(0,174,240,0.12)', color:'#00AEF0', fontWeight:800, cursor:checkingMidtrans ? 'wait' : 'pointer', marginBottom:16 }}>
-                                        {checkingMidtrans ? 'Mengecek Status...' : 'Cek Status Midtrans'}
-                                    </button>
+                                    <div style={{ display:'grid', gap:8, marginBottom:16 }}>
+                                        {orderResult.status !== 'paid' && orderResult.snapToken && (
+                                            <button type="button" onClick={resumeMidtransPayment} disabled={checkingMidtrans}
+                                                className="cc-btn-midtrans"
+                                                style={{ width:'100%', padding:'12px 16px', fontSize:13, justifyContent:'center', cursor:checkingMidtrans ? 'wait' : 'pointer' }}>
+                                                <IconMidtrans size={18} /> {checkingMidtrans ? 'Membuka Snap...' : 'Lanjutkan Pembayaran'}
+                                            </button>
+                                        )}
+                                        <button type="button" onClick={() => refreshMidtransStatus()} disabled={checkingMidtrans}
+                                            style={{ width:'100%', padding:'11px 16px', borderRadius:12, border:'1px solid rgba(0,174,240,0.35)', background:'rgba(0,174,240,0.12)', color:'#00AEF0', fontWeight:800, cursor:checkingMidtrans ? 'wait' : 'pointer' }}>
+                                            {checkingMidtrans ? 'Mengecek Status...' : 'Cek Status Midtrans'}
+                                        </button>
+                                    </div>
                                 )}
 
                                 {(orderResult.txSignature || orderResult.coffeeId) && (
-                                    <div style={{ background:'rgba(153,69,255,0.08)', border:'1px solid rgba(153,69,255,0.28)', borderRadius:12, padding:16, textAlign:'left', marginBottom:16 }}>
+                                    <div style={{ background:'rgba(171,159,242,0.06)', border:'1px solid rgba(171,159,242,0.2)', borderRadius:12, padding:16, textAlign:'left', marginBottom:16 }}>
                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:10, flexWrap:'wrap' }}>
-                                            <div style={{ display:'flex', alignItems:'center', gap:8, color:'#b388ff', fontWeight:800, fontSize:13 }}>
+                                            <div style={{ display:'flex', alignItems:'center', gap:8, color:'#ab9ff2', fontWeight:800, fontSize:13 }}>
                                                 <IconSolana /> Riwayat Blockchain Solana
                                             </div>
-                                            <span style={{ fontSize:11, color: orderResult.txSignature ? '#7ED44A' : '#F5A623', border:`1px solid ${orderResult.txSignature ? 'rgba(126,212,74,0.35)' : 'rgba(245,166,35,0.35)'}`, borderRadius:999, padding:'3px 8px', background: orderResult.txSignature ? 'rgba(126,212,74,0.08)' : 'rgba(245,166,35,0.08)', fontWeight:800 }}>
+                                            <span style={{ fontSize:11, color: orderResult.txSignature ? '#84e068' : '#f0c020', border:`1px solid ${orderResult.txSignature ? 'rgba(132,224,104,0.35)' : 'rgba(240,192,32,0.35)'}`, borderRadius:999, padding:'3px 8px', background: orderResult.txSignature ? 'rgba(132,224,104,0.08)' : 'rgba(240,192,32,0.08)', fontWeight:800 }}>
                                                 {orderResult.txSignature ? 'On-chain confirmed' : 'Menunggu TX'}
                                             </span>
                                         </div>
                                         <div style={{ display:'grid', gap:8, fontSize:12 }}>
                                             {orderResult.coffeeId && (
                                                 <div style={{ display:'flex', justifyContent:'space-between', gap:10 }}>
-                                                    <span style={{ color:'rgba(232,245,224,0.45)' }}>Sertifikat Coffee ID</span>
-                                                    <span style={{ color:'#7ED44A', fontFamily:'monospace', fontWeight:800 }}>{orderResult.coffeeId}</span>
+                                                    <span style={{ color:'var(--cc-text-muted)' }}>Sertifikat Coffee ID</span>
+                                                    <span style={{ color:'var(--cc-text-highlight)', fontFamily:'monospace', fontWeight:800 }}>{orderResult.coffeeId}</span>
                                                 </div>
                                             )}
                                             {orderResult.txSignature && (
                                                 <div>
-                                                    <div style={{ color:'rgba(232,245,224,0.45)', marginBottom:4 }}>Solana Signature</div>
-                                                    <div style={{ color:'#E8F5E0', fontFamily:'monospace', wordBreak:'break-all', lineHeight:1.45 }}>{orderResult.txSignature}</div>
-                                                </div>
-                                            )}
-                                            {orderResult.walletAddress && (
-                                                <div>
-                                                    <div style={{ color:'rgba(232,245,224,0.45)', marginBottom:4 }}>Wallet Pembayar</div>
-                                                    <div style={{ color:'#E8F5E0', fontFamily:'monospace', wordBreak:'break-all', lineHeight:1.45 }}>{orderResult.walletAddress}</div>
+                                                    <div style={{ color:'var(--cc-text-muted)', marginBottom:4 }}>Solana Signature</div>
+                                                    <div style={{ color:'var(--cc-text)', fontFamily:'monospace', wordBreak:'break-all', lineHeight:1.45 }}>{orderResult.txSignature}</div>
                                                 </div>
                                             )}
                                         </div>
                                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
                                             {orderResult.txSignature && (
-                                                <a href={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
-                                                    style={{ padding:'8px 12px', fontSize:12, justifyContent:'center', display:'inline-flex', textDecoration:'none' }}>
+                                                <a href={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="cc-btn-outline"
+                                                    style={{ padding:'8px 12px', fontSize:12 }}>
                                                     <IconSolana /> Solana Explorer <IconArrow />
                                                 </a>
                                             )}
                                             {orderResult.coffeeId && (
-                                                <a href={`/trace?id=${orderResult.coffeeId}`} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
-                                                    style={{ padding:'8px 12px', fontSize:12, justifyContent:'center', display:'inline-flex', textDecoration:'none' }}>
+                                                <a href={`/trace?id=${orderResult.coffeeId}`} target="_blank" rel="noopener noreferrer" className="cc-btn-outline"
+                                                    style={{ padding:'8px 12px', fontSize:12 }}>
                                                     <IconChain /> Trace Sertifikasi
                                                 </a>
                                             )}
-                                            {orderResult.coffeeId && orderResult.txSignature && (
-                                                <QRButton
-                                                    explorerUrl={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)}
-                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${orderResult.coffeeId}`}
-                                                    coffeeId={orderResult.coffeeId}
-                                                    productName={orderResult.productName}
-                                                    label="QR Bukti Solana"
-                                                />
-                                            )}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Solana Pay QR */}
                                 {qrDataUrl && orderResult.paymentMethod === 'qr' && (
                                     <div style={{ marginBottom:20, textAlign:'center' }}>
-                                        <div style={{ fontSize:12, color:'rgba(232,245,224,0.5)', marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                                            <IconQr /> Scan dengan Phantom Mobile · Solana Pay · <span style={{ color:'#7ED44A' }}>konfirmasi otomatis</span>
+                                        <div style={{ fontSize:12, color:'var(--cc-text-secondary)', marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                            <IconQr /> Scan dengan Phantom Mobile · Solana Pay · <span style={{ color:'var(--cc-text-highlight)' }}>konfirmasi otomatis</span>
                                         </div>
-                                        <div style={{ display:'inline-block', padding:14, background:'#0a120a', borderRadius:12, border:'1px solid rgba(126,212,74,0.3)', boxShadow:'0 0 32px rgba(126,212,74,0.1)' }}>
+                                        <div style={{ display:'inline-block', padding:14, background:'#0d1f0d', borderRadius:14, border:'1px solid rgba(132,224,104,0.3)', boxShadow:'0 0 32px rgba(132,224,104,0.1)' }}>
                                             <img src={qrDataUrl} alt="Solana Pay QR" style={{ width:200, height:200, display:'block' }} />
                                         </div>
-                                        <div style={{ marginTop:10, fontSize:11, color:'rgba(232,245,224,0.35)' }}>
-                                            Kirim <strong style={{ color:'#7ED44A' }}>{orderResult.solAmount?.toFixed(6)} SOL</strong> ke merchant wallet
+                                        <div style={{ marginTop:10, fontSize:11, color:'var(--cc-text-dim)' }}>
+                                            Kirim <strong style={{ color:'var(--cc-text-highlight)' }}>{orderResult.solAmount?.toFixed(6)} SOL</strong> ke merchant wallet
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Rupiah QR */}
                                 {qrDataUrl && orderResult.paymentMethod === 'qr-idr' && (
                                     <div style={{ marginBottom:20, textAlign:'center' }}>
-                                        <div style={{ fontSize:12, color:'rgba(232,245,224,0.5)', marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                                            <IconQr /> Scan QR · Bayar ke GoPay <strong style={{ color:'#F5A623' }}>081389629074</strong>
+                                        <div style={{ fontSize:12, color:'var(--cc-text-secondary)', marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                            <IconQr /> Scan QR · Bayar ke GoPay <strong style={{ color:'#f0c020' }}>081389629074</strong>
                                         </div>
-                                        <div style={{ display:'inline-block', padding:14, background:'#0a120a', borderRadius:12, border:'1px solid rgba(245,166,35,0.3)', boxShadow:'0 0 32px rgba(245,166,35,0.1)' }}>
+                                        <div style={{ display:'inline-block', padding:14, background:'#1a1200', borderRadius:14, border:'1px solid rgba(240,192,32,0.3)', boxShadow:'0 0 32px rgba(240,192,32,0.1)' }}>
                                             <img src={qrDataUrl} alt="QR Pembayaran IDR" style={{ width:200, height:200, display:'block' }} />
                                         </div>
-                                        <div style={{ marginTop:10, fontSize:11, color:'rgba(232,245,224,0.35)' }}>
-                                            Bayar <strong style={{ color:'#F5A623' }}>Rp {orderResult.totalPrice?.toLocaleString('id-ID')}</strong> ke GoPay 081389629074
+                                        <div style={{ marginTop:10, fontSize:11, color:'var(--cc-text-dim)' }}>
+                                            Bayar <strong style={{ color:'#f0c020' }}>Rp {orderResult.totalPrice?.toLocaleString('id-ID')}</strong> ke GoPay 081389629074
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Solana Pay — auto-detect indicator */}
                                 {orderResult.paymentMethod === 'qr' && orderResult.status !== 'paid' && (
-                                    <div style={{ marginBottom:16, padding:'12px 16px', borderRadius:10, background:'rgba(126,212,74,0.06)', border:'1px solid rgba(126,212,74,0.2)', textAlign:'center' }}>
-                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:13, color:'rgba(232,245,224,0.7)' }}>
-                                            <span className="lp-spinner" style={{ borderTopColor:'#7ED44A' }} />
+                                    <div style={{ marginBottom:16, padding:'12px 16px', borderRadius:12, background:'rgba(132,224,104,0.06)', border:'1px solid rgba(132,224,104,0.2)', textAlign:'center' }}>
+                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:13, color:'var(--cc-text-secondary)' }}>
+                                            <span className="cc-spinner" style={{ borderTopColor:'var(--cc-text-highlight)' }} />
                                             Menunggu konfirmasi blockchain...
                                         </div>
-                                        <div style={{ marginTop:6, fontSize:11, color:'rgba(232,245,224,0.35)' }}>Pembayaran akan dikonfirmasi otomatis setelah transaksi terdeteksi</div>
+                                        <div style={{ marginTop:6, fontSize:11, color:'var(--cc-text-dim)' }}>Pembayaran akan dikonfirmasi otomatis setelah transaksi terdeteksi</div>
                                     </div>
                                 )}
 
-                                {/* Rupiah QR — manual confirm button */}
                                 {orderResult.paymentMethod === 'qr-idr' && orderResult.status !== 'paid' && (
-                                    <div style={{ marginBottom: 16 }}>
-                                        {qrConfirm.done ? (
-                                            <div style={{ padding:'12px 16px', borderRadius:10, background:'rgba(76,175,80,0.12)', border:'1px solid rgba(76,175,80,0.35)', color:'#4CAF50', fontWeight:600, fontSize:13, textAlign:'center' }}>
-                                                <IconSuccessCircle size={20} /> Pembayaran dikonfirmasi! Pesanan Anda sedang diproses.
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <button
-                                                    onClick={confirmQrPayment}
-                                                    disabled={qrConfirm.loading}
-                                                    className="lp-btn-primary"
-                                                    style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:14, marginBottom:6, opacity: qrConfirm.loading ? 0.7 : 1 }}>
-                                                    {qrConfirm.loading ? <><span className="lp-spinner" /> Memverifikasi...</> : <><IconSuccessCircle size={18} /> Saya Sudah Bayar ke GoPay 081389629074</>}
-                                                </button>
-                                                {qrConfirm.error && (
-                                                    <div style={{ fontSize:12, color:'#f44336', textAlign:'center', marginTop:4 }}>{qrConfirm.error}</div>
-                                                )}
-                                                <div style={{ fontSize:11, color:'rgba(232,245,224,0.35)', textAlign:'center' }}>Klik setelah transfer ke GoPay 081389629074 berhasil</div>
-                                            </>
-                                        )}
+                                    <div style={{ marginBottom:16, padding:'12px 16px', borderRadius:12, background:'rgba(240,192,32,0.06)', border:'1px solid rgba(240,192,32,0.22)', textAlign:'center' }}>
+                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:13, color:'var(--cc-text-secondary)' }}>
+                                            <IconClockWait size={18} />
+                                            Menunggu verifikasi pembayaran
+                                        </div>
+                                        <div style={{ marginTop:6, fontSize:11, color:'var(--cc-text-dim)' }}>Status hanya akan berubah setelah admin atau payment provider mengonfirmasi pembayaran.</div>
                                     </div>
                                 )}
 
                                 {orderResult.txSignature && (
-                                    <a href={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="lp-btn-outline"
+                                    <a href={normalizeExplorerUrl(orderResult.explorerUrl) || getExplorerTxUrl(orderResult.txSignature)} target="_blank" rel="noopener noreferrer" className="cc-btn-outline"
                                         style={{ padding:'10px 16px', fontSize:12, justifyContent:'center', marginBottom:12, width:'100%', display:'flex' }}>
                                         <IconSolana /> Lihat di Solana Explorer <IconArrow />
                                     </a>
                                 )}
-                                <button onClick={() => { if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; } setOrderModal(false); setOrderResult(null); setQrDataUrl(null); setShowBuyAgain(false); }} className="lp-btn-primary" style={{ width:'100%', padding:'12px', fontSize:14, justifyContent:'center' }}>
+                                {orderResult.orderId && (
+                                    <a href={`/receipt?orderId=${encodeURIComponent(orderResult.orderId)}`} target="_blank" rel="noopener noreferrer" className="cc-btn-outline"
+                                        style={{ padding:'10px 16px', fontSize:12, justifyContent:'center', marginBottom:12, width:'100%', display:'flex' }}>
+                                        <IconQr /> Lihat Receipt &amp; QR <IconArrow />
+                                    </a>
+                                )}
+                                <button onClick={() => { if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; } setOrderModal(false); setOrderResult(null); setQrDataUrl(null); setShowBuyAgain(false); }} className="cc-btn-green" style={{ width:'100%', padding:'12px', fontSize:14, justifyContent:'center' }}>
                                     Tutup
                                 </button>
                             </div>
                         ) : (
                             /* ── Order Form ── */
                             <>
-                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
                                     <div>
-                                        <h3 style={{ fontSize:17, fontWeight:700, color:'#E8F5E0', marginBottom:2 }}>Pesan {selectedProduct.name}</h3>
-                                        <div style={{ fontSize:12, color:'rgba(232,245,224,0.45)' }}>Stok: <span style={{ color:'#7ED44A', fontWeight:600 }}>{selectedProduct.stock ?? 0} unit</span></div>
+                                        <h3 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:18, fontWeight:700, color:'var(--cc-text)', marginBottom:2 }}>Pesan {selectedProduct.name}</h3>
+                                        <div style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Stok: <span style={{ color:'var(--cc-text-highlight)', fontWeight:600 }}>{selectedProduct.stock ?? 0} unit</span></div>
                                     </div>
-                                    <button onClick={() => setOrderModal(false)} style={{ color:'rgba(232,245,224,0.5)', cursor:'pointer', background:'none', border:'none', padding:4 }}><IconClose /></button>
+                                    <button onClick={() => setOrderModal(false)} style={{ color:'var(--cc-text-muted)', cursor:'pointer', background:'none', border:'none', padding:4 }}><IconClose /></button>
                                 </div>
 
-                                {/* Wallet Banner — only for SOL payment */}
+                                {/* Wallet Banner — for SOL payment */}
                                 {orderForm.paymentMethod === 'transfer' && (
                                     walletPublicKey ? (
-                                        <div style={{ background:'rgba(81,45,168,0.15)', border:'1px solid rgba(147,51,234,0.3)', borderRadius:10, padding:'10px 14px', marginBottom:14, display:'flex', alignItems:'center', gap:10, fontSize:13 }}>
+                                        <div style={{ background:'rgba(107,70,196,0.15)', border:'1px solid rgba(171,159,242,0.3)', borderRadius:12, padding:'10px 14px', marginBottom:14, display:'flex', alignItems:'center', gap:10, fontSize:13 }}>
                                             <IconPhantomLogo size={20} />
                                             <div>
-                                                <div style={{ fontWeight:600, color:'#E8F5E0' }}>{shortenAddress(walletPublicKey, 6)}</div>
-                                                <div style={{ color:'#a855f7', fontSize:11 }}>{walletBalance.toFixed(4)} SOL tersedia</div>
+                                                <div style={{ fontWeight:600, color:'var(--cc-text)' }}>{shortenAddress(walletPublicKey, 6)}</div>
+                                                <div style={{ color:'#ab9ff2', fontSize:11 }}>{walletBalance.toFixed(4)} SOL tersedia</div>
                                             </div>
-                                            <span style={{ marginLeft:'auto', width:8, height:8, borderRadius:'50%', background:'#7ED44A', flexShrink:0 }} />
+                                            <span style={{ marginLeft:'auto', width:8, height:8, borderRadius:'50%', background:'#84e068', flexShrink:0 }} />
                                         </div>
                                     ) : (
-                                        <div style={{ background:'rgba(81,45,168,0.1)', border:'1px solid rgba(147,51,234,0.35)', borderRadius:10, padding:'10px 14px', marginBottom:14, display:'flex', alignItems:'center', gap:10, fontSize:13 }}>
+                                        <div style={{ background:'rgba(107,70,196,0.1)', border:'1px solid rgba(171,159,242,0.35)', borderRadius:12, padding:'10px 14px', marginBottom:14, display:'flex', alignItems:'center', gap:10, fontSize:13 }}>
                                             <IconPhantomLogo size={18} />
-                                            <span style={{ color:'rgba(232,245,224,0.6)', flex:1 }}>Phantom Wallet diperlukan untuk metode ini</span>
-                                            <button type="button" onClick={connectWallet} disabled={walletConnecting} className="lp-btn-phantom" style={{ padding:'7px 12px', fontSize:11, flexShrink:0 }}>
-                                                {walletConnecting ? <span className="lp-spinner" /> : <IconPhantomLogo />}
+                                            <span style={{ color:'var(--cc-text-secondary)', flex:1 }}>Phantom Wallet diperlukan untuk metode ini</span>
+                                            <button type="button" onClick={connectWallet} disabled={walletConnecting} className="cc-btn-phantom" style={{ padding:'7px 12px', fontSize:11, flexShrink:0 }}>
+                                                {walletConnecting ? <span className="cc-spinner" /> : <IconPhantomLogo size={14} />}
                                                 {walletConnecting ? 'Menghubungkan...' : 'Connect'}
                                             </button>
                                         </div>
                                     )
                                 )}
 
-                                <form onSubmit={handleOrder} className="lp-modal-grid">
-                                    {/* ── Info Pembeli + Pengiriman (1 blok) ── */}
+                                <form onSubmit={handleOrder} style={{ display:'flex', flexDirection:'column', gap:12 }}>
                                     <div>
-                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Nama Lengkap *</label>
-                                        <input type="text" required className="lp-inp" value={orderForm.buyerName}
+                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Nama Lengkap *</label>
+                                        <input type="text" required className="cc-inp" value={orderForm.buyerName}
                                             onChange={e => setOrderForm(f => ({ ...f, buyerName: e.target.value, recipientName: e.target.value }))} />
                                     </div>
                                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                                         <div>
-                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Email *</label>
-                                            <input type="email" required className="lp-inp" value={orderForm.buyerEmail} onChange={e => setOrderForm(f => ({ ...f, buyerEmail: e.target.value }))} />
+                                            <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Email *</label>
+                                            <input type="email" required className="cc-inp" value={orderForm.buyerEmail} onChange={e => setOrderForm(f => ({ ...f, buyerEmail: e.target.value }))} />
                                         </div>
                                         <div>
-                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>No. HP (opsional)</label>
-                                            <input type="tel" className="lp-inp" value={orderForm.buyerPhone} onChange={e => setOrderForm(f => ({ ...f, buyerPhone: e.target.value }))} />
+                                            <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>No. HP (opsional)</label>
+                                            <input type="tel" className="cc-inp" value={orderForm.buyerPhone} onChange={e => setOrderForm(f => ({ ...f, buyerPhone: e.target.value }))} />
                                         </div>
                                     </div>
                                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                                         <div>
-                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Kode Pos</label>
-                                            <input type="text" maxLength={6} placeholder="12345" className="lp-inp" value={orderForm.shippingPostal} onChange={e => setOrderForm(f => ({ ...f, shippingPostal: e.target.value }))} />
+                                            <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Kode Pos</label>
+                                            <input type="text" maxLength={6} placeholder="12345" className="cc-inp" value={orderForm.shippingPostal} onChange={e => setOrderForm(f => ({ ...f, shippingPostal: e.target.value }))} />
                                         </div>
                                         <div>
-                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Kota *</label>
-                                            <input type="text" placeholder="Jakarta Selatan" className="lp-inp" value={orderForm.shippingCity} onChange={e => setOrderForm(f => ({ ...f, shippingCity: e.target.value }))} />
+                                            <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Kota *</label>
+                                            <input type="text" placeholder="Jakarta Selatan" className="cc-inp" value={orderForm.shippingCity} onChange={e => setOrderForm(f => ({ ...f, shippingCity: e.target.value }))} />
                                         </div>
                                     </div>
                                     <div>
-                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Provinsi</label>
-                                        <input type="text" placeholder="DKI Jakarta" className="lp-inp" value={orderForm.shippingProvince} onChange={e => setOrderForm(f => ({ ...f, shippingProvince: e.target.value }))} />
+                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Provinsi</label>
+                                        <input type="text" placeholder="DKI Jakarta" className="cc-inp" value={orderForm.shippingProvince} onChange={e => setOrderForm(f => ({ ...f, shippingProvince: e.target.value }))} />
                                     </div>
                                     <div>
-                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Alamat Lengkap *</label>
-                                        <textarea required className="lp-inp" rows={2} placeholder="Jalan, no. rumah, RT/RW, kelurahan, kecamatan..." style={{ resize:'none', height:'auto' }}
+                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Alamat Lengkap *</label>
+                                        <textarea required className="cc-inp" rows={2} placeholder="Jalan, no. rumah, RT/RW, kelurahan, kecamatan..." style={{ resize:'none', height:'auto' }}
                                             value={orderForm.shippingAddress} onChange={e => setOrderForm(f => ({ ...f, shippingAddress: e.target.value }))} />
                                     </div>
 
                                     {selectedProduct.weight?.length > 0 && (
                                         <div>
-                                            <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:6 }}>Ukuran Berat</label>
-                                            <div className="lp-weight-btns">
+                                            <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:6 }}>Ukuran Berat</label>
+                                            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                                                 {selectedProduct.weight
                                                     .map((w, i) => ({ w, i, price: selectedProduct.pricePerUnit?.[i] ?? 0 }))
                                                     .filter(({ w, price }) => w >= 50 && w <= 5000 && price <= 10_000_000)
                                                     .map(({ w, i, price }) => (
                                                     <button key={w} type="button" onClick={() => setOrderForm(f => ({ ...f, weight: w }))}
-                                                        style={{ padding:'8px 14px', borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:600, background: orderForm.weight===w ? 'rgba(126,212,74,0.2)' : 'rgba(255,255,255,0.04)', border:`1px solid ${orderForm.weight===w ? 'rgba(126,212,74,0.5)' : 'rgba(74,124,40,0.2)'}`, color: orderForm.weight===w ? '#7ED44A' : 'rgba(232,245,224,0.6)' }}>
+                                                        style={{ padding:'8px 14px', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:600,
+                                                            background: orderForm.weight === w ? 'rgba(132,224,104,0.15)' : 'var(--cc-input-bg)',
+                                                            border:`1px solid ${orderForm.weight === w ? 'rgba(132,224,104,0.5)' : 'var(--cc-input-border)'}`,
+                                                            color: orderForm.weight === w ? 'var(--cc-text-highlight)' : 'var(--cc-text-muted)' }}>
                                                         {w}g<br /><span style={{ fontSize:10, opacity:0.7 }}>Rp {price?.toLocaleString('id-ID')}</span>
                                                     </button>
                                                 ))}
@@ -1513,50 +1584,54 @@ export default function LandingPage() {
                                     )}
 
                                     <div>
-                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:5 }}>Jumlah (max: {selectedProduct.stock ?? 0})</label>
+                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Jumlah (max: {selectedProduct.stock ?? 0})</label>
                                         <input type="number" min={1} max={selectedProduct.stock ?? 50} value={orderForm.quantity}
                                             onChange={e => setOrderForm(f => ({ ...f, quantity: Math.min(parseInt(e.target.value)||1, selectedProduct.stock??999) }))}
-                                            className="lp-inp" />
+                                            className="cc-inp" />
                                     </div>
 
-                                    {/* Payment Methods — Midtrans atau Solana */}
+                                    {/* Payment Methods */}
                                     <div>
-                                        <label style={{ fontSize:12, color:'rgba(232,245,224,0.55)', display:'block', marginBottom:8 }}>Metode Pembayaran</label>
+                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:8 }}>Metode Pembayaran</label>
                                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                                             <button type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:'midtrans' }))}
-                                                style={{ padding:'16px 10px', borderRadius:12, cursor:'pointer', textAlign:'center', background: orderForm.paymentMethod==='midtrans' ? 'rgba(0,174,240,0.18)' : 'rgba(255,255,255,0.03)', border:`2px solid ${orderForm.paymentMethod==='midtrans' ? '#00AEF0' : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod==='midtrans' ? '#00AEF0' : 'rgba(232,245,224,0.5)', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                                                style={{ padding:'16px 10px', borderRadius:14, cursor:'pointer', textAlign:'center',
+                                                    background: orderForm.paymentMethod === 'midtrans' ? 'rgba(0,174,240,0.15)' : 'var(--cc-input-bg)',
+                                                    border:`2px solid ${orderForm.paymentMethod === 'midtrans' ? '#00AEF0' : 'var(--cc-input-border)'}`,
+                                                    color: orderForm.paymentMethod === 'midtrans' ? '#00AEF0' : '#6b7280',
+                                                    display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
                                                 <IconMidtrans size={22} />
                                                 <span style={{ fontSize:13, fontWeight:700 }}>Midtrans</span>
-                                                <span style={{ fontSize:10, color:'rgba(232,245,224,0.4)' }}>GoPay · OVO · Kartu · VA</span>
+                                                <span style={{ fontSize:10, color:'var(--cc-text-dim)' }}>GoPay · OVO · Kartu · VA</span>
                                             </button>
                                             <button type="button" onClick={() => setOrderForm(f => ({ ...f, paymentMethod:'transfer' }))}
-                                                style={{ padding:'16px 10px', borderRadius:12, cursor:'pointer', textAlign:'center', background: orderForm.paymentMethod==='transfer' ? 'rgba(153,69,255,0.18)' : 'rgba(255,255,255,0.03)', border:`2px solid ${orderForm.paymentMethod==='transfer' ? '#9945FF' : 'rgba(74,124,40,0.15)'}`, color: orderForm.paymentMethod==='transfer' ? '#b388ff' : 'rgba(232,245,224,0.5)', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                                                style={{ padding:'16px 10px', borderRadius:14, cursor:'pointer', textAlign:'center',
+                                                    background: orderForm.paymentMethod === 'transfer' ? 'rgba(107,70,196,0.15)' : 'var(--cc-input-bg)',
+                                                    border:`2px solid ${orderForm.paymentMethod === 'transfer' ? '#9945FF' : 'var(--cc-input-border)'}`,
+                                                    color: orderForm.paymentMethod === 'transfer' ? '#ab9ff2' : '#6b7280',
+                                                    display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
                                                 <IconPhantomLogo size={22} />
                                                 <span style={{ fontSize:13, fontWeight:700 }}>Phantom SOL</span>
-                                                <span style={{ fontSize:10, color:'rgba(232,245,224,0.4)' }}>Transfer Solana Wallet</span>
+                                                <span style={{ fontSize:10, color:'var(--cc-text-dim)' }}>Transfer Solana Wallet</span>
                                             </button>
                                         </div>
                                     </div>
 
-
-
-
-
                                     {/* Price Summary */}
-                                    <div style={{ background:'rgba(0,0,0,0.35)', borderRadius:10, padding:'14px 16px' }}>
+                                    <div style={{ background:'var(--cc-img-bg)', borderRadius:12, padding:'14px 16px', border:'1px solid var(--cc-divider)' }}>
                                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                                            <span style={{ fontSize:12, color:'rgba(232,245,224,0.45)' }}>Total Pembayaran</span>
-                                            <span style={{ fontSize:18, fontWeight:700, color:'#7ED44A' }}>Rp {totalPrice.toLocaleString('id-ID')}</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Total Pembayaran</span>
+                                            <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:18, fontWeight:700, color:'var(--cc-text-highlight)' }}>Rp {totalPrice.toLocaleString('id-ID')}</span>
                                         </div>
                                         {orderForm.paymentMethod === 'transfer' && (
                                             <>
                                                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                                                    <span style={{ fontSize:12, color:'rgba(232,245,224,0.45)' }}>Setara SOL</span>
-                                                    <span style={{ fontSize:20, fontWeight:800, color:'#a855f7' }}>{solAmount.toFixed(6)} SOL</span>
+                                                    <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Setara SOL</span>
+                                                    <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:20, fontWeight:800, color:'#ab9ff2' }}>{solAmount.toFixed(6)} SOL</span>
                                                 </div>
                                                 {walletPublicKey && walletBalance < solAmount && (
-                                                    <div style={{ marginTop:8, padding:'6px 10px', background:'rgba(244,67,54,0.1)', border:'1px solid rgba(244,67,54,0.2)', borderRadius:7, fontSize:11, color:'#f44336', display:'flex', alignItems:'center', gap:6 }}>
-                                                        <IconAlert /> Saldo tidak cukup — Anda memiliki {walletBalance.toFixed(4)} SOL
+                                                    <div style={{ marginTop:8, padding:'6px 10px', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', borderRadius:8, fontSize:11, color:'#f87171' }}>
+                                                        ⚠️ Saldo tidak cukup — Anda memiliki {walletBalance.toFixed(4)} SOL
                                                     </div>
                                                 )}
                                             </>
@@ -1571,13 +1646,12 @@ export default function LandingPage() {
                                         const disabled = ordering || needsWallet || insufficientBal;
                                         return (
                                             <button type="submit" disabled={disabled}
-                                                className={isSol ? 'lp-btn-phantom' : 'lp-btn-primary'}
-                                                style={{ width:'100%', justifyContent:'center', padding:'14px', fontSize:14, opacity:disabled?0.6:1, cursor:disabled?'not-allowed':'pointer',
-                                                    ...(pm === 'midtrans' ? { background:'linear-gradient(135deg,#00AEF0,#0070B8)' } : {}) }}>
-                                                {ordering ? <><span className="lp-spinner" /> Memproses...</>
-                                                    : needsWallet ? <><IconPhantomLogo /> Connect Phantom dulu</>
+                                                className={pm === 'transfer' ? 'cc-btn-phantom' : pm === 'midtrans' ? 'cc-btn-midtrans' : 'cc-btn-green'}
+                                                style={{ width:'100%', justifyContent:'center', padding:'14px', fontSize:14, opacity:disabled?0.6:1, cursor:disabled?'not-allowed':'pointer' }}>
+                                                {ordering ? <><span className="cc-spinner" /> Memproses...</>
+                                                    : needsWallet ? <><IconPhantomLogo size={16} /> Connect Phantom dulu</>
                                                     : pm === 'midtrans' ? <><IconMidtrans size={18} /> Bayar dengan Midtrans</>
-                                                    : <><IconPhantomLogo /> Transfer {solAmount.toFixed(4)} SOL via Phantom</>
+                                                    : <><IconPhantomLogo size={16} /> Transfer {solAmount.toFixed(4)} SOL via Phantom</>
                                                 }
                                             </button>
                                         );
@@ -1589,39 +1663,29 @@ export default function LandingPage() {
                 </div>
             )}
 
-            {/* ── Beli Lagi? Success Overlay ── */}
+            {/* ── Success Buy Again Overlay ── */}
             {showBuyAgain && (
-                <div style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-                    <div style={{ background:'#0e1a0e', border:'1px solid rgba(126,212,74,0.35)', borderRadius:20, padding:'36px 32px', textAlign:'center', maxWidth:360, width:'100%', boxShadow:'0 0 60px rgba(126,212,74,0.12)' }}>
+                <div style={{ position:'fixed', inset:0, zIndex:3000, background:'var(--cc-modal-backdrop)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+                    <div style={{ background:'var(--cc-bg)', border:'1px solid rgba(132,224,104,0.3)', borderRadius:20, padding:'36px 32px', textAlign:'center', maxWidth:360, width:'100%', boxShadow:'0 0 60px rgba(132,224,104,0.12)' }}>
                         <div style={{ marginBottom:16 }}><IconSuccessCircle size={64} /></div>
-                        <h2 style={{ fontSize:20, fontWeight:700, color:'#E8F5E0', marginBottom:8 }}>Pembayaran Berhasil!</h2>
-                        <p style={{ fontSize:13, color:'rgba(232,245,224,0.6)', marginBottom:6 }}>
-                            Pesanan <strong style={{ color:'#7ED44A' }}>{orderResult?.productName}</strong> telah dikonfirmasi.
+                        <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:20, fontWeight:700, color:'var(--cc-text)', marginBottom:8 }}>Pembayaran Berhasil!</h2>
+                        <p style={{ fontSize:13, color:'var(--cc-text-secondary)', marginBottom:6 }}>
+                            Pesanan <strong style={{ color:'var(--cc-text-highlight)' }}>{orderResult?.productName}</strong> telah dikonfirmasi.
                         </p>
-                        <p style={{ fontSize:12, color:'rgba(232,245,224,0.4)', marginBottom:28 }}>Terima kasih sudah belanja di CoffeeChain!</p>
+                        <p style={{ fontSize:12, color:'var(--cc-text-dim)', marginBottom:28 }}>Terima kasih sudah belanja di CoffeeChain!</p>
                         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                            <button
-                                onClick={() => {
-                                    if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
-                                    setShowBuyAgain(false);
-                                    setOrderResult(null);
-                                    setQrDataUrl(null);
-                                    if (selectedProduct) openOrder(selectedProduct);
-                                }}
-                                className="lp-btn-primary"
-                                style={{ width:'100%', justifyContent:'center', padding:'13px', fontSize:14 }}>
+                            {orderResult?.orderId && (
+                                <a href={`/receipt?orderId=${encodeURIComponent(orderResult.orderId)}`} target="_blank" rel="noopener noreferrer" className="cc-btn-outline"
+                                    style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:13 }}>
+                                    <IconQr /> Lihat Receipt &amp; QR
+                                </a>
+                            )}
+                            <button onClick={() => { if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; } setShowBuyAgain(false); setOrderResult(null); setQrDataUrl(null); if (selectedProduct) openOrder(selectedProduct); }}
+                                className="cc-btn-green" style={{ width:'100%', justifyContent:'center', padding:'13px', fontSize:14 }}>
                                 <IconCart /> Beli Lagi
                             </button>
-                            <button
-                                onClick={() => {
-                                    if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
-                                    setShowBuyAgain(false);
-                                    setOrderModal(false);
-                                    setOrderResult(null);
-                                    setQrDataUrl(null);
-                                }}
-                                className="lp-btn-outline"
-                                style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:13 }}>
+                            <button onClick={() => { if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; } setShowBuyAgain(false); setOrderModal(false); setOrderResult(null); setQrDataUrl(null); }}
+                                className="cc-btn-outline" style={{ width:'100%', justifyContent:'center', padding:'12px', fontSize:13 }}>
                                 Tutup
                             </button>
                         </div>
@@ -1629,84 +1693,76 @@ export default function LandingPage() {
                 </div>
             )}
 
-            {/* ── PRODUCT DETAILS MODAL ── */}
+            {/* ── PRODUCT DETAIL MODAL ── */}
             {detailModal && selectedDetailProduct && (
-                <div style={{ position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, backdropFilter:'blur(4px)' }} onClick={() => setDetailModal(false)}>
-                    <div style={{ background:'#0A120A', border:'1px solid rgba(74,124,40,0.2)', borderRadius:20, maxWidth:500, width:'100%', overflow:'hidden', boxShadow:'0 10px 40px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ padding:'20px 24px', borderBottom:'1px solid rgba(255,255,255,0.05)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                            <h3 style={{ fontSize:18, fontWeight:700, color:'#E8F5E0', display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ position:'fixed', inset:0, zIndex:2000, background:'var(--cc-modal-backdrop)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, backdropFilter:'blur(6px)' }}
+                    onClick={() => setDetailModal(false)}>
+                    <div style={{ background:'var(--cc-bg)', border:'1px solid var(--cc-input-border)', borderRadius:20, maxWidth:500, width:'100%', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}
+                        onClick={e => e.stopPropagation()}>
+                        <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--cc-divider)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                            <h3 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:18, fontWeight:700, color:'var(--cc-text)', display:'flex', alignItems:'center', gap:8 }}>
                                 <IconCoffee /> Detail Produk
                             </h3>
-                            <button onClick={() => setDetailModal(false)} style={{ background:'transparent', border:'none', color:'rgba(255,255,255,0.5)', cursor:'pointer', padding:4 }}><IconClose /></button>
+                            <button onClick={() => setDetailModal(false)} style={{ background:'transparent', border:'none', color:'var(--cc-text-muted)', cursor:'pointer', padding:4 }}><IconClose /></button>
                         </div>
                         <div style={{ padding:'24px', maxHeight:'70vh', overflowY:'auto' }}>
                             <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
                                 <div>
-                                    <h2 style={{ fontSize:22, fontWeight:800, color:'#7ED44A', marginBottom:4 }}>{selectedDetailProduct.name}</h2>
-                                    <p style={{ fontSize:14, color:'rgba(232,245,224,0.6)' }}>{selectedDetailProduct.origin} {selectedDetailProduct.variety && `· ${selectedDetailProduct.variety}`}</p>
+                                    <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:22, fontWeight:800, color:'var(--cc-text-highlight)', marginBottom:4 }}>{selectedDetailProduct.name}</h2>
+                                    <p style={{ fontSize:14, color:'var(--cc-text-secondary)' }}>{selectedDetailProduct.origin} {selectedDetailProduct.variety && `· ${selectedDetailProduct.variety}`}</p>
                                 </div>
-                                <div style={{ fontSize:20, fontWeight:700, color:'#F5A623' }}>Rp {selectedDetailProduct.pricePerUnit?.[0]?.toLocaleString('id-ID')}</div>
-                            </div>
-                            
-                            <div style={{ padding:'16px', background:'rgba(255,255,255,0.03)', borderRadius:12, marginBottom:20 }}>
-                                <h4 style={{ fontSize:12, color:'rgba(232,245,224,0.4)', marginBottom:8, textTransform:'uppercase', letterSpacing:1 }}>Deskripsi Kopi</h4>
-                                <p style={{ fontSize:14, color:'#E8F5E0', lineHeight:1.6 }}>{selectedDetailProduct.description || 'Tidak ada deskripsi.'}</p>
+                                <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:20, fontWeight:700, color:'#f0c020' }}>Rp {selectedDetailProduct.pricePerUnit?.[0]?.toLocaleString('id-ID')}</div>
                             </div>
 
+                            <div style={{ padding:'16px', background:'var(--cc-card-bg)', borderRadius:12, marginBottom:20, border:'1px solid var(--cc-divider)' }}>
+                                <h4 style={{ fontSize:12, color:'var(--cc-text-muted)', marginBottom:8, textTransform:'uppercase', letterSpacing:1 }}>Deskripsi Kopi</h4>
+                                <p style={{ fontSize:14, color:'var(--cc-text)', lineHeight:1.7 }}>{selectedDetailProduct.description || 'Tidak ada deskripsi.'}</p>
+                            </div>
+
+                            {traceLoading && <div style={{ textAlign:'center', padding:'16px 0', color:'var(--cc-text-muted)', fontSize:13 }}><span className="cc-spinner" style={{ borderTopColor:'var(--cc-text-highlight)' }} /> Memuat data blockchain...</div>}
+
                             {selectedDetailProduct.coffeeId ? (
-                                <div style={{ padding:'16px', background:'rgba(74,124,40,0.07)', border:'1px solid rgba(126,212,74,0.2)', borderRadius:12 }}>
+                                <div style={{ padding:'16px', background:'rgba(132,224,104,0.06)', border:'1px solid rgba(132,224,104,0.2)', borderRadius:12 }}>
                                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                        <span style={{ fontSize:13, fontWeight:700, color:'#7ED44A' }}>On-Chain Terverifikasi</span>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#84e068" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                        <span style={{ fontSize:13, fontWeight:700, color:'var(--cc-text-highlight)' }}>On-Chain Terverifikasi</span>
                                     </div>
-                                    <div style={{ fontSize:12, color:'rgba(232,245,224,0.55)', marginBottom:12, fontFamily:'monospace' }}>
-                                        ID: {selectedDetailProduct.coffeeId}
-                                    </div>
-                                    <a
-                                        href={`/trace?id=${selectedDetailProduct.coffeeId}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'10px 18px', background:'linear-gradient(135deg,rgba(74,124,40,0.35),rgba(126,212,74,0.15))', border:'1px solid rgba(126,212,74,0.4)', borderRadius:9, color:'#7ED44A', fontWeight:700, fontSize:13, textDecoration:'none' }}
-                                    >
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="5" y="5" width="3" height="3" fill="currentColor"/><rect x="16" y="5" width="3" height="3" fill="currentColor"/><rect x="5" y="16" width="3" height="3" fill="currentColor"/></svg>
-                                        Lihat Sertifikasi
-                                    </a>
-                                    {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
-                                        <a
-                                            href={normalizeExplorerUrl(selectedDetailProduct.explorerUrl) || getExplorerTxUrl(selectedDetailProduct.txSignature)}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            style={{ marginLeft:8, display:'inline-flex', alignItems:'center', gap:7, padding:'10px 18px', background:'rgba(153,69,255,0.12)', border:'1px solid rgba(153,69,255,0.35)', borderRadius:9, color:'#b388ff', fontWeight:700, fontSize:13, textDecoration:'none' }}
-                                        >
-                                            <IconSolana /> Solana Explorer
+                                    <div style={{ fontSize:12, color:'var(--cc-text-muted)', marginBottom:12, fontFamily:'monospace' }}>ID: {selectedDetailProduct.coffeeId}</div>
+                                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                                        <a href={`/trace?id=${selectedDetailProduct.coffeeId}`} target="_blank" rel="noreferrer"
+                                            style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'10px 18px', background:'rgba(132,224,104,0.12)', border:'1px solid rgba(132,224,104,0.3)', borderRadius:10, color:'var(--cc-text-highlight)', fontWeight:700, fontSize:13, textDecoration:'none' }}>
+                                            <IconQr /> Lihat Sertifikasi
                                         </a>
-                                    )}
-                                    {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
-                                        <div style={{ marginTop:10 }}>
-                                            <QRButton
-                                                explorerUrl={normalizeExplorerUrl(selectedDetailProduct.explorerUrl) || getExplorerTxUrl(selectedDetailProduct.txSignature)}
-                                                traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${selectedDetailProduct.coffeeId}`}
-                                                coffeeId={selectedDetailProduct.coffeeId}
-                                                productName={selectedDetailProduct.name}
-                                                label="QR Solana"
-                                            />
-                                        </div>
-                                    )}
+                                        {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
+                                            <a href={normalizeExplorerUrl(selectedDetailProduct.explorerUrl) || getExplorerTxUrl(selectedDetailProduct.txSignature)} target="_blank" rel="noreferrer"
+                                                style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'10px 18px', background:'rgba(171,159,242,0.1)', border:'1px solid rgba(171,159,242,0.3)', borderRadius:10, color:'#ab9ff2', fontWeight:700, fontSize:13, textDecoration:'none' }}>
+                                                <IconSolana /> Solana Explorer
+                                            </a>
+                                        )}
+                                        {(selectedDetailProduct.explorerUrl || selectedDetailProduct.txSignature) && (
+                                            <div style={{ marginTop:8 }}>
+                                                <QRButton
+                                                    explorerUrl={normalizeExplorerUrl(selectedDetailProduct.explorerUrl) || getExplorerTxUrl(selectedDetailProduct.txSignature)}
+                                                    traceUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/trace?id=${selectedDetailProduct.coffeeId}`}
+                                                    coffeeId={selectedDetailProduct.coffeeId}
+                                                    productName={selectedDetailProduct.name}
+                                                    label="QR Solana"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
-                                <div style={{ padding:'12px', background:'rgba(255,255,255,0.02)', borderRadius:12, fontSize:13, color:'rgba(255,255,255,0.3)', textAlign:'center' }}>
+                                <div style={{ padding:'12px', background:'var(--cc-card-bg)', borderRadius:12, fontSize:13, color:'var(--cc-text-dim)', textAlign:'center', border:'1px solid var(--cc-divider)' }}>
                                     Produk ini belum terdaftar di blockchain.
                                 </div>
                             )}
-
                         </div>
-                        <div style={{ padding:'16px 24px', borderTop:'1px solid rgba(255,255,255,0.05)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                            <button className="lp-btn-outline" onClick={() => setDetailModal(false)} style={{ padding:'12px', justifyContent:'center' }}>Kembali</button>
-                            <button className="lp-btn-primary" onClick={() => {
-                                setDetailModal(false);
-                                if((selectedDetailProduct.stock??0) > 0) openOrder(selectedDetailProduct);
-                            }} disabled={(selectedDetailProduct.stock??0) <= 0} style={{ padding:'12px', justifyContent:'center', opacity:(selectedDetailProduct.stock??0) <= 0 ? 0.5 : 1 }}>
-                                {(selectedDetailProduct.stock??0) <= 0 ? 'Stok Habis' : 'Beli Sekarang'}
+                        <div style={{ padding:'16px 24px', borderTop:'1px solid var(--cc-divider)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                            <button className="cc-btn-outline" onClick={() => setDetailModal(false)} style={{ padding:'12px', justifyContent:'center' }}>Kembali</button>
+                            <button className="cc-btn-green" onClick={() => { setDetailModal(false); if ((selectedDetailProduct.stock ?? 0) > 0) openOrder(selectedDetailProduct); }}
+                                disabled={(selectedDetailProduct.stock ?? 0) <= 0} style={{ padding:'12px', justifyContent:'center', opacity:(selectedDetailProduct.stock ?? 0) <= 0 ? 0.5 : 1 }}>
+                                {(selectedDetailProduct.stock ?? 0) <= 0 ? 'Stok Habis' : 'Beli Sekarang'}
                             </button>
                         </div>
                     </div>
