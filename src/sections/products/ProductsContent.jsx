@@ -325,10 +325,6 @@ export default function ProductsContent() {
                 <Link href="/products/stock" style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
                     Kelola Stok
                 </Link>
-                <Link href="/ipfs" style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                    Upload Gambar
-                </Link>
 
                 {isFarmer && (
                     <span style={{ padding: '8px 18px', borderRadius: 9, fontSize: 12, background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.3)', color: '#F5A623' }}>
@@ -349,10 +345,16 @@ export default function ProductsContent() {
                             : `${products.length} produk terdaftar di database`}
                     </p>
                 </div>
-                <Link href="/products/stock" style={{ ...btnPrimary, textDecoration: 'none' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Tambah Lewat Pipeline Stok
-                </Link>
+                <div style={{ display: 'flex', gap: 12 }}>
+                    <Link href="/ipfs" style={{ ...btnPrimary, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                        Upload Gambar
+                    </Link>
+                    <Link href="/products/stock" style={{ ...btnPrimary, textDecoration: 'none' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Tambah Lewat Pipeline Stok
+                    </Link>
+                </div>
             </div>
 
             {/* Toast */}
