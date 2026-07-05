@@ -1152,16 +1152,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ── Floating Coffee Bean ── */}
-            <div style={{ position:'fixed', bottom:28, right:28, zIndex:90, pointerEvents:'none' }}>
-                <div className="phantom-float" style={{ width:56, height:56, filter:'drop-shadow(0 4px 18px rgba(126,212,74,0.35))' }}>
-                    <svg width="56" height="56" viewBox="0 0 100 100" fill="none">
-                        <rect width="100" height="100" rx="22" fill="#2D5016"/>
-                        <path d="M35 65 C 20 50, 35 25, 55 25 C 75 25, 80 50, 65 65 C 50 80, 40 75, 35 65 Z" fill="#D3A27F" />
-                        <path d="M32 68 C 42 62, 46 54, 50 50 C 54 46, 58 38, 68 32" stroke="#5C3A21" strokeWidth="4" strokeLinecap="round" fill="none" />
-                    </svg>
-                </div>
-            </div>
 
             {/* ── FOOTER ── */}
             <footer style={{ padding: '32px 20px', borderTop: '1px solid rgba(74,124,40,0.12)' }}>
