@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "id": "msg-welcome-001",
+      "name": "Sistem CoffeeChain",
+      "phone": "087857417132",
+      "category": "pesanan",
+      "urgency": "normal",
+      "subject": "Selamat Datang di Pusat Pengaduan",
+      "message": "Ini adalah pesan contoh. Semua pengaduan dari pelanggan akan muncul di sini. Anda dapat mengubah status atau menambah catatan langsung dari dashboard ini.",
+      "status": "new",
+      "created_at": "2026-07-05T10:00:00.000Z"
+    }
+  ]
+}

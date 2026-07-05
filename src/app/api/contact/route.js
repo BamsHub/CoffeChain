@@ -3,11 +3,37 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { sbSelect, sbInsert, sbUpdate } from '@/lib/sdb';
+import fs from 'fs';
+import path from 'path';
 
 const TABLE = 'contact_messages';
+const LOCAL_FILE = path.join(process.cwd(), 'data', 'contact_messages.json');
 
 function generateId() {
     return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ── Local JSON Fallback Helpers ─────────────────────────────────
+function getLocalMessages() {
+    try {
+        if (!fs.existsSync(LOCAL_FILE)) return [];
+        const content = fs.readFileSync(LOCAL_FILE, 'utf-8');
+        const json = JSON.parse(content);
+        return json.items || [];
+    } catch (e) {
+        console.error('[Contact] Error reading local file:', e.message);
+        return [];
+    }
+}
+
+function saveLocalMessages(items) {
+    try {
+        const dir = path.dirname(LOCAL_FILE);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(LOCAL_FILE, JSON.stringify({ items }, null, 2), 'utf-8');
+    } catch (e) {
+        console.error('[Contact] Error saving local file:', e.message);
+    }
 }
 
 /** GET — Fetch contact messages (admin only) */
@@ -28,10 +54,14 @@ export async function GET(req) {
         if (status) filters.status = status;
         if (category) filters.category = category;
 
-        const data = await sbSelect(TABLE, filters);
+        let data = await sbSelect(TABLE, filters);
 
+        // If Supabase table is not configured or fails, fallback cleanly to local JSON
         if (data === null) {
-            return NextResponse.json({ success: false, message: 'Database not configured' }, { status: 503 });
+            console.log('[Contact] Supabase table not accessible, loading from local JSON');
+            data = getLocalMessages();
+            if (status) data = data.filter(item => item.status === status);
+            if (category) data = data.filter(item => item.category === category);
         }
 
         // Sort by created_at DESC
@@ -73,10 +103,15 @@ export async function POST(req) {
             created_at: new Date().toISOString(),
         };
 
-        const result = await sbInsert(TABLE, row);
+        let result = await sbInsert(TABLE, row);
 
+        // Fallback to local JSON if Supabase fails
         if (!result) {
-            return NextResponse.json({ success: false, message: 'Database belum dikonfigurasi. Silakan gunakan WhatsApp.' }, { status: 503 });
+            console.log('[Contact] Supabase insert failed, saving to local JSON');
+            const items = getLocalMessages();
+            items.unshift(row);
+            saveLocalMessages(items);
+            result = row;
         }
 
         console.log(`[Contact] New message: ${row.id} — ${category}`);
@@ -116,10 +151,20 @@ export async function PATCH(req) {
             updates.replied_by = session.userId;
         }
 
-        const result = await sbUpdate(TABLE, id, updates);
+        let result = await sbUpdate(TABLE, id, updates);
 
+        // Fallback to local JSON if Supabase fails
         if (!result) {
-            return NextResponse.json({ success: false, message: 'Update failed' }, { status: 500 });
+            console.log('[Contact] Supabase update failed, updating local JSON');
+            const items = getLocalMessages();
+            const idx = items.findIndex(item => item.id === id);
+            if (idx !== -1) {
+                items[idx] = { ...items[idx], ...updates };
+                saveLocalMessages(items);
+                result = items[idx];
+            } else {
+                return NextResponse.json({ success: false, message: 'Message not found in local storage' }, { status: 404 });
+            }
         }
 
         console.log(`[Contact] Updated ${id}: status=${status}`);
