@@ -79,6 +79,7 @@ const IconMobileQR = () => <svg width="16" height="16" viewBox="0 0 24 24" fill=
 const IconClockWait = ({ size = 44 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
 const IconSuccessCircle = ({ size = 48 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#7ED44A" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>;
 const IconMidtrans = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+const IconAlert = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.7 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>;
 
 /* ── Market Data ── */
 const coffeeTypes = [
@@ -1163,7 +1164,7 @@ export default function LandingPage() {
                             <span style={{ fontSize: 9, color: 'rgba(126,212,74,0.45)', letterSpacing: 1, textTransform: 'uppercase' }}>Blockchain Traceability</span>
                         </div>
                     </Link>
-                    <div style={{ color: 'rgba(232,245,224,0.3)', fontSize: 12 }}> 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana</div>
+                    <div style={{ color: 'rgba(232,245,224,0.3)', fontSize: 12 }}>© 2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana</div>
                     <div className="lp-footer-links">
                         {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
                             <a key={label} href={href} style={{ color: 'rgba(232,245,224,0.4)', fontSize: 13, textDecoration: 'none' }}>{label}</a>
@@ -1554,8 +1555,8 @@ export default function LandingPage() {
                                                     <span style={{ fontSize:20, fontWeight:800, color:'#a855f7' }}>{solAmount.toFixed(6)} SOL</span>
                                                 </div>
                                                 {walletPublicKey && walletBalance < solAmount && (
-                                                    <div style={{ marginTop:8, padding:'6px 10px', background:'rgba(244,67,54,0.1)', border:'1px solid rgba(244,67,54,0.2)', borderRadius:7, fontSize:11, color:'#f44336' }}>
-                                                         Saldo tidak cukup — Anda memiliki {walletBalance.toFixed(4)} SOL
+                                                    <div style={{ marginTop:8, padding:'6px 10px', background:'rgba(244,67,54,0.1)', border:'1px solid rgba(244,67,54,0.2)', borderRadius:7, fontSize:11, color:'#f44336', display:'flex', alignItems:'center', gap:6 }}>
+                                                        <IconAlert /> Saldo tidak cukup — Anda memiliki {walletBalance.toFixed(4)} SOL
                                                     </div>
                                                 )}
                                             </>

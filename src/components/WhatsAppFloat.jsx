@@ -5,6 +5,32 @@ import { useState, useEffect } from 'react';
 const WHATSAPP_NUMBER = '6287857417132';
 const DEFAULT_MESSAGE = 'Halo CoffeeChain, saya ingin bertanya tentang...';
 
+const CoffeeIcon = ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7.5 5.5c4.8-3.8 10.9-.8 10.9 5.4 0 5.7-5 9.4-9.6 6.8C4 15 3.7 8.6 7.5 5.5Z" fill="currentColor" opacity=".92" />
+        <path d="M7.2 17.5c2.6-1.4 4.6-3.5 5.8-6.1 1.1-2.2 2.4-4 4.2-5.3" stroke="#128C7E" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+);
+
+const ChatIcon = ({ size = 28 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.9L3 21l1.8-4.6A8.4 8.4 0 1 1 21 11.5Z" />
+        <path d="M8.5 9.2c.6 2.4 2 3.8 4.4 4.5" />
+    </svg>
+);
+
+const CloseIcon = ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+        <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+);
+
+const SendIcon = () => (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="m22 2-7 20-4-9-9-4 20-7Z" /><path d="M22 2 11 13" />
+    </svg>
+);
+
 export default function WhatsAppFloat() {
     const [isOpen, setIsOpen] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
@@ -47,7 +73,7 @@ export default function WhatsAppFloat() {
                     {/* Header */}
                     <div style={styles.popupHeader}>
                         <div style={styles.popupHeaderLeft}>
-                            <div style={styles.avatar}></div>
+                            <div style={styles.avatar}><CoffeeIcon /></div>
                             <div>
                                 <div style={styles.popupName}>CoffeeChain Support</div>
                                 <div style={styles.popupStatus}>
@@ -56,14 +82,14 @@ export default function WhatsAppFloat() {
                                 </div>
                             </div>
                         </div>
-                        <button onClick={() => setIsOpen(false)} style={styles.closeBtn}>✕</button>
+                        <button onClick={() => setIsOpen(false)} style={styles.closeBtn} aria-label="Tutup chat"><CloseIcon size={16} /></button>
                     </div>
 
                     {/* Body */}
                     <div style={styles.popupBody}>
                         <div style={styles.chatBubble}>
                             <div style={styles.chatBubbleText}>
-                                Halo!  Ada yang bisa kami bantu?
+                                Halo! Ada yang bisa kami bantu?
                                 <br /><br />
                                 Silakan ketik pesan Anda di bawah, lalu klik kirim untuk chat via WhatsApp.
                             </div>
@@ -84,7 +110,7 @@ export default function WhatsAppFloat() {
                             }}
                         />
                         <button onClick={handleSend} style={styles.sendBtn} title="Kirim via WhatsApp">
-                            ➤
+                            <SendIcon />
                         </button>
                     </div>
                 </div>
@@ -104,7 +130,7 @@ export default function WhatsAppFloat() {
                 {pulse && !isOpen && <span style={styles.pulseRing} />}
 
                 <span style={{ ...styles.fabIcon, ...(isOpen ? styles.fabIconOpen : {}) }}>
-                    {isOpen ? '✕' : ''}
+                    {isOpen ? <CloseIcon size={20} /> : <ChatIcon />}
                 </span>
             </button>
 
@@ -146,6 +172,7 @@ const styles = {
     },
     fabIcon: {
         fontSize: 28, transition: 'transform 0.3s ease', lineHeight: 1,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
         filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))',
     },
     fabIconOpen: { transform: 'rotate(90deg)', fontSize: 20, color: '#fff' },
