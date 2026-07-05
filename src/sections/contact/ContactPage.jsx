@@ -94,7 +94,7 @@ export default function ContactPage() {
         if (!category) { setError('Pilih kategori pengaduan'); return; }
         if (!message.trim()) { setError('Tulis pesan pengaduan Anda'); return; }
 
-        // Save to database first
+        // Simpan ke database (masuk ke dashboard admin)
         setIsSaving(true);
         try {
             const res = await fetch('/api/contact', {
@@ -113,7 +113,7 @@ export default function ContactPage() {
             setIsSaving(false);
         }
 
-        // Open WhatsApp
+        // Buka WhatsApp
         const text = buildWhatsAppMessage();
         const encoded = encodeURIComponent(text);
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
@@ -299,7 +299,7 @@ export default function ContactPage() {
 
                     {/* Right: Info & Preview */}
                     <div style={styles.rightCol}>
-                        {/* WhatsApp Info Card */}
+                        {/* WhatsApp Info Card — tombol Chat Langsung dihapus sesuai permintaan */}
                         <div style={styles.waCard}>
                             <div style={styles.waIconLarge}>💬</div>
                             <h3 style={styles.waTitle}>WhatsApp Direct</h3>
@@ -320,13 +320,6 @@ export default function ContactPage() {
                                     <span style={styles.waHoursValue}>Libur</span>
                                 </div>
                             </div>
-                            <a
-                                href={`https://wa.me/${WHATSAPP_NUMBER}`}
-                                target="_blank" rel="noopener noreferrer"
-                                style={styles.waDirectBtn}
-                            >
-                                📲 Chat Langsung
-                            </a>
                         </div>
 
                         {/* Preview Card */}
@@ -460,10 +453,9 @@ const styles = {
     waIconLarge: { fontSize: 48, marginBottom: 12 },
     waTitle: { fontSize: 18, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 },
     waDesc: { fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 20 },
-    waHours: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, padding: '16px', borderRadius: 12, background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)' },
+    waHours: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 0, padding: '16px', borderRadius: 12, background: 'var(--color-bg-card2)', border: '1px solid var(--color-border)' },
     waHoursRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--color-text-secondary)' },
     waHoursValue: { fontWeight: 600, color: 'var(--color-text)' },
-    waDirectBtn: { display: 'block', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 600, background: 'linear-gradient(135deg, #25D366, #128C7E)', color: '#fff', textDecoration: 'none', textAlign: 'center', transition: 'all 0.25s ease', boxShadow: '0 4px 16px rgba(37, 211, 102, 0.25)' },
 
     /* Preview Card */
     previewCard: { background: 'var(--color-bg-card)', borderRadius: 16, border: '1px solid var(--color-border)', overflow: 'hidden', animation: 'fadeInUp 0.3s ease both' },
