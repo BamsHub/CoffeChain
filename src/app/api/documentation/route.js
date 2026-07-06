@@ -17,7 +17,7 @@ const defaultFarmerGuides = [
         items: [
             'Buka menu Kelola Produk, lalu pilih tab Kelola Stok untuk memulai pencatatan batch kopi baru.',
             'Klik tombol "+ Buat Batch Baru" untuk mencatat detail panen (Nama, Asal Daerah, Varietas, Grade, Berat awal kg, dan Catatan).',
-            'Alur produksi terdiri dari 6 Tahap Wajib: Pembersihan -> Pemanggangan -> Pendinginan -> Penggilingan -> Pelepasan Gas -> Produk Jadi.',
+            'Alur produksi terdiri dari 6 Tahap Wajib: Panen & Sortasi -> Pencucian & Fermentasi -> Pengeringan -> Pengupasan & Penggilingan -> Pemanggangan -> Produk Jadi & Pengemasan.',
             'Klik "Catat Tahap" di setiap tahapan, isi parameter (operator, durasi, suhu, berat masuk/keluar), dan wajib unggah foto bukti.',
             'Tahap 6 (Produk Jadi) diselesaikan, sistem otomatis mendaftarkan produk baru di menu Kelola Produk dengan status "Pending" agar koperasi dapat meninjau.',
         ],

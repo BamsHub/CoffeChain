@@ -279,7 +279,7 @@ export async function PATCH(request) {
         const fieldMap = {
             name: 'name', origin: 'origin', grade: 'grade', variety: 'variety',
             roast: 'roast', description: 'description', stock: 'stock',
-            weight: 'weight', pricePerUnit: 'price_per_unit', image: 'image', rating: 'rating',
+            weight: 'weight', pricePerUnit: 'price_per_unit', rating: 'rating',
             status: 'status', coffeeId: 'coffee_id', paymentWallet: 'payment_wallet',
             approvedBy: 'approved_by', approvedByName: 'approved_by_name',
             approvedAt: 'approved_at', rejectedReason: 'rejected_reason',

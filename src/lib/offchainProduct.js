@@ -100,7 +100,7 @@ export async function ensureProductImageOnIpfs(product) {
     };
 }
 
-export async function createProductOffchainProof({ coffeeId, productId, product, traceData = {} }) {
+export async function createProductOffchainProof({ coffeeId, productId, product, traceData = {}, pipeline = [] }) {
     if (!coffeeId || !productId || !product) throw new Error('coffeeId, productId, dan product wajib tersedia');
 
     const image = await ensureProductImageOnIpfs(product);
@@ -132,6 +132,7 @@ export async function createProductOffchainProof({ coffeeId, productId, product,
             originalUrl: image.originalUrl,
             sha256: image.sha256,
         },
+        pipeline,
         createdAt: new Date().toISOString(),
     };
 

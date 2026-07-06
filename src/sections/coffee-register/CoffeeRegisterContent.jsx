@@ -29,12 +29,12 @@ const IcoPhantom = () => (
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled'];
 const ROAST_OPTIONS   = ['Green Bean', 'Light', 'Medium', 'Medium-Dark', 'Dark'];
 const STOCK_STAGES = [
-    { id: 1, name: 'Pembersihan & Pencampuran' },
-    { id: 2, name: 'Pemanggangan' },
-    { id: 3, name: 'Pendinginan' },
-    { id: 4, name: 'Penggilingan' },
-    { id: 5, name: 'Pelepasan Gas' },
-    { id: 6, name: 'Produk Jadi' },
+    { id: 1, name: 'Panen & Sortasi' },
+    { id: 2, name: 'Pencucian & Fermentasi' },
+    { id: 3, name: 'Pengeringan' },
+    { id: 4, name: 'Pengupasan & Penggilingan' },
+    { id: 5, name: 'Pemanggangan' },
+    { id: 6, name: 'Produk Jadi & Pengemasan' },
 ];
 
 /* ── Style constants ───────────────────────────────────────────── */
@@ -126,9 +126,11 @@ export default function CoffeeRegisterContent() {
 
     const loadProductionAudit = useCallback(async () => {
         try {
+            const token = await getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const [batchRes, logRes] = await Promise.all([
-                fetch('/api/production-batches'),
-                fetch('/api/production-stages'),
+                fetch('/api/production-batches', { headers }),
+                fetch('/api/production-stages', { headers }),
             ]);
             const [batchData, logData] = await Promise.all([batchRes.json(), logRes.json()]);
             if (batchData.success) setProductionBatches(batchData.data || []);
@@ -262,9 +264,13 @@ export default function CoffeeRegisterContent() {
 
         setRejectingId(product.id);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id: product.id,
                     status: 'rejected',
@@ -330,10 +336,10 @@ export default function CoffeeRegisterContent() {
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
                 <div>
                     <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text,#E8F5E0)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <IcoShield /> Register Kopi ke Blockchain
+                        <IcoShield /> Review & Register Kopi
                     </h1>
                     <p style={{ fontSize: 13, color: 'rgba(232,245,224,0.45)' }}>
-                        Daftarkan produk ke Solana Testnet via <strong style={{ color: '#9945FF' }}>Phantom Wallet</strong>
+                        Periksa deskripsi dan foto IPFS Tahap 1-6, lalu kirim hash traceability ke <strong style={{ color: '#9945FF' }}>Solana Testnet</strong>
                     </p>
                 </div>
 
@@ -417,15 +423,11 @@ export default function CoffeeRegisterContent() {
                             {/* Unregistered */}
                             {unregistered.length > 0 && (
                                 <>
-                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap', marginBottom: 12 }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom: 12 }}>
                                         <div style={{ fontSize: 11, fontWeight: 700, color: '#FFB300', textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FFB300', display: 'inline-block' }} />
-                                            Belum Terdaftar di Blockchain ({unregistered.length})
+                                            Menunggu Review Admin ({unregistered.length})
                                         </div>
-                                        <button onClick={handleBatchOnchain} disabled={batchLoading}
-                                            style={{ ...S.btnG, fontSize: 12, padding:'7px 14px', opacity: batchLoading ? 0.7 : 1 }}>
-                                            {batchLoading ? <><IcoSpin /> Memproses...</> : <><IcoShield /> On-Chain Semua (Server)</>}
-                                        </button>
                                     </div>
                                     {batchResult && (
                                         <div style={{ padding:'12px 14px', borderRadius:10, marginBottom:14, fontSize:13, fontWeight:600,
@@ -466,7 +468,7 @@ export default function CoffeeRegisterContent() {
                                                 </div>
                                                 <button onClick={(e) => { e.stopPropagation(); openRegister(p); }}
                                                     style={{ ...S.btnG, width: '100%', justifyContent: 'center', padding: '9px', fontSize: 12 }}>
-                                                    <IcoShield /> Daftarkan ke Blockchain
+                                                    <IcoShield /> Review & Kirim ke Solana
                                                 </button>
                                                 <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
                                                     style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', border: '1px solid rgba(126,212,74,0.25)', fontWeight: 700 }}>
@@ -806,7 +808,7 @@ export default function CoffeeRegisterContent() {
                             {!detailProduct.coffeeId && (
                                 <button type="button" onClick={() => { openRegister(detailProduct); setDetailProduct(null); }}
                                     style={{ ...S.btnG, flex: '1 1 220px', justifyContent: 'center' }}>
-                                    <IcoShield /> Lanjut Daftarkan
+                                    <IcoShield /> Review & Kirim ke Solana
                                 </button>
                             )}
                             {!detailProduct.coffeeId && (
@@ -1051,6 +1053,8 @@ function getProductStageLogs(product, batches, logs) {
 function formatAuditKey(key) {
     const labels = {
         notes: 'Catatan',
+        processMethod: 'Metode Proses',
+        moisturePercent: 'Kadar Air Akhir',
         operator: 'Operator',
         durationMinutes: 'Durasi',
         weightIn: 'Berat Masuk',

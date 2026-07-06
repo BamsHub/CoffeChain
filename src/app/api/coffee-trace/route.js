@@ -10,8 +10,10 @@ import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
 import {
     createProductOffchainProof,
     mergeOffchainTags,
+    stableStringify,
     verifyProductOffchainProof,
 } from '@/lib/offchainProduct';
+import { getCompleteProductionAudit } from '@/lib/productionAudit';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -45,6 +47,9 @@ export async function POST(request) {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
         if (!session) return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        if (!['koperasi', 'developer', 'admin'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Hanya admin yang dapat menyetujui register Solana' }, { status: 403 });
+        }
 
         const body = await request.json();
         const {
@@ -69,17 +74,15 @@ export async function POST(request) {
         if (productError || !product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
         }
-        if (session.role === 'farmer' && product.submitted_by !== session.userId) {
-            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-        }
-        if (farmerId && session.role === 'farmer' && farmerId !== session.userId) {
-            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-        }
+        const audit = await getCompleteProductionAudit(product.id);
 
         let proof = offchainProof;
         if (proof) {
             const { manifest } = await verifyProductOffchainProof(proof);
             if (proof.productId !== product.id) throw new Error('Bukti off-chain bukan milik produk ini');
+            if (stableStringify(manifest.pipeline || []) !== stableStringify(audit.pipeline)) {
+                throw new Error('Data pipeline berubah. Buat ulang bukti IPFS sebelum register Solana');
+            }
             proof = { ...proof, image: manifest.image };
         } else {
             proof = await createProductOffchainProof({
@@ -87,6 +90,7 @@ export async function POST(request) {
                 productId: product.id,
                 product,
                 traceData: body,
+                pipeline: audit.pipeline,
             });
         }
 

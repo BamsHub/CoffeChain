@@ -3,18 +3,12 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { readDb } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import { PRODUCTION_STAGES } from '@/lib/productionAudit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const STAGE_NAMES = {
-    1: 'Pembersihan & Pencampuran',
-    2: 'Pemanggangan',
-    3: 'Pendinginan',
-    4: 'Penggilingan',
-    5: 'Pelepasan Gas',
-    6: 'Produk Jadi',
-};
+const STAGE_NAMES = Object.fromEntries(PRODUCTION_STAGES.map(stage => [stage.id, stage.name]));
 
 function isValidCid(cid) {
     return typeof cid === 'string' && (
@@ -26,12 +20,31 @@ function isValidCid(cid) {
 // GET — list stage logs for a batch
 export async function GET(req) {
     try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
         const { searchParams } = new URL(req.url);
         const batchId = searchParams.get('batchId');
 
         const supabase = getSupabaseAdmin();
         let query = supabase.from('production_stage_logs').select('*').order('created_at', { ascending: false });
-        if (batchId) query = query.eq('batch_id', batchId);
+        if (session.role === 'farmer') {
+            const { data: ownedBatches, error: ownedError } = await supabase
+                .from('production_batches')
+                .select('id')
+                .eq('farmer_id', session.userId);
+            if (ownedError) throw new Error(ownedError.message);
+            const ownedIds = (ownedBatches || []).map(batch => batch.id);
+            if (batchId && !ownedIds.includes(batchId)) {
+                return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+            if (!ownedIds.length) return NextResponse.json({ success: true, data: [] });
+            query = query.in('batch_id', batchId ? [batchId] : ownedIds);
+        } else if (batchId) {
+            query = query.eq('batch_id', batchId);
+        }
 
         const { data, error } = await query;
         if (error) throw new Error(error.message);
@@ -85,6 +98,10 @@ export async function POST(req) {
             || stageData.evidencePhoto.uri !== ipfsUri
             || stageData.evidencePhoto.gatewayUrl !== photoUrl) {
             return NextResponse.json({ success: false, message: 'Metadata bukti foto IPFS tidak valid' }, { status: 400 });
+        }
+        const description = String(stageData?.description || stageData?.notes || '').trim();
+        if (!description) {
+            return NextResponse.json({ success: false, message: 'Deskripsi tahap wajib diisi' }, { status: 400 });
         }
 
         const supabase = getSupabaseAdmin();
@@ -174,7 +191,7 @@ export async function POST(req) {
                 price_per_unit: prices,
                 description: stageData?.description || `Produk jadi dari batch ${batch.name}`,
                 image: photoUrl || stageData?.image || null,
-                tags: [batch.variety, batch.grade, 'Produk Jadi'].filter(Boolean),
+                tags: [batch.variety, batch.grade, 'Produk Jadi', `ipfs-image:${photoCid}`].filter(Boolean),
                 stock: Number(stageData?.stock) || 0,
                 rating: 4.5,
                 sold: 0,
@@ -191,16 +208,26 @@ export async function POST(req) {
                 const { status, coffee_id, submitted_by, submitted_by_name, submitted_by_role, submitted_at, ...fallbackProduct } = baseProduct;
                 ({ error: productErr } = await supabase.from('products').insert(fallbackProduct));
             }
-            if (productErr) throw new Error(`Gagal membuat produk jadi: ${productErr.message}`);
+            if (productErr) {
+                await supabase.from('production_stage_logs').delete().eq('id', logId);
+                throw new Error(`Gagal membuat produk jadi: ${productErr.message}`);
+            }
         }
 
         // Advance batch to next stage (or stay at 6 if already done)
         const nextStage = Math.min(stage + 1, 6);
         const batchUpdate = { current_stage: nextStage, updated_at: new Date().toISOString() };
         if (productId) batchUpdate.product_id = productId;
-        await supabase.from('production_batches')
+        const { error: updateError } = await supabase.from('production_batches')
             .update(batchUpdate)
             .eq('id', batchId);
+        if (updateError) {
+            await supabase.from('production_stage_logs').delete().eq('id', logId);
+            if (Number(stage) === 6 && productId && !batch.product_id) {
+                await supabase.from('products').delete().eq('id', productId);
+            }
+            throw new Error(`Gagal melanjutkan batch: ${updateError.message}`);
+        }
 
         return NextResponse.json({
             success: true,

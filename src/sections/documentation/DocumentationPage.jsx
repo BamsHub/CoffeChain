@@ -470,7 +470,7 @@ export default function DocumentationPage() {
                                 <div style={{ marginBottom: 14 }}>
                                     <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian Black Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
-                                        <li>Membuat batch baru → Status awal dimulai pada Tahap 1 (Pembersihan).</li>
+                                        <li>Membuat batch baru → Status awal dimulai pada Tahap 1 (Panen & Sortasi).</li>
                                         <li>Tombol "Catat Tahap" dinonaktifkan jika input form tidak lengkap atau foto bukti kosong.</li>
                                         <li>Setiap tahap diselesaikan, persentase progress bar meningkat 16.6% hingga mencapai 100% pada Tahap 6 (Produk Jadi).</li>
                                     </ul>

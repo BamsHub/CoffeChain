@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { verifyToken } from '@/lib/auth';
 import { createProductOffchainProof } from '@/lib/offchainProduct';
+import { getCompleteProductionAudit } from '@/lib/productionAudit';
 import { supabaseAdmin } from '@/lib/supabase';
 
 function generateCoffeeId() {
@@ -17,6 +18,9 @@ export async function POST(request) {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        if (!['koperasi', 'developer', 'admin'].includes(session.role)) {
+            return Response.json({ success: false, message: 'Hanya admin yang dapat menyetujui register Solana' }, { status: 403 });
+        }
 
         const body = await request.json();
         if (!body.productId) return Response.json({ success: false, message: 'productId wajib diisi' }, { status: 400 });
@@ -32,11 +36,13 @@ export async function POST(request) {
         }
 
         const coffeeId = product.coffee_id || generateCoffeeId();
+        const audit = await getCompleteProductionAudit(product.id);
         const proof = await createProductOffchainProof({
             coffeeId,
             productId: product.id,
             product,
             traceData: body,
+            pipeline: audit.pipeline,
         });
 
         return Response.json({ success: true, proof });

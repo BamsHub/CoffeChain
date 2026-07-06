@@ -6,12 +6,12 @@ import { useAuth } from '@/context/AuthContext';
 import { normalizeExplorerUrl } from '@/lib/contractConfig';
 
 const STAGES = [
-    { id: 1, name: 'Pembersihan/Pencampuran', short: 'Pembersihan', tone: '#7ED44A' },
-    { id: 2, name: 'Pemanggangan', short: 'Roasting', tone: '#F5A623' },
-    { id: 3, name: 'Pendinginan', short: 'Cooling', tone: '#5BC0EB' },
-    { id: 4, name: 'Penggilingan', short: 'Grinding', tone: '#B388FF' },
-    { id: 5, name: 'Pelepasan Gas', short: 'Degassing', tone: '#FF8A65' },
-    { id: 6, name: 'Produk Jadi', short: 'Finished', tone: '#4CAF50' },
+    { id: 1, name: 'Panen & Sortasi', short: 'Panen', tone: '#7ED44A' },
+    { id: 2, name: 'Pencucian & Fermentasi', short: 'Fermentasi', tone: '#5BC0EB' },
+    { id: 3, name: 'Pengeringan', short: 'Pengeringan', tone: '#F5A623' },
+    { id: 4, name: 'Pengupasan & Penggilingan', short: 'Penggilingan', tone: '#B388FF' },
+    { id: 5, name: 'Pemanggangan', short: 'Roasting', tone: '#FF8A65' },
+    { id: 6, name: 'Produk Jadi & Pengemasan', short: 'Produk Jadi', tone: '#4CAF50' },
 ];
 
 const initialBatchForm = {
@@ -31,6 +31,8 @@ const initialStageForm = {
     weightOut: '',
     suhu: '',
     levelRoast: 'Medium Roast',
+    processMethod: 'Washed',
+    moisturePercent: '',
     ukuranGiling: 'Medium',
     gasReleaseHours: '',
     productName: '',
@@ -62,14 +64,18 @@ export default function StockManagement() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
+            const token = await getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const batchUrl = isFarmer && user?.id
                 ? `/api/production-batches?farmerId=${encodeURIComponent(user.id)}`
                 : '/api/production-batches';
             const [batchRes, logRes] = await Promise.all([
-                fetch(batchUrl),
-                fetch('/api/production-stages'),
+                fetch(batchUrl, { headers }),
+                fetch('/api/production-stages', { headers }),
             ]);
             const [batchData, logData] = await Promise.all([batchRes.json(), logRes.json()]);
+            if (!batchRes.ok || !batchData.success) throw new Error(batchData.message || 'Gagal memuat batch');
+            if (!logRes.ok || !logData.success) throw new Error(logData.message || 'Gagal memuat log tahap');
             if (batchData.success) setBatches(batchData.data || []);
             if (logData.success) setLogs(logData.data || []);
         } catch (err) {
@@ -135,7 +141,7 @@ export default function StockManagement() {
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Gagal membuat batch');
-            setMsg({ type: 'ok', text: `Batch "${batchForm.name}" masuk ke tahap pembersihan/pencampuran.` });
+            setMsg({ type: 'ok', text: `Batch "${batchForm.name}" dibuat. Lanjutkan dengan foto dan deskripsi Tahap 1: Panen & Sortasi.` });
             setBatchForm(initialBatchForm);
             setShowBatchForm(false);
             load();
@@ -154,6 +160,8 @@ export default function StockManagement() {
             const token = await getToken();
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('batchId', stageModal?.batch?.id || '');
+            formData.append('stage', String(stageModal?.stage?.id || ''));
             const res = await fetch('/api/upload', {
                 method: 'POST',
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -200,14 +208,22 @@ export default function StockManagement() {
         try {
             const token = await getToken();
             const isFinal = stage.id === 6;
+            const description = isFinal ? stageForm.description.trim() : stageForm.notes.trim();
+            if (!description) {
+                setMsg({ type: 'err', text: `Deskripsi ${stage.name} wajib diisi.` });
+                setSaving(false);
+                return;
+            }
             const stageData = {
-                notes: stageForm.notes,
+                description,
                 operator: stageForm.operator || user?.name || user?.email || '',
                 durationMinutes: Number(stageForm.durationMinutes) || null,
                 weightIn: Number(stageForm.weightIn) || null,
                 weightOut: Number(stageForm.weightOut) || null,
                 suhu: Number(stageForm.suhu) || null,
                 levelRoast: stageForm.levelRoast,
+                processMethod: stageForm.processMethod,
+                moisturePercent: Number(stageForm.moisturePercent) || null,
                 ukuranGiling: stageForm.ukuranGiling,
                 gasReleaseHours: Number(stageForm.gasReleaseHours) || null,
                 evidencePhoto: {
@@ -246,11 +262,11 @@ export default function StockManagement() {
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Gagal menyimpan tahap');
 
-            const chainText = isFinal
-                ? ' sebagai produk jadi internal. Sertifikat dibuat setelah pembayaran on-chain'
-                : ' sebagai log audit produksi';
-            const finalText = isFinal ? ' Produk tidak tampil di katalog landing page sampai tersertifikasi.' : '';
-            setMsg({ type: 'ok', text: `${stage.name} untuk "${batch.name}" tersimpan${chainText}.${finalText}`, explorerUrl: data.explorerUrl });
+            const nextStage = STAGES.find(item => item.id === data.nextStage);
+            const successText = isFinal
+                ? `${stage.name} untuk "${batch.name}" tersimpan. Produk menunggu review admin sebelum dikirim ke Solana Testnet.`
+                : `${stage.name} tersimpan di IPFS. Batch "${batch.name}" otomatis lanjut ke Tahap ${data.nextStage}: ${nextStage?.name || 'tahap berikutnya'}.`;
+            setMsg({ type: 'ok', text: successText, explorerUrl: data.explorerUrl });
             setStageModal(null);
             load();
         } catch (err) {
@@ -286,6 +302,12 @@ export default function StockManagement() {
                     <Field label="Berat Masuk (kg)" type="number" value={stageForm.weightIn} onChange={value => setStageField('weightIn', value)} input={input} labelStyle={label} />
                     <Field label="Berat Keluar (kg)" type="number" value={stageForm.weightOut} onChange={value => setStageField('weightOut', value)} input={input} labelStyle={label} />
                     {stageModal.stage.id === 2 && (
+                        <SelectField label="Metode Proses" value={stageForm.processMethod} onChange={value => setStageField('processMethod', value)} options={['Washed', 'Natural', 'Honey', 'Semi-Washed', 'Wet Hulled']} input={input} labelStyle={label} />
+                    )}
+                    {stageModal.stage.id === 3 && (
+                        <Field label="Kadar Air Akhir (%)" type="number" value={stageForm.moisturePercent} onChange={value => setStageField('moisturePercent', value)} input={input} labelStyle={label} />
+                    )}
+                    {stageModal.stage.id === 5 && (
                         <>
                             <Field label="Suhu Roasting (C)" type="number" value={stageForm.suhu} onChange={value => setStageField('suhu', value)} input={input} labelStyle={label} />
                             <SelectField label="Level Roast" value={stageForm.levelRoast} onChange={value => setStageField('levelRoast', value)} options={['Light Roast', 'Medium Roast', 'Medium-Dark Roast', 'Dark Roast']} input={input} labelStyle={label} />
@@ -293,9 +315,6 @@ export default function StockManagement() {
                     )}
                     {stageModal.stage.id === 4 && (
                         <SelectField label="Ukuran Giling" value={stageForm.ukuranGiling} onChange={value => setStageField('ukuranGiling', value)} options={['Fine', 'Medium', 'Coarse']} input={input} labelStyle={label} />
-                    )}
-                    {stageModal.stage.id === 5 && (
-                        <Field label="Pelepasan Gas (jam)" type="number" value={stageForm.gasReleaseHours} onChange={value => setStageField('gasReleaseHours', value)} input={input} labelStyle={label} />
                     )}
                     {stageModal.stage.id === 6 && (
                         <>
@@ -322,8 +341,8 @@ export default function StockManagement() {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                    <label style={label}>{stageModal.stage.id === 6 ? 'Deskripsi Produk' : 'Catatan Tahap'}</label>
-                    <textarea style={{ ...input, minHeight: 86, resize: 'vertical' }} value={stageModal.stage.id === 6 ? stageForm.description : stageForm.notes} onChange={event => setStageField(stageModal.stage.id === 6 ? 'description' : 'notes', event.target.value)} />
+                    <label style={label}>{stageModal.stage.id === 6 ? 'Deskripsi Produk *' : `Deskripsi ${stageModal.stage.name} *`}</label>
+                    <textarea required style={{ ...input, minHeight: 86, resize: 'vertical' }} value={stageModal.stage.id === 6 ? stageForm.description : stageForm.notes} onChange={event => setStageField(stageModal.stage.id === 6 ? 'description' : 'notes', event.target.value)} placeholder="Jelaskan proses, kondisi, hasil, dan catatan tahap ini." />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>

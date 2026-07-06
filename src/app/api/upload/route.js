@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getIPFSUrl, pinFileToIPFS } from '@/lib/ipfs';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -26,6 +27,27 @@ export async function POST(req) {
 
         const formData = await req.formData();
         const file = formData.get('file');
+        const batchId = String(formData.get('batchId') || '');
+        const stage = Number(formData.get('stage'));
+        if (!batchId || !Number.isInteger(stage) || stage < 1 || stage > 6) {
+            return NextResponse.json({ success: false, message: 'Upload hanya tersedia dari card Pipeline Stok Tahap 1-6' }, { status: 400 });
+        }
+
+        const supabase = getSupabaseAdmin();
+        const { data: batch, error: batchError } = await supabase
+            .from('production_batches')
+            .select('id, farmer_id, current_stage, product_id')
+            .eq('id', batchId)
+            .maybeSingle();
+        if (batchError || !batch) {
+            return NextResponse.json({ success: false, message: 'Batch pipeline tidak ditemukan' }, { status: 404 });
+        }
+        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+        if (batch.product_id || Number(batch.current_stage) !== stage) {
+            return NextResponse.json({ success: false, message: 'Tahap pipeline ini tidak lagi aktif' }, { status: 409 });
+        }
         if (!file || typeof file === 'string') {
             return NextResponse.json({ success: false, message: 'File foto wajib dipilih' }, { status: 400 });
         }
@@ -43,6 +65,8 @@ export async function POST(req) {
             app: 'CoffeeChain',
             type: 'production-stage-photo',
             uploadedBy: String(session.userId || 'unknown'),
+            batchId,
+            stage: String(stage),
         });
         const cid = result.IpfsHash;
 

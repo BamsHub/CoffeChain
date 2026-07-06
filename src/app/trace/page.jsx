@@ -16,12 +16,12 @@ const IconDownload = () => <svg width="13" height="13" viewBox="0 0 24 24" fill=
 const IconCopy = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>;
 
 const TRACE_STAGES = [
-    { id: 1, name: 'Pembersihan & Pencampuran' },
-    { id: 2, name: 'Pemanggangan' },
-    { id: 3, name: 'Pendinginan' },
-    { id: 4, name: 'Penggilingan' },
-    { id: 5, name: 'Pelepasan Gas' },
-    { id: 6, name: 'Produk Jadi' },
+    { id: 1, name: 'Panen & Sortasi' },
+    { id: 2, name: 'Pencucian & Fermentasi' },
+    { id: 3, name: 'Pengeringan' },
+    { id: 4, name: 'Pengupasan & Penggilingan' },
+    { id: 5, name: 'Pemanggangan' },
+    { id: 6, name: 'Produk Jadi & Pengemasan' },
 ];
 
 /* ── Inline QR generator ── */
@@ -119,6 +119,8 @@ function formatTraceKey(key) {
         levelRoast: 'Level Roast',
         ukuranGiling: 'Ukuran Giling',
         gasReleaseHours: 'Pelepasan Gas',
+        processMethod: 'Metode Proses',
+        moisturePercent: 'Kadar Air Akhir',
         productName: 'Produk',
         stock: 'Stok',
         weights: 'Kemasan',

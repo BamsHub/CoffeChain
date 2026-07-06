@@ -203,7 +203,8 @@ export default function ProductsContent() {
                     grade: editForm.grade,
                     roast: editForm.roast,
                     description: editForm.description,
-                    stock: Number(editForm.stock) || 0,                    image: editForm.image || null,                    weight: editForm.weights.map(w => w.gram),
+                    stock: Number(editForm.stock) || 0,
+                    weight: editForm.weights.map(w => w.gram),
                     pricePerUnit: editForm.weights.map(w => w.price),
                     // Farmer edits go back to pending for re-approval
                     ...(isFarmer ? { status: 'pending', submittedAt: new Date().toISOString() } : {}),
@@ -426,7 +427,7 @@ export default function ProductsContent() {
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <label style={label}>Foto Produk (Opsional)</label>
-                                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'none', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                                     {form.image && (
                                         <img src={form.image} alt="preview" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)', flexShrink: 0 }} />
                                     )}
@@ -438,6 +439,10 @@ export default function ProductsContent() {
                                         </label>
                                         <input style={{ ...input, fontSize: 12 }} value={form.image} onChange={e => setField('image', e.target.value)} placeholder="atau tempel URL foto..." />
                                     </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 10, border: '1px solid var(--color-border)', borderRadius: 9, background: 'rgba(255,255,255,0.025)' }}>
+                                    {editForm.image && <img src={editForm.image} alt="Foto produk dari pipeline" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />}
+                                    <span style={{ color: 'var(--color-text-muted)', fontSize: 12, lineHeight: 1.55 }}>Foto produk dikunci dari Tahap 6 Pipeline Stok. Upload dan perubahan foto hanya dilakukan melalui pipeline.</span>
                                 </div>
                             </div>
                         </div>
@@ -555,17 +560,14 @@ export default function ProductsContent() {
                                     <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                                     <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 2 }}>{p.origin} · {p.variety}</div>
                                     {p.status === 'pending' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Persetujuan</span>}
+                                    {p.status === 'pending_certification' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Register Admin</span>}
                                     {p.status === 'rejected' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(244,67,54,0.12)', color: '#f44336', border: '1px solid rgba(244,67,54,0.3)', fontWeight: 700 }}>Ditolak</span>}
                                 </div>
                                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                                     {/* Non-farmer: Edit + Delete */}
                                     {!isFarmer && <button onClick={() => openEditModal(p)} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Edit</button>}
                                     {!isFarmer && <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting === p.id} style={btnDanger}>{deleting === p.id ? '...' : 'Hapus'}</button>}
-                                    {/* Farmer: Edit only own non-pending products */}
-                                    {isFarmer && p.submittedBy === (user?.id || '') && p.status !== 'pending' && (
-                                        <button onClick={() => openEditModal(p)} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Edit</button>
-                                    )}
-                                    {isFarmer && p.submittedBy === (user?.id || '') && p.status === 'pending' && (
+                                    {isFarmer && p.submittedBy === (user?.id || '') && !p.coffeeId && (
                                         <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: 'rgba(245,166,35,0.1)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.25)', fontWeight: 600 }}>Menunggu review</span>
                                     )}
                                 </div>
@@ -674,7 +676,11 @@ export default function ProductsContent() {
                             </div>
                             <div style={{ marginBottom: 14 }}>
                                 <label style={label}>Foto Produk</label>
-                                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 10, border: '1px solid var(--color-border)', borderRadius: 9, background: 'rgba(255,255,255,0.025)' }}>
+                                    {editForm.image && <img src={editForm.image} alt="Foto produk dari pipeline" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />}
+                                    <span style={{ color: 'var(--color-text-muted)', fontSize: 12, lineHeight: 1.55 }}>Foto produk dikunci dari Tahap 6 Pipeline Stok. Upload dan perubahan foto hanya dilakukan melalui pipeline.</span>
+                                </div>
+                                <div style={{ display: 'none', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                                     {editForm.image && (
                                         <div style={{ position: 'relative', flexShrink: 0 }}>
                                             <img src={editForm.image} alt="preview" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
