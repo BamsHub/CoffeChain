@@ -45,7 +45,19 @@ export async function POST(req) {
         if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
-        if (batch.product_id || Number(batch.current_stage) !== stage) {
+        let rejectedProduct = false;
+        if (batch.product_id) {
+            const { data: product, error: productError } = await supabase
+                .from('products')
+                .select('status')
+                .eq('id', batch.product_id)
+                .maybeSingle();
+            if (productError || !product) {
+                return NextResponse.json({ success: false, message: 'Produk pipeline tidak ditemukan' }, { status: 404 });
+            }
+            rejectedProduct = product.status === 'rejected';
+        }
+        if ((batch.product_id && !rejectedProduct) || (!batch.product_id && Number(batch.current_stage) !== stage)) {
             return NextResponse.json({ success: false, message: 'Tahap pipeline ini tidak lagi aktif' }, { status: 409 });
         }
         if (!file || typeof file === 'string') {

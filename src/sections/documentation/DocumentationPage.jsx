@@ -480,7 +480,7 @@ export default function DocumentationPage() {
                                     <strong style={{ fontSize: 12, color: 'var(--color-text)' }}> Pengujian White Box:</strong>
                                     <ul style={{ fontSize: 13, color: 'var(--color-text-secondary)', paddingLeft: 18, marginTop: 4, display: 'grid', gap: 4 }}>
                                         <li>Fungsi backend `/api/production-stages` memvalidasi sequence log agar tahapan tidak dilewati secara acak.</li>
-                                        <li>Handler storage menyimpan gambar bukti ke Supabase Storage, dengan fallback base64 string jika koneksi storage terganggu.</li>
+                                        <li>Handler upload menyimpan gambar bukti ke IPFS melalui Pinata dan mencatat CID-nya pada metadata pipeline.</li>
                                         <li>Pemicu event Tahap 6 otomatis mengeksekusi function penulisan entri produk baru dengan status draft/pending.</li>
                                     </ul>
                                 </div>

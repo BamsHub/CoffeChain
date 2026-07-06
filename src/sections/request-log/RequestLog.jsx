@@ -39,7 +39,7 @@ const STATUS_CONFIG = {
 
 // ---------------------------------------------------------------------------
 export default function RequestLog() {
-    const { user } = useAuth();
+    const { user, getToken } = useAuth();
     const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
 
     const [pending,    setPending]   = useState([]);
@@ -107,9 +107,13 @@ export default function RequestLog() {
         setApproving(`approve-${product.id}`);
         setMsg(null);
         try {
+            const token = await getToken();
             const res  = await fetch('/api/products', {
                 method:  'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id:            product.id,
                     status:        'published',
@@ -130,12 +134,17 @@ export default function RequestLog() {
     async function handleReject(product) {
         const reason = prompt(`Alasan penolakan untuk "${product.name}"?`);
         if (reason === null) return;
+        if (!window.confirm(`Yakin ingin menolak produk "${product.name}"? Produk akan dikembalikan ke petani untuk diperbaiki.`)) return;
         setApproving(`reject-${product.id}`);
         setMsg(null);
         try {
+            const token = await getToken();
             const res  = await fetch('/api/products', {
                 method:  'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id:             product.id,
                     status:         'rejected',

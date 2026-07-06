@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 const CATEGORY_MAP = {
     quality: { icon: '', label: 'Kualitas Produk' },
@@ -25,6 +26,7 @@ function formatDate(d) {
 }
 
 export default function AdminContactPage() {
+    const { user } = useAuth();
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -93,25 +95,23 @@ export default function AdminContactPage() {
 
     const countByStatus = (s) => messages.filter((m) => m.status === s).length;
 
+    if (!['admin', 'developer'].includes(user?.role)) {
+        return (
+            <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(18px,3vw,32px)' }}>
+                <div style={{ padding: 24, borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+                    Pesan Pengaduan hanya tersedia untuk admin.
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={styles.wrapper}>
-            {/* Header */}
-            <header style={styles.header}>
-                <a href="/" style={styles.logoLink}>
-                    <span style={styles.logoIcon}></span>
-                    <span style={styles.logoText}>CoffeeChain</span>
-                </a>
-                <div style={styles.headerRight}>
-                    <span style={styles.headerBadge}> Admin</span>
-                    <a href="/dashboard" style={styles.navLink}>Dashboard</a>
-                </div>
-            </header>
-
             <div style={styles.container}>
                 {/* Title */}
                 <div style={styles.titleSection}>
-                    <h1 style={styles.title}> Pesan Pengaduan</h1>
-                    <p style={styles.subtitle}>Kelola dan tanggapi pesan masuk dari pengguna</p>
+                    <h1 style={styles.title}>Pesan Pengaduan</h1>
+                    <p style={styles.subtitle}>Kelola tiket bantuan yang dikirim oleh petani</p>
                 </div>
 
                 {/* Stats */}
@@ -236,12 +236,6 @@ export default function AdminContactPage() {
                                         style={{ ...styles.actionBtn, borderColor: '#9E9E9E', color: '#9E9E9E' }}>
                                          Selesai
                                     </button>
-                                    {selectedMsg.phone && (
-                                        <a href={`https://wa.me/${selectedMsg.phone.replace(/^0/, '62').replace(/[^0-9]/g, '')}`}
-                                           target="_blank" rel="noopener noreferrer" style={styles.waReplyBtn}>
-                                             Balas via WA
-                                        </a>
-                                    )}
                                 </div>
                             </>
                         )}
@@ -318,5 +312,4 @@ const styles = {
 
     actionRow: { display: 'flex', gap: 10, flexWrap: 'wrap' },
     actionBtn: { padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, background: 'transparent', border: '1px solid', cursor: 'pointer', transition: 'all 0.2s ease' },
-    waReplyBtn: { padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, background: 'linear-gradient(135deg, #25D366, #128C7E)', color: '#fff', border: 'none', textDecoration: 'none', textAlign: 'center', cursor: 'pointer' },
 };

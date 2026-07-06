@@ -35,12 +35,14 @@ export async function GET(req) {
 
         let rows = data || [];
         const productIds = rows.map(row => row.product_id).filter(Boolean);
+        const productById = new Map();
         if (productIds.length) {
             const { data: existingProducts, error: productErr } = await supabase
                 .from('products')
-                .select('id')
+                .select('id, status, rejected_reason')
                 .in('id', productIds);
             if (!productErr) {
+                for (const product of existingProducts || []) productById.set(product.id, product);
                 const existingProductIds = new Set((existingProducts || []).map(product => product.id));
                 rows = rows.filter(row => !row.product_id || existingProductIds.has(row.product_id));
             }
@@ -59,6 +61,8 @@ export async function GET(req) {
             currentStage: row.current_stage,
             coffeeId: row.coffee_id,
             productId: row.product_id,
+            productStatus: productById.get(row.product_id)?.status || null,
+            rejectedReason: productById.get(row.product_id)?.rejected_reason || null,
             notes: row.notes,
             createdAt: row.created_at,
             updatedAt: row.updated_at,

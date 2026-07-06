@@ -93,9 +93,9 @@ export const ROLE_LABELS = {
 
 // Nav items per role
 export const ROLE_NAV = {
-    farmer: ['dashboard', 'transactions', 'wallet', 'products', 'ipfs', 'base64', 'contact', 'documentation'],
-    koperasi: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'base64', 'contact', 'documentation'],
-    developer: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'base64', 'contact', 'admin-contact', 'documentation'],
-    admin: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'base64', 'contact', 'admin-contact', 'documentation'],
+    farmer: ['dashboard', 'transactions', 'wallet', 'products', 'ipfs', 'contact', 'documentation'],
+    koperasi: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'documentation'],
+    developer: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'admin-contact', 'documentation'],
+    admin: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'admin-contact', 'documentation'],
 };
 

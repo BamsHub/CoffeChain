@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
 import { readDb } from '@/lib/db';
+import { getCompleteProductionAudit } from '@/lib/productionAudit';
 
 // ── Key converters ───────────────────────────────────────────────
 function toSnake(str) {
@@ -246,7 +247,7 @@ export async function PATCH(request) {
         // Get existing product to verify ownership/status update permission
         const { data: product, error: findErr } = await supabaseAdmin
             .from('products')
-            .select('submitted_by, status')
+            .select('id, submitted_by, status, coffee_id')
             .eq('id', id)
             .maybeSingle();
 
@@ -254,9 +255,36 @@ export async function PATCH(request) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
         }
 
-        // Security check: only koperasi or developer can approve/reject products
+        if (updates.action === 'resubmit') {
+            if (session.role !== 'farmer' || product.submitted_by !== session.userId) {
+                return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+            if (product.status !== 'rejected' || product.coffee_id) {
+                return Response.json({ success: false, message: 'Hanya produk ditolak yang belum tersertifikasi dapat diajukan ulang' }, { status: 409 });
+            }
+
+            await getCompleteProductionAudit(id);
+            const { data: resubmitted, error: resubmitError } = await supabaseAdmin
+                .from('products')
+                .update({
+                    status: 'pending_certification',
+                    rejected_reason: null,
+                    approved_by: null,
+                    approved_by_name: null,
+                    approved_at: null,
+                    submitted_at: new Date().toISOString(),
+                })
+                .eq('id', id)
+                .select()
+                .single();
+            if (resubmitError) throw resubmitError;
+            return Response.json({ success: true, resubmitted: true, data: convertKeys(resubmitted, toCamel) });
+        }
+        delete updates.action;
+
+        // Security check: only koperasi, developer, or admin can approve/reject products
         if ('status' in updates && updates.status !== product.status) {
-            if (!['koperasi', 'developer'].includes(session.role)) {
+            if (!['koperasi', 'developer', 'admin'].includes(session.role)) {
                 return Response.json({ success: false, message: 'Forbidden: Hanya koperasi atau developer yang dapat menyetujui produk' }, { status: 403 });
             }
         }

@@ -257,3 +257,121 @@ export async function POST(req) {
         return NextResponse.json({ success: false, message: err.message }, { status: 500 });
     }
 }
+
+// PATCH — edit a completed stage only while its product is rejected
+export async function PATCH(req) {
+    try {
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const session = await verifyToken(token);
+        if (!session) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+
+        const body = await req.json();
+        const { batchId, stage, stageData, photoUrl, photoCid, ipfsUri, loggedBy, loggedByName } = body;
+        const stageNumber = Number(stage);
+        if (!batchId || !Number.isInteger(stageNumber) || stageNumber < 1 || stageNumber > 6) {
+            return NextResponse.json({ success: false, message: 'batchId dan stage tidak valid' }, { status: 400 });
+        }
+        if (!photoUrl || !isValidCid(photoCid) || ipfsUri !== `ipfs://${photoCid}`) {
+            return NextResponse.json({ success: false, message: 'Bukti foto IPFS tahap wajib valid' }, { status: 400 });
+        }
+        if (!stageData?.evidencePhoto
+            || stageData.evidencePhoto.cid !== photoCid
+            || stageData.evidencePhoto.uri !== ipfsUri
+            || stageData.evidencePhoto.gatewayUrl !== photoUrl) {
+            return NextResponse.json({ success: false, message: 'Metadata bukti foto IPFS tidak valid' }, { status: 400 });
+        }
+        const description = String(stageData?.description || stageData?.notes || '').trim();
+        if (!description) return NextResponse.json({ success: false, message: 'Deskripsi tahap wajib diisi' }, { status: 400 });
+
+        const supabase = getSupabaseAdmin();
+        const { data: batch, error: batchError } = await supabase
+            .from('production_batches')
+            .select('*')
+            .eq('id', batchId)
+            .maybeSingle();
+        if (batchError || !batch) return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
+        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+        if (!batch.product_id) {
+            return NextResponse.json({ success: false, message: 'Tahap aktif baru harus disimpan berurutan, bukan diedit' }, { status: 409 });
+        }
+
+        const { data: product, error: productError } = await supabase
+            .from('products')
+            .select('id, status, coffee_id, tags')
+            .eq('id', batch.product_id)
+            .maybeSingle();
+        if (productError || !product) return NextResponse.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+        if (product.status !== 'rejected' || product.coffee_id) {
+            return NextResponse.json({ success: false, message: 'Pipeline hanya dapat diedit setelah produk ditolak dan belum tersertifikasi' }, { status: 409 });
+        }
+
+        const { data: existingLog, error: logError } = await supabase
+            .from('production_stage_logs')
+            .select('id')
+            .eq('batch_id', batchId)
+            .eq('stage', stageNumber)
+            .maybeSingle();
+        if (logError || !existingLog) {
+            return NextResponse.json({ success: false, message: 'Log tahap belum ada dan tidak dapat diedit' }, { status: 404 });
+        }
+
+        let targetLoggedBy = loggedBy || session.userId;
+        let targetLoggedByName = loggedByName || null;
+        if (session.role === 'farmer') {
+            targetLoggedBy = session.userId;
+            const dbUsers = await readDb('users');
+            const user = dbUsers.items.find(item => item.id === session.userId);
+            if (user) targetLoggedByName = user.name;
+        }
+
+        const { data: updatedLog, error: updateError } = await supabase
+            .from('production_stage_logs')
+            .update({
+                data: stageData,
+                photo_url: photoUrl,
+                logged_by: targetLoggedBy || null,
+                logged_by_name: targetLoggedByName || null,
+            })
+            .eq('id', existingLog.id)
+            .select()
+            .single();
+        if (updateError) throw new Error(updateError.message);
+
+        if (stageNumber === 6) {
+            const tags = (Array.isArray(product.tags) ? product.tags : [])
+                .filter(tag => !String(tag).startsWith('ipfs-image:'));
+            tags.push(`ipfs-image:${photoCid}`);
+            const productUpdates = {
+                name: stageData.productName || batch.name,
+                roast: stageData.roast || stageData.levelRoast || 'Medium Roast',
+                weight: Array.isArray(stageData.weights) ? stageData.weights : [250],
+                price_per_unit: Array.isArray(stageData.pricePerUnit) ? stageData.pricePerUnit : [0],
+                description,
+                image: photoUrl,
+                tags,
+                stock: Number(stageData.stock) || 0,
+            };
+            const { error: productUpdateError } = await supabase.from('products').update(productUpdates).eq('id', product.id);
+            if (productUpdateError) throw new Error(productUpdateError.message);
+        }
+
+        return NextResponse.json({
+            success: true,
+            edited: true,
+            data: {
+                id: updatedLog.id,
+                batchId,
+                stage: stageNumber,
+                stageName: updatedLog.stage_name,
+                stageData: updatedLog.data,
+                photoUrl: updatedLog.photo_url,
+                productId: product.id,
+            },
+        });
+    } catch (err) {
+        console.error('[production-stages] PATCH error:', err);
+        return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    }
+}

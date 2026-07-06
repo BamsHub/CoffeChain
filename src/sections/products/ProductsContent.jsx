@@ -123,9 +123,13 @@ export default function ProductsContent() {
     async function handleApprove(product) {
         setApproving(`approve-${product.id}`);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id: product.id,
                     status: 'published',
@@ -145,11 +149,17 @@ export default function ProductsContent() {
 
     async function handleReject(product) {
         const reason = prompt(`Alasan penolakan produk "${product.name}"? (opsional)`);
+        if (reason === null) return;
+        if (!window.confirm(`Yakin ingin menolak produk "${product.name}"? Produk akan dikembalikan ke petani untuk diperbaiki.`)) return;
         setApproving(`reject-${product.id}`);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id: product.id,
                     status: 'rejected',

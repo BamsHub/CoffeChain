@@ -71,6 +71,8 @@ export default function CoffeeRegisterContent() {
     const [regForm, setRegForm]           = useState({ farmerName:'', harvestDate:'', processMethod:'Washed', roastLevel:'Medium', certification:'' });
     const [submitting, setSubmitting]     = useState(false);
     const [rejectingId, setRejectingId]   = useState(null);
+    const [rejectTarget, setRejectTarget] = useState(null);
+    const [rejectReason, setRejectReason] = useState('');
     const [regMsg, setRegMsg]             = useState(null);
     const [previewOpen, setPreviewOpen]   = useState(false);
     const [detailProduct, setDetailProduct] = useState(null);
@@ -258,9 +260,19 @@ export default function CoffeeRegisterContent() {
         setSubmitting(false);
     }
 
-    async function handleReject(product) {
+    function openRejectConfirmation(product) {
+        setRejectTarget(product);
+        setRejectReason('');
+        setRegMsg(null);
+    }
+
+    async function handleReject() {
+        const product = rejectTarget;
         if (!product?.id) return;
-        if (!window.confirm(`Tolak produk "${product.name}" dari proses register blockchain?`)) return;
+        if (!rejectReason.trim()) {
+            setRegMsg({ type: 'error', text: 'Alasan penolakan wajib diisi agar petani mengetahui bagian yang harus diperbaiki.' });
+            return;
+        }
 
         setRejectingId(product.id);
         try {
@@ -274,12 +286,15 @@ export default function CoffeeRegisterContent() {
                 body: JSON.stringify({
                     id: product.id,
                     status: 'rejected',
+                    rejectedReason: rejectReason.trim(),
                 }),
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Gagal menolak produk');
             setDetailProduct(null);
             setRegProduct(current => current?.id === product.id ? null : current);
+            setRejectTarget(null);
+            setRejectReason('');
             await loadProducts();
         } catch (err) {
             alert(err.message || 'Gagal menolak produk');
@@ -474,7 +489,7 @@ export default function CoffeeRegisterContent() {
                                                     style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', border: '1px solid rgba(126,212,74,0.25)', fontWeight: 700 }}>
                                                     <IcoEye /> Detail Produk
                                                 </button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleReject(p); }}
+                                                <button onClick={(e) => { e.stopPropagation(); openRejectConfirmation(p); }}
                                                     disabled={rejectingId === p.id}
                                                     style={{ ...S.btnDanger, marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, opacity: rejectingId === p.id ? 0.65 : 1, cursor: rejectingId === p.id ? 'not-allowed' : 'pointer' }}>
                                                     {rejectingId === p.id ? <IcoSpin /> : <IcoReject />} Tolak
@@ -812,7 +827,7 @@ export default function CoffeeRegisterContent() {
                                 </button>
                             )}
                             {!detailProduct.coffeeId && (
-                                <button type="button" onClick={() => handleReject(detailProduct)}
+                                <button type="button" onClick={() => openRejectConfirmation(detailProduct)}
                                     disabled={rejectingId === detailProduct.id}
                                     style={{ ...S.btnDanger, flex: '1 1 160px', justifyContent: 'center', opacity: rejectingId === detailProduct.id ? 0.65 : 1, cursor: rejectingId === detailProduct.id ? 'not-allowed' : 'pointer' }}>
                                     {rejectingId === detailProduct.id ? <IcoSpin /> : <IcoReject />} Tolak
@@ -827,6 +842,32 @@ export default function CoffeeRegisterContent() {
                             <button type="button" onClick={() => setDetailProduct(null)}
                                 style={{ flex: '1 1 160px', padding: '10px 14px', borderRadius: 9, background: 'rgba(255,255,255,0.05)', color: '#E8F5E0', border: '1px solid rgba(255,255,255,0.12)', fontWeight: 700, cursor: 'pointer' }}>
                                 Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {rejectTarget && (
+                <div className="cr-overlay" style={{ zIndex: 380 }} onClick={event => { if (event.target === event.currentTarget && !rejectingId) setRejectTarget(null); }}>
+                    <div className="cr-modal" role="alertdialog" aria-modal="true" aria-labelledby="reject-product-title" style={{ maxWidth: 520 }} onClick={event => event.stopPropagation()}>
+                        <div style={{ color: '#ff8a80', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 7 }}>Konfirmasi Penolakan</div>
+                        <h2 id="reject-product-title" style={{ color: '#E8F5E0', fontSize: 20, margin: 0 }}>Yakin ingin menolak produk ini?</h2>
+                        <p style={{ color: 'rgba(232,245,224,0.55)', fontSize: 13, lineHeight: 1.6, margin: '9px 0 14px' }}>
+                            Produk <strong style={{ color: '#E8F5E0' }}>{rejectTarget.name}</strong> akan dikembalikan kepada petani untuk memperbaiki pipeline Tahap 1-6.
+                        </p>
+                        <label style={S.lbl}>Alasan penolakan *</label>
+                        <textarea
+                            value={rejectReason}
+                            onChange={event => setRejectReason(event.target.value)}
+                            placeholder="Jelaskan data, deskripsi, atau foto tahap yang harus diperbaiki."
+                            style={{ ...S.inp, minHeight: 105, resize: 'vertical' }}
+                            disabled={!!rejectingId}
+                        />
+                        {regMsg?.type === 'error' && <div style={{ color: '#ff8a80', fontSize: 12, marginTop: 8 }}>{regMsg.text}</div>}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+                            <button type="button" onClick={() => setRejectTarget(null)} disabled={!!rejectingId} style={{ padding: '10px 18px', borderRadius: 9, background: 'rgba(255,255,255,0.05)', color: '#E8F5E0', border: '1px solid rgba(255,255,255,0.12)', fontWeight: 700, cursor: 'pointer' }}>Kembali</button>
+                            <button type="button" onClick={handleReject} disabled={!!rejectingId || !rejectReason.trim()} style={{ ...S.btnDanger, opacity: rejectingId || !rejectReason.trim() ? 0.6 : 1 }}>
+                                {rejectingId ? <IcoSpin /> : <IcoReject />} Ya, Tolak Produk
                             </button>
                         </div>
                     </div>

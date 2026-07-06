@@ -213,17 +213,46 @@ export default function StockManagement() {
         setUploading(false);
     }
 
-    function openStageCard(batch, stage) {
-        setStageModal({ batch, stage });
-        setPhotoUrl('');
-        setPhotoIpfs(null);
+    function openStageCard(batch, stage, existingLog = null) {
+        const existingData = existingLog?.data || {};
+        const existingEvidence = existingData.evidencePhoto || null;
+        setStageModal({ batch, stage, isEditing: !!existingLog });
+        setPhotoUrl(existingLog?.photoUrl || '');
+        setPhotoIpfs(existingEvidence);
         setStageForm({
             ...initialStageForm,
-            weightIn: batch.weightKg || '',
-            productName: batch.name || '',
-            description: batch.notes || '',
+            ...existingData,
+            notes: existingData.description || existingData.notes || '',
+            weightIn: existingData.weightIn ?? batch.weightKg ?? '',
+            productName: existingData.productName || batch.name || '',
+            description: existingData.description || batch.notes || '',
+            gram: existingData.weights?.[0] || initialStageForm.gram,
+            price: existingData.pricePerUnit?.[0] || '',
         });
         setMsg(null);
+    }
+
+    async function resubmitRejectedProduct(batch) {
+        setSaving(true);
+        setMsg(null);
+        try {
+            const token = await getToken();
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ id: batch.productId, action: 'resubmit' }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Gagal mengirim ulang permintaan produk');
+            setMsg({ type: 'ok', text: `Produk dari batch "${batch.name}" dikirim ulang. Admin akan meninjau pipeline Tahap 1-6 yang sudah diperbaiki.` });
+            await load();
+        } catch (err) {
+            setMsg({ type: 'err', text: err.message });
+        }
+        setSaving(false);
     }
 
     async function submitStage(event) {
@@ -275,7 +304,7 @@ export default function StockManagement() {
             };
 
             const res = await fetch('/api/production-stages', {
-                method: 'POST',
+                method: stageModal.isEditing ? 'PATCH' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -295,7 +324,9 @@ export default function StockManagement() {
             if (!data.success) throw new Error(data.message || 'Gagal menyimpan tahap');
 
             const nextStage = STAGES.find(item => item.id === data.nextStage);
-            const successText = isFinal
+            const successText = stageModal.isEditing
+                ? `${stage.name} untuk "${batch.name}" berhasil diperbarui. Periksa tahap lain lalu kirim ulang request produk.`
+                : isFinal
                 ? `${stage.name} untuk "${batch.name}" tersimpan. Produk menunggu review admin sebelum dikirim ke Solana Testnet.`
                 : `${stage.name} tersimpan di IPFS. Batch "${batch.name}" otomatis lanjut ke Tahap ${data.nextStage}: ${nextStage?.name || 'tahap berikutnya'}.`;
             setMsg({ type: 'ok', text: successText, explorerUrl: data.explorerUrl });
@@ -321,7 +352,7 @@ export default function StockManagement() {
             <form onSubmit={submitStage} style={{ marginTop: 14, background: 'rgba(255,255,255,0.025)', border: `1px solid ${stageModal.stage.tone}55`, borderRadius: 12, padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
                     <div>
-                        <div style={{ color: stageModal.stage.tone, fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Card Upload Tahap {stageModal.stage.id}</div>
+                        <div style={{ color: stageModal.stage.tone, fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>{stageModal.isEditing ? 'Edit' : 'Card Upload'} Tahap {stageModal.stage.id}</div>
                         <h3 style={{ color: 'var(--color-text)', margin: '4px 0 0', fontSize: 17, fontWeight: 900 }}>{stageModal.stage.name}</h3>
                         <p style={{ color: 'var(--color-text-muted)', margin: '5px 0 0', fontSize: 12 }}>Foto wajib dipin ke IPFS sebelum tahap dapat disimpan.</p>
                     </div>
@@ -380,7 +411,7 @@ export default function StockManagement() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                     <button type="button" style={mutedButton} onClick={() => setStageModal(null)}>Batal</button>
                     <button type="submit" style={{ ...primaryButton, opacity: photoIpfs?.cid ? 1 : 0.6 }} disabled={saving || uploading || !photoIpfs?.cid}>
-                        {saving ? 'Menyimpan...' : stageModal.stage.id === 6 ? 'Jadikan Produk' : 'Simpan & Lanjut Tahap'}
+                        {saving ? 'Menyimpan...' : stageModal.isEditing ? 'Simpan Perbaikan Tahap' : stageModal.stage.id === 6 ? 'Jadikan Produk' : 'Simpan & Lanjut Tahap'}
                     </button>
                 </div>
             </form>
@@ -464,6 +495,7 @@ export default function StockManagement() {
                     {filteredBatches.map(batch => {
                         const currentStage = STAGES.find(stage => stage.id === Number(batch.currentStage)) || STAGES[0];
                         const batchLogs = logsByBatch[batch.id] || [];
+                        const isRejected = batch.productStatus === 'rejected';
                         return (
                             <div key={batch.id} style={card}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
@@ -481,21 +513,22 @@ export default function StockManagement() {
                                 <div style={{ margin: '16px 0 14px', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 5 }}>
                                     {STAGES.map(stage => {
                                         const done = batchLogs.some(log => Number(log.stage) === stage.id);
-                                        const active = Number(batch.currentStage) === stage.id;
+                                        const active = Number(batch.currentStage) === stage.id && !batch.productId;
+                                        const editable = isRejected && done;
                                         return (
                                             <button
                                                 key={stage.id}
                                                 type="button"
                                                 title={stage.name}
-                                                onClick={() => active && openStageCard(batch, stage)}
-                                                disabled={!active}
+                                                onClick={() => (active || editable) && openStageCard(batch, stage, editable ? batchLogs.find(log => Number(log.stage) === stage.id) : null)}
+                                                disabled={!active && !editable}
                                                 style={{
                                                     height: 34,
                                                     borderRadius: 8,
                                                     border: `1px solid ${done || active ? stage.tone : 'var(--color-border)'}`,
                                                     background: done ? `${stage.tone}22` : active ? `${stage.tone}12` : 'rgba(255,255,255,0.03)',
                                                     color: done || active ? stage.tone : 'var(--color-text-muted)',
-                                                    cursor: active ? 'pointer' : 'default',
+                                                    cursor: active || editable ? 'pointer' : 'default',
                                                     fontWeight: 900,
                                                 }}
                                             >
@@ -506,13 +539,25 @@ export default function StockManagement() {
                                 </div>
 
                                 <div style={{ color: 'var(--color-text)', fontSize: 13, fontWeight: 800, marginBottom: 10 }}>
-                                    Sekarang: {currentStage.name}
+                                    {isRejected ? 'Status: Ditolak — klik tahap 1-6 untuk memperbaiki' : `Sekarang: ${currentStage.name}`}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: isFarmer && !batch.productId ? 'minmax(0,1fr) auto' : '1fr', gap: 9 }}>
-                                    <button type="button" style={{ ...primaryButton, width: '100%', opacity: batch.productId ? 0.65 : 1 }} onClick={() => openStageCard(batch, currentStage)} disabled={!!batch.productId}>
-                                        {batch.productId ? 'Sudah Jadi Produk' : `Buka Card Upload ${currentStage.short}`}
+                                {isRejected && (
+                                    <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 9, color: '#ff8a80', background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.28)', fontSize: 12 }}>
+                                        <strong>Alasan penolakan:</strong> {batch.rejectedReason || 'Admin meminta perbaikan data pipeline.'}
+                                    </div>
+                                )}
+                                <div style={{ display: 'grid', gridTemplateColumns: !batch.productId ? 'minmax(0,1fr) auto' : '1fr', gap: 9 }}>
+                                    <button
+                                        type="button"
+                                        style={{ ...primaryButton, width: '100%', opacity: batch.productId && !isRejected ? 0.65 : 1 }}
+                                        onClick={() => isRejected
+                                            ? openStageCard(batch, STAGES[5], batchLogs.find(log => Number(log.stage) === 6))
+                                            : openStageCard(batch, currentStage)}
+                                        disabled={!!batch.productId && !isRejected}
+                                    >
+                                        {isRejected ? 'Edit Tahap Produk Jadi' : batch.productId ? 'Sudah Jadi Produk' : `Buka Card Upload ${currentStage.short}`}
                                     </button>
-                                    {isFarmer && !batch.productId && (
+                                    {!batch.productId && (
                                         <button
                                             type="button"
                                             onClick={() => setCancelTarget(batch)}
@@ -523,6 +568,12 @@ export default function StockManagement() {
                                         </button>
                                     )}
                                 </div>
+
+                                {isRejected && isFarmer && (
+                                    <button type="button" style={{ ...primaryButton, width: '100%', marginTop: 9 }} disabled={saving} onClick={() => resubmitRejectedProduct(batch)}>
+                                        {saving ? 'Mengirim Ulang...' : 'Kirim Ulang Request Produk'}
+                                    </button>
+                                )}
 
                                 {stageModal?.batch?.id === batch.id && renderStageUploadCard()}
 

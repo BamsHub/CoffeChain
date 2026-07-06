@@ -1,4 +1,5 @@
 import AdminContactPage from '@/sections/admin-contact/AdminContactPage';
+import DashboardLayout from '@/components/DashboardLayout/DashboardLayout';
 
 export const metadata = {
     title: 'Admin — Pengaduan Masuk — CoffeeChain',
@@ -6,5 +7,5 @@ export const metadata = {
 };
 
 export default function AdminContactRoute() {
-    return <AdminContactPage />;
+    return <DashboardLayout><AdminContactPage /></DashboardLayout>;
 }
