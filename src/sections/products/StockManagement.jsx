@@ -651,24 +651,29 @@ export default function StockManagement() {
             {cancelTarget && (
                 <div
                     role="presentation"
-                    style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+                    style={{ position: 'fixed', inset: 0, zIndex: 1300, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(7px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
                     onClick={event => { if (event.target === event.currentTarget && !cancellingBatchId) setCancelTarget(null); }}
                 >
-                    <div role="alertdialog" aria-modal="true" aria-labelledby="cancel-pipeline-title" aria-describedby="cancel-pipeline-description" style={{ background: 'var(--color-bg-card)', border: '1px solid rgba(244,67,54,0.4)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 480, boxShadow: '0 24px 80px rgba(0,0,0,0.45)' }}>
-                        <div style={{ color: '#ff6b6b', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 7 }}>Konfirmasi Pembatalan</div>
-                        <h2 id="cancel-pipeline-title" style={{ color: 'var(--color-text)', margin: 0, fontSize: 20, fontWeight: 900 }}>Yakin ingin membatalkan pipeline?</h2>
-                        <p id="cancel-pipeline-description" style={{ color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.6, margin: '10px 0 0' }}>
-                            Batch <strong style={{ color: 'var(--color-text)' }}>{cancelTarget.name}</strong> dan seluruh log tahapnya akan dihapus dari daftar produksi. Tindakan ini tidak dapat dibatalkan.
+                    <div role="alertdialog" aria-modal="true" aria-labelledby="cancel-pipeline-title" aria-describedby="cancel-pipeline-description" style={{ background: '#121414', border: '1px solid rgba(244,67,54,0.48)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 520, boxShadow: '0 30px 100px rgba(0,0,0,0.8)' }}>
+                        <div style={{ color: '#ff6b6b', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>Tindakan Permanen</div>
+                        <h2 id="cancel-pipeline-title" style={{ color: '#F7F3F3', margin: 0, fontSize: 21, fontWeight: 900 }}>Batalkan pipeline batch “{cancelTarget.name}”?</h2>
+                        <p id="cancel-pipeline-description" style={{ color: 'rgba(247,243,243,0.62)', fontSize: 13, lineHeight: 1.6, margin: '10px 0 14px' }}>
+                            Pastikan Anda memang tidak akan melanjutkan produksi batch ini.
                         </p>
+                        <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(244,67,54,0.07)', border: '1px solid rgba(244,67,54,0.22)', color: 'rgba(247,243,243,0.76)', fontSize: 12, lineHeight: 1.65 }}>
+                            <div>Batch akan dihapus dari daftar produksi.</div>
+                            <div>Seluruh log Tahap 1-6 pada batch ini ikut dihapus.</div>
+                            <div>Tindakan ini tidak dapat dipulihkan.</div>
+                        </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
-                            <button type="button" style={mutedButton} onClick={() => setCancelTarget(null)} disabled={!!cancellingBatchId}>Kembali</button>
+                            <button type="button" style={{ ...mutedButton, background: 'rgba(255,255,255,0.06)', color: '#F7F3F3' }} onClick={() => setCancelTarget(null)} disabled={!!cancellingBatchId}>Tidak, Kembali</button>
                             <button
                                 type="button"
-                                style={{ ...button, background: '#d83b3b', color: '#fff', opacity: cancellingBatchId ? 0.65 : 1 }}
+                                style={{ ...button, background: '#e04444', color: '#fff', boxShadow: '0 8px 22px rgba(224,68,68,0.25)', opacity: cancellingBatchId ? 0.65 : 1 }}
                                 onClick={cancelPipeline}
                                 disabled={!!cancellingBatchId}
                             >
-                                {cancellingBatchId ? 'Membatalkan...' : 'Ya, Batalkan Pipeline'}
+                                {cancellingBatchId ? 'Membatalkan...' : 'Ya, Hapus Pipeline'}
                             </button>
                         </div>
                     </div>

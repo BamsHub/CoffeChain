@@ -33,7 +33,6 @@ export default function ProductsContent() {
     const [approving, setApproving] = useState(null);
     const [verifying, setVerifying] = useState(null);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
-    const [uploadingEditPhoto, setUploadingEditPhoto] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -632,23 +631,23 @@ export default function ProductsContent() {
 
             {/* EDIT MODAL */}
             {editingProduct && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={e => { if (e.target === e.currentTarget) setEditingProduct(null); }}>
-                    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(7px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={e => { if (e.target === e.currentTarget) setEditingProduct(null); }}>
+                    <div role="dialog" aria-modal="true" aria-labelledby="edit-product-title" style={{ background: '#101410', border: '1px solid rgba(126,212,74,0.28)', borderRadius: 18, padding: 0, width: '100%', maxWidth: 760, maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 30px 100px rgba(0,0,0,0.78)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, padding: '20px 24px', borderBottom: '1px solid rgba(126,212,74,0.18)', background: '#121812' }}>
                             <div>
-                                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
+                                <div style={{ color: '#7ED44A', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Kelola Data Katalog</div>
+                                <h2 id="edit-product-title" style={{ fontSize: 21, fontWeight: 900, color: '#F2F7EF', margin: 0 }}>
                                     {isFarmer ? 'Ajukan Perubahan Produk' : 'Edit Produk'}
                                 </h2>
-                                {isFarmer && (
-                                    <p style={{ fontSize: 12, color: '#F5A623', margin: '4px 0 0', fontWeight: 600 }}>
-                                        Perubahan akan menunggu persetujuan koperasi/developer
-                                    </p>
-                                )}
+                                <p style={{ fontSize: 12, color: isFarmer ? '#F5C15D' : 'rgba(232,245,224,0.58)', margin: '5px 0 0', fontWeight: 600, lineHeight: 1.5 }}>
+                                    {isFarmer ? 'Perubahan akan dikirim kembali untuk ditinjau admin.' : 'Ubah informasi katalog, stok, kemasan, dan harga produk.'}
+                                </p>
                             </div>
-                            <button onClick={() => setEditingProduct(null)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
+                            <button type="button" aria-label="Tutup edit produk" onClick={() => setEditingProduct(null)} style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#C7D2C2', cursor: 'pointer', fontSize: 20, lineHeight: 1, flexShrink: 0 }}>×</button>
                         </div>
-                        <form onSubmit={handleEditSubmit}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14, marginBottom: 14 }}>
+                        <form onSubmit={handleEditSubmit} style={{ padding: '20px 24px 18px', maxHeight: 'calc(90vh - 92px)', overflowY: 'auto' }}>
+                            <div style={{ color: '#F2F7EF', fontSize: 14, fontWeight: 900, marginBottom: 10 }}>Informasi Produk</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, marginBottom: 14, padding: 16, borderRadius: 12, background: '#151B15', border: '1px solid rgba(255,255,255,0.08)' }}>
                                 <div>
                                     <label style={label}>Nama Produk *</label>
                                     <input style={input} required value={editForm.name} onChange={e => setEditField('name', e.target.value)} />
@@ -680,37 +679,28 @@ export default function ProductsContent() {
                                     <input style={input} type="number" min={0} value={editForm.stock} onChange={e => setEditField('stock', e.target.value)} />
                                 </div>
                             </div>
-                            <div style={{ marginBottom: 14 }}>
-                                <label style={label}>Deskripsi</label>
-                                <textarea style={{ ...input, resize: 'vertical', minHeight: 72 }} value={editForm.description} onChange={e => setEditField('description', e.target.value)} />
+                            <div style={{ marginBottom: 14, padding: 16, borderRadius: 12, background: '#151B15', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <label style={{ ...label, color: '#F2F7EF', fontSize: 14 }}>Deskripsi Produk</label>
+                                <textarea style={{ ...input, resize: 'vertical', minHeight: 105, lineHeight: 1.55 }} value={editForm.description} onChange={e => setEditField('description', e.target.value)} placeholder="Jelaskan karakter, proses, dan keunggulan produk." />
                             </div>
-                            <div style={{ marginBottom: 14 }}>
-                                <label style={label}>Foto Produk</label>
-                                <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 10, border: '1px solid var(--color-border)', borderRadius: 9, background: 'rgba(255,255,255,0.025)' }}>
-                                    {editForm.image && <img src={editForm.image} alt="Foto produk dari pipeline" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />}
-                                    <span style={{ color: 'var(--color-text-muted)', fontSize: 12, lineHeight: 1.55 }}>Foto produk dikunci dari Tahap 6 Pipeline Stok. Upload dan perubahan foto hanya dilakukan melalui pipeline.</span>
-                                </div>
-                                <div style={{ display: 'none', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                    {editForm.image && (
-                                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                                            <img src={editForm.image} alt="preview" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
-                                            <button type="button" onClick={() => setEditField('image', '')} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#f44336', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
-                                        </div>
-                                    )}
-                                    <div style={{ flex: 1, minWidth: 200 }}>
-                                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 600, cursor: uploadingEditPhoto ? 'wait' : 'pointer', marginBottom: 8 }}>
-                                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
-                                            {uploadingEditPhoto ? 'Mengunggah...' : 'Ganti Foto'}
-                                            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingEditPhoto} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, url => setEditField('image', url), setUploadingEditPhoto); }} />
-                                        </label>
-                                        <input style={{ ...input, fontSize: 12 }} value={editForm.image || ''} onChange={e => setEditField('image', e.target.value)} placeholder="atau tempel URL foto..." />
+                            <div style={{ marginBottom: 14, padding: 16, borderRadius: 12, background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.25)' }}>
+                                <label style={{ ...label, color: '#F5C15D', fontSize: 14 }}>Foto Produk dari Pipeline</label>
+                                <div style={{ display: 'flex', gap: 14, alignItems: 'center', paddingTop: 4, flexWrap: 'wrap' }}>
+                                    {editForm.image ? <img src={editForm.image} alt="Foto produk dari Tahap 6 pipeline" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(245,166,35,0.35)', flexShrink: 0 }} /> : <div style={{ width: 84, height: 84, borderRadius: 10, border: '1px dashed rgba(245,166,35,0.4)', color: '#F5C15D', display: 'grid', placeItems: 'center', fontSize: 11 }}>Belum ada foto</div>}
+                                    <div style={{ flex: '1 1 260px' }}>
+                                        <div style={{ color: '#F2F7EF', fontSize: 13, fontWeight: 800, marginBottom: 4 }}>Foto dikunci untuk menjaga bukti traceability</div>
+                                        <div style={{ color: 'rgba(232,245,224,0.58)', fontSize: 12, lineHeight: 1.55 }}>Perubahan foto dan deskripsi tiap tahap dilakukan dari Kelola Stok. Produk ditolak dapat diperbaiki pada card pipeline Tahap 1-6.</div>
+                                        <Link href="/products/stock" style={{ display: 'inline-flex', marginTop: 9, padding: '7px 11px', borderRadius: 8, color: '#F5C15D', background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.28)', textDecoration: 'none', fontSize: 11, fontWeight: 900 }}>Buka Kelola Stok</Link>
                                     </div>
                                 </div>
                             </div>
-                            <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: '#151B15', border: '1px solid rgba(255,255,255,0.08)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                    <label style={label}>Ukuran & Harga *</label>
-                                    <button type="button" onClick={addEditWeightRow} style={{ fontSize: 12, color: 'var(--color-primary-light)', background: 'rgba(74,124,40,0.1)', border: '1px solid var(--color-border)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>+ Ukuran</button>
+                                    <div>
+                                        <div style={{ color: '#F2F7EF', fontSize: 14, fontWeight: 900 }}>Ukuran Kemasan & Harga</div>
+                                        <div style={{ color: 'rgba(232,245,224,0.48)', fontSize: 11, marginTop: 3 }}>Atur satu atau beberapa varian penjualan.</div>
+                                    </div>
+                                    <button type="button" onClick={addEditWeightRow} style={{ fontSize: 12, color: '#7ED44A', background: 'rgba(126,212,74,0.08)', border: '1px solid rgba(126,212,74,0.28)', borderRadius: 8, padding: '7px 11px', cursor: 'pointer', fontWeight: 800 }}>Tambah Ukuran</button>
                                 </div>
                                 {editForm.weights.map((w, i) => (
                                     <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -728,9 +718,9 @@ export default function ProductsContent() {
                                     </div>
                                 ))}
                             </div>
-                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                                <button type="button" onClick={() => setEditingProduct(null)} style={{ ...btnDanger, padding: '10px 20px' }}>Batal</button>
-                                <button type="submit" style={btnPrimary} disabled={saving}>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap', position: 'sticky', bottom: -18, margin: '18px -24px -18px', padding: '14px 24px', borderTop: '1px solid rgba(126,212,74,0.18)', background: '#121812' }}>
+                                <button type="button" onClick={() => setEditingProduct(null)} style={{ padding: '10px 18px', borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#D8E2D3', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>Tutup Tanpa Menyimpan</button>
+                                <button type="submit" style={{ ...btnPrimary, padding: '10px 20px' }} disabled={saving}>
                                     {saving ? 'Menyimpan...' : (isFarmer ? 'Kirim Perubahan' : 'Simpan Perubahan')}
                                 </button>
                             </div>
