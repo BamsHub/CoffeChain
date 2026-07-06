@@ -24,6 +24,19 @@ function convertKeys(obj, converter) {
     return result;
 }
 
+function withOffchainReferences(product) {
+    const tags = Array.isArray(product.tags) ? product.tags.map(String) : [];
+    const valueAfter = prefix => tags.find(tag => tag.startsWith(prefix))?.slice(prefix.length) || null;
+    return {
+        ...product,
+        offchain: {
+            imageCid: valueAfter('ipfs-image:'),
+            metadataCid: valueAfter('ipfs-metadata:'),
+            proofTxSignature: valueAfter('offchain-proof:'),
+        },
+    };
+}
+
 // ── GET /api/products ────────────────────────────────────────────
 export async function GET(request) {
     try {
@@ -38,7 +51,7 @@ export async function GET(request) {
         const { data, error } = await query;
         if (error) throw error;
 
-        const items = (data || []).map(row => convertKeys(row, toCamel));
+        const items = (data || []).map(row => withOffchainReferences(convertKeys(row, toCamel)));
         return Response.json({ success: true, data: items });
     } catch (err) {
         console.error('[products GET]', err.message);

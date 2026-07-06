@@ -1,207 +1,116 @@
 export const runtime = 'nodejs';
-export const maxDuration = 60; // Vercel: allow up to 60s for Solana TX
+export const maxDuration = 60;
 
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
+import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
 import {
-    Connection, Keypair, PublicKey, LAMPORTS_PER_SOL,
-    Transaction, TransactionInstruction,
-    ComputeBudgetProgram,
-} from '@solana/web3.js';
-import { SOLANA_NETWORK, MEMO_PROGRAM_ID, getExplorerTxUrl } from '@/lib/contractConfig';
+    createProductOffchainProof,
+    mergeOffchainTags,
+    verifyProductOffchainProof,
+} from '@/lib/offchainProduct';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let id = 'CF-';
-    for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+    for (let index = 0; index < 6; index += 1) id += chars[Math.floor(Math.random() * chars.length)];
     return id;
 }
 
-function getConnection() {
-    return new Connection(SOLANA_NETWORK, {
-        commitment: 'confirmed',
-        confirmTransactionInitialTimeout: 60000,
-    });
-}
-
-function getSigner() {
-    const secretKeyEnv = process.env.MEMO_SIGNER_SECRET_KEY;
-    if (!secretKeyEnv) throw new Error('MEMO_SIGNER_SECRET_KEY not configured');
-    const secretArray = JSON.parse(secretKeyEnv);
-    return Keypair.fromSecretKey(Uint8Array.from(secretArray));
-}
-
-async function ensureBalance(connection, publicKey) {
-    const balance = await connection.getBalance(publicKey);
-    console.log(`[coffee-trace] Wallet ${publicKey.toBase58()} balance: ${balance / LAMPORTS_PER_SOL} SOL`);
-    if (balance < 0.005 * LAMPORTS_PER_SOL) {
-        console.log('[coffee-trace] Balance low, requesting devnet airdrop...');
-        try {
-            const sig = await connection.requestAirdrop(publicKey, 1 * LAMPORTS_PER_SOL);
-            await connection.confirmTransaction(sig, 'confirmed');
-            const newBalance = await connection.getBalance(publicKey);
-            console.log(`[coffee-trace] Airdrop success! New balance: ${newBalance / LAMPORTS_PER_SOL} SOL`);
-        } catch (e) {
-            console.warn('[coffee-trace] Airdrop failed (may have been rate-limited):', e.message);
-            if (balance === 0) throw new Error('Wallet has 0 SOL and airdrop failed');
-        }
-    }
-}
-
-async function sendMemoTx(memoData) {
-    const signer = getSigner();
-    const connection = getConnection();
-
-    await ensureBalance(connection, signer.publicKey);
-
-    const memoProgramId = new PublicKey(MEMO_PROGRAM_ID);
-    const memoText = memoData.length > 560 ? memoData.slice(0, 557) + '...' : memoData;
-    const memoEncoded = Buffer.from(memoText, 'utf8');
-
-    const memoInstruction = new TransactionInstruction({
-        keys: [{ pubkey: signer.publicKey, isSigner: true, isWritable: false }],
-        programId: memoProgramId,
-        data: memoEncoded,
-    });
-
-    const computeUnitPrice = ComputeBudgetProgram.setComputeUnitPrice({
-        microLamports: 1000,
-    });
-    const computeUnitLimit = ComputeBudgetProgram.setComputeUnitLimit({
-        units: 200000,
-    });
-
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-
-    const tx = new Transaction();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = signer.publicKey;
-    tx.lastValidBlockHeight = lastValidBlockHeight;
-    tx.add(computeUnitPrice, computeUnitLimit, memoInstruction);
-    tx.sign(signer);
-
-    const txSignature = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: false,
-        maxRetries: 5,
-    });
-
-    console.log('[coffee-trace] TX submitted:', txSignature);
-
-    const confirmation = await Promise.race([
-        connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, 'confirmed'),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('confirmation timeout 20s')), 20000)),
-    ]);
-
-    if (confirmation?.value?.err) {
-        throw new Error(`TX failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-    }
-
-    console.log('[coffee-trace] TX confirmed on Solana:', txSignature);
-    return { txSignature, explorerUrl: getExplorerTxUrl(txSignature) };
+async function recordOffchainTransaction({ product, proof, txSignature }) {
+    const base = {
+        id: `off-${Date.now().toString(36)}-${String(product.id).slice(-5)}`,
+        hash: txSignature,
+        farmer: product.submitted_by_name || 'CoffeeChain',
+        amount: 0,
+        status: 'Confirmed',
+        note: `Metadata IPFS ${proof.metadataCid}; SHA-256 ${proof.contentHash}`,
+    };
+    const extended = {
+        ...base,
+        type: 'offchain_proof',
+        product_id: product.id,
+        product_name: product.name,
+        timestamp: new Date().toISOString(),
+    };
+    const { error } = await supabaseAdmin.from('transactions').insert(extended);
+    if (error) await supabaseAdmin.from('transactions').insert(base);
 }
 
 export async function POST(request) {
     try {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
         const session = await verifyToken(token);
-        if (!session) {
-            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
+        if (!session) return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
         const {
             productId, name, origin, variety, grade, weightKg,
             farmerName, farmerId, harvestDate, processMethod, roastLevel,
             certification, description, registeredBy, paymentWallet,
-            // ── Phantom-signed TX: jika disediakan, skip server wallet ──
-            phantomTxSignature, phantomWalletAddress,
+            phantomTxSignature, phantomWalletAddress, offchainProof,
         } = body;
 
-        // Security check: if role is farmer, verify ownership of product or matching farmerId
-        if (session.role === 'farmer') {
-            if (productId) {
-                const { data: product, error: checkErr } = await supabaseAdmin
-                    .from('products')
-                    .select('submitted_by')
-                    .eq('id', productId)
-                    .maybeSingle();
-                if (checkErr || !product) {
-                    return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
-                }
-                if (product.submitted_by !== session.userId) {
-                    return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-                }
-            } else if (farmerId && farmerId !== session.userId) {
-                return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-            }
+        if (!productId) {
+            return Response.json({ success: false, message: 'Produk wajib berasal dari pipeline produksi' }, { status: 400 });
         }
-
         if (!name || !origin) {
             return Response.json({ success: false, message: 'Nama dan asal kopi wajib diisi' }, { status: 400 });
         }
 
-        let coffeeId;
-        let resolvedProductId = productId || null;
-
-        if (productId) {
-            try {
-                const { data: product } = await supabaseAdmin
-                    .from('products')
-                    .select('id, coffee_id')
-                    .eq('id', productId)
-                    .single();
-
-                if (product?.coffee_id) {
-                    coffeeId = product.coffee_id;
-                } else {
-                    coffeeId = generateCoffeeId();
-                }
-            } catch (productLookupErr) {
-                console.warn('[coffee-trace] Product lookup failed, generating new ID:', productLookupErr.message);
-                coffeeId = generateCoffeeId();
-            }
-        } else {
-            coffeeId = generateCoffeeId();
+        const { data: product, error: productError } = await supabaseAdmin
+            .from('products')
+            .select('*')
+            .eq('id', productId)
+            .maybeSingle();
+        if (productError || !product) {
+            return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+        }
+        if (session.role === 'farmer' && product.submitted_by !== session.userId) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+        if (farmerId && session.role === 'farmer' && farmerId !== session.userId) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        const memoData = JSON.stringify({
-            v: 1,
-            type: 'coffee-inventory',
-            id: coffeeId,
-            pid: resolvedProductId || '',
-            n: name.slice(0, 30),
-            o: (origin || '').slice(0, 20),
-            var: (variety || '').slice(0, 15),
-            g: grade || '',
-            r: (roastLevel || '').slice(0, 10),
-            ts: Math.floor(Date.now() / 1000),
-        });
+        let proof = offchainProof;
+        if (proof) {
+            const { manifest } = await verifyProductOffchainProof(proof);
+            if (proof.productId !== product.id) throw new Error('Bukti off-chain bukan milik produk ini');
+            proof = { ...proof, image: manifest.image };
+        } else {
+            proof = await createProductOffchainProof({
+                coffeeId: product.coffee_id || generateCoffeeId(),
+                productId: product.id,
+                product,
+                traceData: body,
+            });
+        }
 
+        const coffeeId = proof.coffeeId;
         let txSignature = null;
         let explorerUrl = null;
         let txError = null;
 
         if (phantomTxSignature) {
-            // ── Phantom sudah sign & kirim TX di client-side ──
             txSignature = phantomTxSignature;
             explorerUrl = getExplorerTxUrl(phantomTxSignature);
-            console.log('[coffee-trace] Using Phantom-signed TX:', phantomTxSignature);
+            console.log('[coffee-trace] Using Phantom hash-proof TX:', phantomTxSignature);
         } else {
-            // ── Fallback: gunakan server wallet ──
             try {
-                const result = await sendMemoTx(memoData);
+                const result = await sendServerMemoTx(proof.memo);
                 txSignature = result.txSignature;
                 explorerUrl = result.explorerUrl;
-            } catch (solErr) {
-                txError = solErr?.message || 'Unknown Solana error';
-                console.error('[coffee-trace] Solana TX failed:', txError);
+            } catch (error) {
+                txError = error?.message || 'Unknown Solana error';
+                console.error('[coffee-trace] Solana proof TX failed:', txError);
             }
         }
 
-        const isVerified = txSignature !== null;
-
+        const isVerified = Boolean(txSignature);
         const trace = {
             id: uuidv4(),
             coffeeId,
@@ -221,52 +130,47 @@ export async function POST(request) {
             explorerUrl,
             status: isVerified ? 'verified' : 'registered',
             registeredBy: registeredBy || null,
-            productId: resolvedProductId,
-            paymentWallet: paymentWallet || null,
+            productId: product.id,
+            paymentWallet: paymentWallet || phantomWalletAddress || null,
             createdAt: new Date().toISOString(),
         };
 
-        // Save trace to DB — if coffee_traces table doesn't exist yet, log and continue
-        // (coffeeId is still attached to product below, so registration succeeds regardless)
         try {
             await addItem('coffee_traces', trace);
-        } catch (insertErr) {
-            if (insertErr.message?.includes('column') || insertErr.message?.includes('schema')) {
-                console.warn('[coffee-trace] Retrying insert without optional columns:', insertErr.message);
-                try {
-                    const { productId: _pid, paymentWallet: _pw, ...baseTrace } = trace;
-                    await addItem('coffee_traces', baseTrace);
-                } catch (retryErr) {
-                    console.warn('[coffee-trace] Retry insert also failed:', retryErr.message);
-                }
+        } catch (insertError) {
+            if (insertError.message?.includes('column') || insertError.message?.includes('schema')) {
+                const { productId: _productId, paymentWallet: _paymentWallet, ...baseTrace } = trace;
+                await addItem('coffee_traces', baseTrace).catch(error => console.warn('[coffee-trace] Trace fallback failed:', error.message));
             } else {
-                // Table may not exist yet — log but do NOT crash (coffeeId still attached to product below)
-                console.warn('[coffee-trace] Could not save to coffee_traces (table may not exist):', insertErr.message);
+                console.warn('[coffee-trace] Could not save coffee trace:', insertError.message);
             }
         }
 
-        if (productId) {
-            try {
-                const updateData = { coffeeId, status: 'published' };
-                if (paymentWallet) updateData.paymentWallet = paymentWallet;
-                await updateItem('products', productId, updateData);
-            } catch (e) {
-                console.error('[coffee-trace] Failed to attach coffeeId to product:', e.message);
-            }
+        if (isVerified) {
+            const tags = mergeOffchainTags(product.tags, proof, txSignature);
+            await updateItem('products', product.id, {
+                coffeeId,
+                status: 'published',
+                image: proof.image.gatewayUrl,
+                tags,
+                ...(paymentWallet ? { paymentWallet } : {}),
+            });
+            await recordOffchainTransaction({ product, proof, txSignature }).catch(error => {
+                console.warn('[coffee-trace] Failed to record off-chain transaction:', error.message);
+            });
         }
 
         return Response.json({
             success: true,
             verified: isVerified,
             message: isVerified
-                ? `Kopi ${coffeeId} berhasil diverifikasi di Solana! Gas fee telah dipotong.`
-                : `Kopi ${coffeeId} tersimpan tapi gagal ke blockchain: ${txError}`,
-            data: trace,
+                ? `Kopi ${coffeeId} terverifikasi: foto dan metadata di IPFS, hanya hash di Solana.`
+                : `Kopi ${coffeeId} tersimpan di IPFS tetapi bukti Solana gagal: ${txError}`,
+            data: { ...trace, offchainProof: proof },
         }, { status: 201 });
-
-    } catch (err) {
-        console.error('[coffee-trace] Error:', err);
-        return Response.json({ success: false, message: err.message || 'Server error' }, { status: 500 });
+    } catch (error) {
+        console.error('[coffee-trace] Error:', error);
+        return Response.json({ success: false, message: error.message || 'Server error' }, { status: 500 });
     }
 }
 
@@ -274,21 +178,12 @@ export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const coffeeId = searchParams.get('coffeeId');
-
         const db = await readDb('coffee_traces');
         let items = db.items || [];
-
-        if (coffeeId) {
-            items = items.filter(t => t.coffeeId === coffeeId || t.id === coffeeId);
-        }
-
-        return Response.json({
-            success: true,
-            data: items,
-            total: items.length,
-        });
-    } catch (err) {
-        console.error('[coffee-trace] GET error:', err);
+        if (coffeeId) items = items.filter(trace => trace.coffeeId === coffeeId || trace.id === coffeeId);
+        return Response.json({ success: true, data: items, total: items.length });
+    } catch (error) {
+        console.error('[coffee-trace] GET error:', error);
         return Response.json({ success: false, message: 'Server error' }, { status: 500 });
     }
 }

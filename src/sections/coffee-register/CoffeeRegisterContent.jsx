@@ -49,7 +49,7 @@ const S = {
 
 /* ════════════════════════════════════════════════════════════════ */
 export default function CoffeeRegisterContent() {
-    const { user } = useAuth();
+    const { user, getToken } = useAuth();
 
     /* ── State ── */
     const [tab, setTab]                   = useState('products');
@@ -175,25 +175,43 @@ export default function CoffeeRegisterContent() {
 
         setSubmitting(true); setRegMsg(null);
         try {
-            const memoData = JSON.stringify({
-                v: 1, type: 'coffee-trace',
-                name: regProduct.name?.slice(0, 30),
-                origin: regProduct.origin?.slice(0, 20),
-                variety: regProduct.variety?.slice(0, 15),
-                grade: regProduct.grade,
-                farmer: regForm.farmerName?.slice(0, 25),
-                harvest: regForm.harvestDate,
-                process: regForm.processMethod,
-                roast: regForm.roastLevel,
-                cert: regForm.certification?.slice(0, 20),
-                ts: Math.floor(Date.now() / 1000),
+            const token = await getToken();
+            const tracePayload = {
+                productId: regProduct.id,
+                name: regProduct.name,
+                origin: regProduct.origin || '',
+                variety: regProduct.variety || 'Arabika',
+                grade: regProduct.grade || 'A',
+                weightKg: regProduct.weight?.[0] || 0,
+                farmerName: regForm.farmerName,
+                harvestDate: regForm.harvestDate,
+                processMethod: regForm.processMethod,
+                roastLevel: regForm.roastLevel,
+                certification: regForm.certification,
+                description: regProduct.description || '',
+                registeredBy: user?.id || walletPK,
+                paymentWallet: walletPK,
+            };
+
+            setRegMsg({ type: 'info', text: 'Memindahkan foto dan metadata produk ke IPFS...' });
+            const proofResponse = await fetch('/api/coffee-trace/proof', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify(tracePayload),
             });
+            const proofData = await proofResponse.json();
+            if (!proofData.success || !proofData.proof?.memo) {
+                throw new Error(proofData.message || 'Gagal membuat bukti IPFS');
+            }
 
             setRegMsg({ type: 'info', text: 'Menunggu tanda tangan Phantom Wallet... Konfirmasi di popup Phantom Anda.' });
 
             let phantomTxSignature;
             try {
-                phantomTxSignature = await sendMemoWithPhantom(walletPK, memoData);
+                phantomTxSignature = await sendMemoWithPhantom(walletPK, proofData.proof.memo);
             } catch (phantomErr) {
                 if (phantomErr.message?.includes('rejected') || phantomErr.code === 4001) {
                     setRegMsg({ type: 'error', text: 'Transaksi dibatalkan oleh pengguna.' });
@@ -206,24 +224,15 @@ export default function CoffeeRegisterContent() {
 
             const res = await fetch('/api/coffee-trace', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
-                    productId:            regProduct.id,
-                    name:                 regProduct.name,
-                    origin:               regProduct.origin || '',
-                    variety:              regProduct.variety || 'Arabika',
-                    grade:                regProduct.grade || 'A',
-                    weightKg:             regProduct.weight?.[0] || 0,
-                    farmerName:           regForm.farmerName,
-                    harvestDate:          regForm.harvestDate,
-                    processMethod:        regForm.processMethod,
-                    roastLevel:           regForm.roastLevel,
-                    certification:        regForm.certification,
-                    description:          regProduct.description || '',
-                    registeredBy:         user?.id || walletPK,
-                    paymentWallet:        walletPK,
+                    ...tracePayload,
                     phantomTxSignature,
                     phantomWalletAddress: walletPK,
+                    offchainProof: proofData.proof,
                 }),
             });
             const data = await res.json();
@@ -277,7 +286,15 @@ export default function CoffeeRegisterContent() {
         if (!window.confirm(`On-chain ${unregistered.length} produk menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
         setBatchLoading(true); setBatchResult(null);
         try {
-            const res = await fetch('/api/admin/batch-onchain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+            const token = await getToken();
+            const res = await fetch('/api/admin/batch-onchain', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({}),
+            });
             const data = await res.json();
             setBatchResult(data);
             if (data.success) { await Promise.all([loadProducts(), loadTraces()]); }

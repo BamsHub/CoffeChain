@@ -173,7 +173,7 @@ export default function StockManagement() {
         setUploading(false);
     }
 
-    function openStageModal(batch, stage) {
+    function openStageCard(batch, stage) {
         setStageModal({ batch, stage });
         setPhotoUrl('');
         setPhotoIpfs(null);
@@ -266,6 +266,76 @@ export default function StockManagement() {
     const mutedButton = { ...button, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
     const primaryButton = { ...button, background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff' };
 
+    function renderStageUploadCard() {
+        if (!stageModal) return null;
+
+        return (
+            <form onSubmit={submitStage} style={{ marginTop: 14, background: 'rgba(255,255,255,0.025)', border: `1px solid ${stageModal.stage.tone}55`, borderRadius: 12, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+                    <div>
+                        <div style={{ color: stageModal.stage.tone, fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Card Upload Tahap {stageModal.stage.id}</div>
+                        <h3 style={{ color: 'var(--color-text)', margin: '4px 0 0', fontSize: 17, fontWeight: 900 }}>{stageModal.stage.name}</h3>
+                        <p style={{ color: 'var(--color-text-muted)', margin: '5px 0 0', fontSize: 12 }}>Foto wajib dipin ke IPFS sebelum tahap dapat disimpan.</p>
+                    </div>
+                    <button type="button" onClick={() => setStageModal(null)} style={{ ...mutedButton, padding: '6px 10px' }}>Tutup Card</button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
+                    <Field label="Operator" value={stageForm.operator} onChange={value => setStageField('operator', value)} input={input} labelStyle={label} placeholder={user?.name || user?.email || ''} />
+                    <Field label="Durasi (menit)" type="number" value={stageForm.durationMinutes} onChange={value => setStageField('durationMinutes', value)} input={input} labelStyle={label} />
+                    <Field label="Berat Masuk (kg)" type="number" value={stageForm.weightIn} onChange={value => setStageField('weightIn', value)} input={input} labelStyle={label} />
+                    <Field label="Berat Keluar (kg)" type="number" value={stageForm.weightOut} onChange={value => setStageField('weightOut', value)} input={input} labelStyle={label} />
+                    {stageModal.stage.id === 2 && (
+                        <>
+                            <Field label="Suhu Roasting (C)" type="number" value={stageForm.suhu} onChange={value => setStageField('suhu', value)} input={input} labelStyle={label} />
+                            <SelectField label="Level Roast" value={stageForm.levelRoast} onChange={value => setStageField('levelRoast', value)} options={['Light Roast', 'Medium Roast', 'Medium-Dark Roast', 'Dark Roast']} input={input} labelStyle={label} />
+                        </>
+                    )}
+                    {stageModal.stage.id === 4 && (
+                        <SelectField label="Ukuran Giling" value={stageForm.ukuranGiling} onChange={value => setStageField('ukuranGiling', value)} options={['Fine', 'Medium', 'Coarse']} input={input} labelStyle={label} />
+                    )}
+                    {stageModal.stage.id === 5 && (
+                        <Field label="Pelepasan Gas (jam)" type="number" value={stageForm.gasReleaseHours} onChange={value => setStageField('gasReleaseHours', value)} input={input} labelStyle={label} />
+                    )}
+                    {stageModal.stage.id === 6 && (
+                        <>
+                            <Field label="Nama Produk Jadi" value={stageForm.productName} onChange={value => setStageField('productName', value)} input={input} labelStyle={label} required />
+                            <Field label="Stok Produk (unit)" type="number" value={stageForm.stock} onChange={value => setStageField('stock', value)} input={input} labelStyle={label} required />
+                            <Field label="Berat Kemasan (gram)" type="number" value={stageForm.gram} onChange={value => setStageField('gram', value)} input={input} labelStyle={label} required />
+                            <Field label="Harga" type="number" value={stageForm.price} onChange={value => setStageField('price', value)} input={input} labelStyle={label} required />
+                        </>
+                    )}
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                    <label style={label}>Bukti Foto IPFS *</label>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 800, cursor: uploading ? 'wait' : 'pointer' }}>
+                        {uploading ? 'Mengunggah ke IPFS...' : 'Pilih Foto dan Pin ke IPFS'}
+                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" required={!photoIpfs?.cid} disabled={uploading} style={{ display: 'none' }} onChange={event => { const file = event.target.files?.[0]; if (file) uploadPhoto(file); }} />
+                    </label>
+                    {photoUrl && (
+                        <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', color: 'var(--color-text-muted)', fontSize: 12 }}>
+                            <img src={photoUrl} alt="Bukti tahap" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                            <span>Foto sudah dipin ke IPFS.<br />CID: <code style={{ wordBreak: 'break-all' }}>{photoIpfs?.cid}</code></span>
+                        </div>
+                    )}
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                    <label style={label}>{stageModal.stage.id === 6 ? 'Deskripsi Produk' : 'Catatan Tahap'}</label>
+                    <textarea style={{ ...input, minHeight: 86, resize: 'vertical' }} value={stageModal.stage.id === 6 ? stageForm.description : stageForm.notes} onChange={event => setStageField(stageModal.stage.id === 6 ? 'description' : 'notes', event.target.value)} />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                    <button type="button" style={mutedButton} onClick={() => setStageModal(null)}>Batal</button>
+                    <button type="submit" style={{ ...primaryButton, opacity: photoIpfs?.cid ? 1 : 0.6 }} disabled={saving || uploading || !photoIpfs?.cid}>
+                        {saving ? 'Menyimpan...' : stageModal.stage.id === 6 ? 'Jadikan Produk' : 'Simpan & Lanjut Tahap'}
+                    </button>
+                </div>
+            </form>
+        );
+    }
+
     return (
         <div style={{ padding: 'clamp(16px,3vw,32px)', maxWidth: 1200, margin: '0 auto' }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -284,15 +354,9 @@ export default function StockManagement() {
                         Stok pasca-panen diproses bertahap sampai menjadi produk jadi yang muncul di Kelola Produk.
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                    <Link href="/ipfs" style={{ ...primaryButton, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                        Upload Gambar
-                    </Link>
-                    <button type="button" style={primaryButton} onClick={() => setShowBatchForm(prev => !prev)}>
-                        {showBatchForm ? 'Tutup Form' : 'Tambah Batch Panen'}
-                    </button>
-                </div>
+                <button type="button" style={primaryButton} onClick={() => setShowBatchForm(prev => !prev)}>
+                    {showBatchForm ? 'Tutup Form' : 'Tambah Batch Panen'}
+                </button>
             </div>
 
             {msg && (
@@ -319,21 +383,20 @@ export default function StockManagement() {
                         <label style={label}>Catatan Panen</label>
                         <textarea style={{ ...input, minHeight: 74, resize: 'vertical' }} value={batchForm.notes} onChange={event => setBatchField('notes', event.target.value)} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, marginTop: 14, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: '1 1 560px' }}>
+                            {STAGES.map(stage => (
+                                <div key={stage.id} title={stage.name} style={{ minWidth: 78, flex: '1 1 78px', borderRadius: 9, padding: '8px 9px', background: `${stage.tone}0f`, border: `1px solid ${stage.tone}44` }}>
+                                    <div style={{ color: stage.tone, fontSize: 10, fontWeight: 900 }}>Tahap {stage.id}</div>
+                                    <div style={{ color: 'var(--color-text)', fontSize: 11, fontWeight: 800, marginTop: 2 }}>{stage.short}</div>
+                                    <div style={{ color: 'var(--color-text-muted)', fontSize: 10, marginTop: 2 }}>{counts[stage.id] || 0} aktif</div>
+                                </div>
+                            ))}
+                        </div>
                         <button type="submit" style={primaryButton} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Batch'}</button>
                     </div>
                 </form>
             )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 10, marginBottom: 18 }}>
-                {STAGES.map(stage => (
-                    <div key={stage.id} style={{ ...card, padding: 14, borderColor: `${stage.tone}55` }}>
-                        <div style={{ fontSize: 11, color: stage.tone, fontWeight: 900 }}>Tahap {stage.id}</div>
-                        <div style={{ color: 'var(--color-text)', fontWeight: 800, fontSize: 13, marginTop: 4 }}>{stage.short}</div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 6 }}>{counts[stage.id] || 0} batch aktif</div>
-                    </div>
-                ))}
-            </div>
 
             <div style={{ marginBottom: 16 }}>
                 <input style={{ ...input, maxWidth: 360 }} placeholder="Cari batch, asal, varietas, petani..." value={search} onChange={event => setSearch(event.target.value)} />
@@ -373,7 +436,7 @@ export default function StockManagement() {
                                                 key={stage.id}
                                                 type="button"
                                                 title={stage.name}
-                                                onClick={() => active && openStageModal(batch, stage)}
+                                                onClick={() => active && openStageCard(batch, stage)}
                                                 disabled={!active}
                                                 style={{
                                                     height: 34,
@@ -394,9 +457,11 @@ export default function StockManagement() {
                                 <div style={{ color: 'var(--color-text)', fontSize: 13, fontWeight: 800, marginBottom: 10 }}>
                                     Sekarang: {currentStage.name}
                                 </div>
-                                <button type="button" style={{ ...primaryButton, width: '100%', opacity: batch.productId ? 0.65 : 1 }} onClick={() => openStageModal(batch, currentStage)} disabled={!!batch.productId}>
-                                    {batch.productId ? 'Sudah Jadi Produk' : `Upload Data ${currentStage.short}`}
+                                <button type="button" style={{ ...primaryButton, width: '100%', opacity: batch.productId ? 0.65 : 1 }} onClick={() => openStageCard(batch, currentStage)} disabled={!!batch.productId}>
+                                    {batch.productId ? 'Sudah Jadi Produk' : `Buka Card Upload ${currentStage.short}`}
                                 </button>
+
+                                {stageModal?.batch?.id === batch.id && renderStageUploadCard()}
 
                                 <div style={{ marginTop: 16, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
                                     <div style={{ color: 'var(--color-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 8 }}>Log Audit Produksi</div>
@@ -423,73 +488,6 @@ export default function StockManagement() {
                             </div>
                         );
                     })}
-                </div>
-            )}
-
-            {stageModal && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={event => { if (event.target === event.currentTarget) setStageModal(null); }}>
-                    <form onSubmit={submitStage} style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 660, maxHeight: '90vh', overflow: 'auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
-                            <div>
-                                <h2 style={{ color: 'var(--color-text)', margin: 0, fontSize: 19, fontWeight: 900 }}>Upload {stageModal.stage.name}</h2>
-                                <p style={{ color: 'var(--color-text-muted)', margin: '5px 0 0', fontSize: 13 }}>{stageModal.batch.name}</p>
-                            </div>
-                            <button type="button" onClick={() => setStageModal(null)} style={{ ...mutedButton, padding: '6px 10px' }}>Tutup</button>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
-                            <Field label="Operator" value={stageForm.operator} onChange={value => setStageField('operator', value)} input={input} labelStyle={label} placeholder={user?.name || user?.email || ''} />
-                            <Field label="Durasi (menit)" type="number" value={stageForm.durationMinutes} onChange={value => setStageField('durationMinutes', value)} input={input} labelStyle={label} />
-                            <Field label="Berat Masuk (kg)" type="number" value={stageForm.weightIn} onChange={value => setStageField('weightIn', value)} input={input} labelStyle={label} />
-                            <Field label="Berat Keluar (kg)" type="number" value={stageForm.weightOut} onChange={value => setStageField('weightOut', value)} input={input} labelStyle={label} />
-                            {stageModal.stage.id === 2 && (
-                                <>
-                                    <Field label="Suhu Roasting (C)" type="number" value={stageForm.suhu} onChange={value => setStageField('suhu', value)} input={input} labelStyle={label} />
-                                    <SelectField label="Level Roast" value={stageForm.levelRoast} onChange={value => setStageField('levelRoast', value)} options={['Light Roast', 'Medium Roast', 'Medium-Dark Roast', 'Dark Roast']} input={input} labelStyle={label} />
-                                </>
-                            )}
-                            {stageModal.stage.id === 4 && (
-                                <SelectField label="Ukuran Giling" value={stageForm.ukuranGiling} onChange={value => setStageField('ukuranGiling', value)} options={['Fine', 'Medium', 'Coarse']} input={input} labelStyle={label} />
-                            )}
-                            {stageModal.stage.id === 5 && (
-                                <Field label="Pelepasan Gas (jam)" type="number" value={stageForm.gasReleaseHours} onChange={value => setStageField('gasReleaseHours', value)} input={input} labelStyle={label} />
-                            )}
-                            {stageModal.stage.id === 6 && (
-                                <>
-                                    <Field label="Nama Produk Jadi" value={stageForm.productName} onChange={value => setStageField('productName', value)} input={input} labelStyle={label} required />
-                                    <Field label="Stok Produk (unit)" type="number" value={stageForm.stock} onChange={value => setStageField('stock', value)} input={input} labelStyle={label} required />
-                                    <Field label="Berat Kemasan (gram)" type="number" value={stageForm.gram} onChange={value => setStageField('gram', value)} input={input} labelStyle={label} required />
-                                    <Field label="Harga" type="number" value={stageForm.price} onChange={value => setStageField('price', value)} input={input} labelStyle={label} required />
-                                </>
-                            )}
-                        </div>
-
-                        <div style={{ marginTop: 12 }}>
-                            <label style={label}>Bukti Foto IPFS *</label>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 800, cursor: uploading ? 'wait' : 'pointer' }}>
-                                {uploading ? 'Mengunggah ke IPFS...' : 'Upload Foto ke IPFS'}
-                                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" required={!photoIpfs?.cid} disabled={uploading} style={{ display: 'none' }} onChange={event => { const file = event.target.files?.[0]; if (file) uploadPhoto(file); }} />
-                            </label>
-                            {photoUrl && (
-                                <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', color: 'var(--color-text-muted)', fontSize: 12 }}>
-                                    <img src={photoUrl} alt="Bukti tahap" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
-                                    <span>Foto sudah dipin ke IPFS.<br />CID: <code style={{ wordBreak: 'break-all' }}>{photoIpfs?.cid}</code></span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div style={{ marginTop: 12 }}>
-                            <label style={label}>{stageModal.stage.id === 6 ? 'Deskripsi Produk' : 'Catatan Tahap'}</label>
-                            <textarea style={{ ...input, minHeight: 86, resize: 'vertical' }} value={stageModal.stage.id === 6 ? stageForm.description : stageForm.notes} onChange={event => setStageField(stageModal.stage.id === 6 ? 'description' : 'notes', event.target.value)} />
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-                            <button type="button" style={mutedButton} onClick={() => setStageModal(null)}>Batal</button>
-                            <button type="submit" style={{ ...primaryButton, opacity: photoIpfs?.cid ? 1 : 0.6 }} disabled={saving || uploading || !photoIpfs?.cid}>
-                                {saving ? 'Menyimpan...' : stageModal.stage.id === 6 ? 'Jadikan Produk' : 'Simpan & Lanjut Tahap'}
-                            </button>
-                        </div>
-                    </form>
                 </div>
             )}
 

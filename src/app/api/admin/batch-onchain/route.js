@@ -75,7 +75,10 @@ export async function POST(request) {
 
                 const res = await fetch(`${baseUrl}/api/coffee-trace`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
                     body: JSON.stringify(payload),
                 });
                 const data = await res.json();

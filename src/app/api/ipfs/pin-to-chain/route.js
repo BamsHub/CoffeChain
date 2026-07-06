@@ -1,62 +1,38 @@
 export const runtime = 'nodejs';
 
+import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
 import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
-import { getIPFSGatewayUrl } from '@/lib/ipfs';
 
-/** POST — Pin IPFS CID reference on Solana blockchain (public, no auth) */
-export async function POST(req) {
+/** POST - Store only an IPFS CID hash proof on Solana. */
+export async function POST(request) {
     try {
-
-        const body = await req.json();
-        const { cid, filename, fileType, fileSize } = body;
-
-        if (!cid) {
-            return NextResponse.json({ success: false, message: 'CID is required' }, { status: 400 });
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session || !['koperasi', 'developer'].includes(session.role)) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        // Build memo payload
+        const { cid } = await request.json();
+        if (!cid) return NextResponse.json({ success: false, message: 'CID is required' }, { status: 400 });
+
         const memo = {
-            v: 1,
-            type: 'ipfs-pin',
+            v: 2,
+            type: 'ipfs-proof',
             cid,
-            filename: filename || 'unknown',
-            fileType: fileType || 'unknown',
-            size: fileSize || 0,
-            gateway: getIPFSGatewayUrl(cid),
-            ts: Math.floor(Date.now() / 1000),
+            sha256: createHash('sha256').update(cid).digest('hex'),
         };
+        const result = await sendServerMemoTx(JSON.stringify(memo));
 
-        const memoString = JSON.stringify(memo);
-        console.log(`[IPFS→Chain] Writing memo: ${memoString}`);
-
-        // Send to Solana
-        try {
-            const result = await sendServerMemoTx(memoString);
-
-            console.log(`[IPFS→Chain] TX confirmed: ${result.txSignature}`);
-
-            return NextResponse.json({
-                success: true,
-                txSignature: result.txSignature,
-                explorerUrl: result.explorerUrl,
-                memo,
-            });
-        } catch (solanaErr) {
-            console.error('[IPFS→Chain] Solana TX failed:', solanaErr.message);
-
-            // Don't block the user — return success with warning
-            return NextResponse.json({
-                success: true,
-                warning: `Blockchain write failed: ${solanaErr.message}. CID is still valid on IPFS.`,
-                txSignature: null,
-                explorerUrl: null,
-                memo,
-            });
-        }
-    } catch (err) {
-        console.error('[IPFS→Chain] Error:', err);
-        return NextResponse.json({ success: false, message: `Server error: ${err.message}` }, { status: 500 });
+        return NextResponse.json({
+            success: true,
+            txSignature: result.txSignature,
+            explorerUrl: result.explorerUrl,
+            memo,
+        });
+    } catch (error) {
+        console.error('[IPFS-to-Chain]', error);
+        return NextResponse.json({ success: false, message: error.message || 'Server error' }, { status: 500 });
     }
 }
