@@ -177,15 +177,24 @@ export async function DELETE(req) {
 
         const supabase = getSupabaseAdmin();
 
-        // Security check: if role is farmer, verify ownership
-        if (session.role === 'farmer') {
-            const { data: batch, error: checkErr } = await supabase.from('production_batches').select('farmer_id').eq('id', id).single();
-            if (checkErr || !batch) {
-                return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
-            }
-            if (batch.farmer_id !== session.userId) {
-                return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
-            }
+        const { data: batch, error: checkErr } = await supabase
+            .from('production_batches')
+            .select('id, name, farmer_id, product_id, coffee_id')
+            .eq('id', id)
+            .single();
+        if (checkErr || !batch) {
+            return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
+        }
+
+        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
+        if (batch.product_id || batch.coffee_id) {
+            return NextResponse.json({
+                success: false,
+                message: 'Pipeline yang sudah menjadi produk atau memiliki sertifikat tidak dapat dibatalkan',
+            }, { status: 409 });
         }
 
         const { error } = await supabase.from('production_batches').delete().eq('id', id);

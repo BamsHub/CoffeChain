@@ -60,6 +60,8 @@ export default function StockManagement() {
     const [msg, setMsg] = useState(null);
     const [search, setSearch] = useState('');
     const [detailLog, setDetailLog] = useState(null);
+    const [cancelTarget, setCancelTarget] = useState(null);
+    const [cancellingBatchId, setCancellingBatchId] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -149,6 +151,36 @@ export default function StockManagement() {
             setMsg({ type: 'err', text: err.message });
         }
         setSaving(false);
+    }
+
+    async function cancelPipeline() {
+        if (!cancelTarget) return;
+
+        setCancellingBatchId(cancelTarget.id);
+        setMsg(null);
+        try {
+            const token = await getToken();
+            const res = await fetch('/api/production-batches', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ id: cancelTarget.id }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Gagal membatalkan pipeline');
+
+            if (stageModal?.batch?.id === cancelTarget.id) setStageModal(null);
+            setBatches(prev => prev.filter(batch => batch.id !== cancelTarget.id));
+            setLogs(prev => prev.filter(log => log.batchId !== cancelTarget.id));
+            setMsg({ type: 'ok', text: `Pipeline batch "${cancelTarget.name}" berhasil dibatalkan.` });
+            setCancelTarget(null);
+        } catch (err) {
+            setMsg({ type: 'err', text: err.message });
+        } finally {
+            setCancellingBatchId(null);
+        }
     }
 
     async function uploadPhoto(file) {
@@ -476,9 +508,21 @@ export default function StockManagement() {
                                 <div style={{ color: 'var(--color-text)', fontSize: 13, fontWeight: 800, marginBottom: 10 }}>
                                     Sekarang: {currentStage.name}
                                 </div>
-                                <button type="button" style={{ ...primaryButton, width: '100%', opacity: batch.productId ? 0.65 : 1 }} onClick={() => openStageCard(batch, currentStage)} disabled={!!batch.productId}>
-                                    {batch.productId ? 'Sudah Jadi Produk' : `Buka Card Upload ${currentStage.short}`}
-                                </button>
+                                <div style={{ display: 'grid', gridTemplateColumns: isFarmer && !batch.productId ? 'minmax(0,1fr) auto' : '1fr', gap: 9 }}>
+                                    <button type="button" style={{ ...primaryButton, width: '100%', opacity: batch.productId ? 0.65 : 1 }} onClick={() => openStageCard(batch, currentStage)} disabled={!!batch.productId}>
+                                        {batch.productId ? 'Sudah Jadi Produk' : `Buka Card Upload ${currentStage.short}`}
+                                    </button>
+                                    {isFarmer && !batch.productId && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setCancelTarget(batch)}
+                                            disabled={cancellingBatchId === batch.id}
+                                            style={{ ...button, background: 'rgba(244,67,54,0.1)', border: '1px solid rgba(244,67,54,0.4)', color: '#ff6b6b', whiteSpace: 'nowrap' }}
+                                        >
+                                            Batalkan Pipeline
+                                        </button>
+                                    )}
+                                </div>
 
                                 {stageModal?.batch?.id === batch.id && renderStageUploadCard()}
 
@@ -549,6 +593,33 @@ export default function StockManagement() {
                                 Tahap ini tersimpan sebagai log audit internal. Sertifikat Solana dibuat saat tahap Produk Jadi.
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {cancelTarget && (
+                <div
+                    role="presentation"
+                    style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+                    onClick={event => { if (event.target === event.currentTarget && !cancellingBatchId) setCancelTarget(null); }}
+                >
+                    <div role="alertdialog" aria-modal="true" aria-labelledby="cancel-pipeline-title" aria-describedby="cancel-pipeline-description" style={{ background: 'var(--color-bg-card)', border: '1px solid rgba(244,67,54,0.4)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 480, boxShadow: '0 24px 80px rgba(0,0,0,0.45)' }}>
+                        <div style={{ color: '#ff6b6b', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 7 }}>Konfirmasi Pembatalan</div>
+                        <h2 id="cancel-pipeline-title" style={{ color: 'var(--color-text)', margin: 0, fontSize: 20, fontWeight: 900 }}>Yakin ingin membatalkan pipeline?</h2>
+                        <p id="cancel-pipeline-description" style={{ color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.6, margin: '10px 0 0' }}>
+                            Batch <strong style={{ color: 'var(--color-text)' }}>{cancelTarget.name}</strong> dan seluruh log tahapnya akan dihapus dari daftar produksi. Tindakan ini tidak dapat dibatalkan.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+                            <button type="button" style={mutedButton} onClick={() => setCancelTarget(null)} disabled={!!cancellingBatchId}>Kembali</button>
+                            <button
+                                type="button"
+                                style={{ ...button, background: '#d83b3b', color: '#fff', opacity: cancellingBatchId ? 0.65 : 1 }}
+                                onClick={cancelPipeline}
+                                disabled={!!cancellingBatchId}
+                            >
+                                {cancellingBatchId ? 'Membatalkan...' : 'Ya, Batalkan Pipeline'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
