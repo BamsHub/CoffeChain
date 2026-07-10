@@ -9,9 +9,6 @@ import { SOLANA_NETWORK, MEMO_PROGRAM_ID } from '@/lib/contractConfig';
 // Solana connection mengikuti konfigurasi app supaya Phantom, Explorer, dan server sama cluster-nya.
 export const connection = new Connection(SOLANA_NETWORK, 'confirmed');
 
-// Mainnet untuk production
-// export const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
-
 /** Cek apakah Phantom terinstall di browser */
 export function isPhantomInstalled() {
     if (typeof window === 'undefined') return false;
@@ -97,7 +94,7 @@ export function solToRupiah(sol, solPriceUSD = 150, usdToIdr = 16000) {
     return sol * solPriceUSD * usdToIdr;
 }
 
-/** Konversi Rupiah ke SOL (1 SOL = Rp 2.000.000 di devnet demo) */
+/** Konversi Rupiah ke SOL (1 SOL = Rp 2.000.000 di testnet demo) */
 export function rupiahToSol(rupiah, ratePerSol = 2_000_000) {
     return rupiah / ratePerSol;
 }
@@ -147,7 +144,7 @@ export async function sendMemoWithPhantom(walletPublicKey, memoText) {
 
 /**
  * Kirim SOL menggunakan Phantom Wallet dengan prioritas fee minimal
- * Cocok untuk devnet dan testnet
+ * Cocok untuk Solana Testnet
  */
 export async function sendSolPayment(fromPublicKey, toAddress, amountSol) {
     return sendSolTransaction(fromPublicKey, toAddress, amountSol);

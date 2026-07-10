@@ -40,6 +40,64 @@
     cursor: pointer;
 }
 
+.btnPrimary:disabled,
+.btnSecondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btnSecondary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-bg-card);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btnSecondary:hover:not(:disabled) {
+    border-color: var(--color-primary-light);
+    color: var(--color-primary-light);
+}
+
+.syncInfo {
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.reconcileAlert {
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.reconcileOk {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.25);
+    color: var(--color-success);
+}
+
+.reconcileError {
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid rgba(244, 67, 54, 0.25);
+    color: var(--color-error);
+}
+
 .summaryRow {
     display: flex;
     gap: 12px;

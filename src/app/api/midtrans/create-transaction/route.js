@@ -1,8 +1,8 @@
 export const runtime = 'nodejs';
 
-import { readDb, addItem, updateItem } from '@/lib/db';
+import { readDb, addItem } from '@/lib/db';
 import { sbInsert, ordersToSnake } from '@/lib/sdb';
-import { getMidtransSnapBaseUrl } from '@/lib/midtrans';
+import { getMidtransAuthHeader, getMidtransSnapBaseUrl } from '@/lib/midtrans';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -49,12 +49,10 @@ export async function POST(request) {
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
         // Buat transaksi Midtrans Snap
-        const serverKey = process.env.MIDTRANS_SERVER_KEY;
-        const authString = Buffer.from(`${serverKey}:`).toString('base64');
-
         const host = request.headers.get('host') || 'coffe-chain.vercel.app';
         const proto = request.headers.get('x-forwarded-proto') || 'https';
         const appUrl = `${proto}://${host}`;
+        const receiptUrl = `${appUrl}/receipt?orderId=${encodeURIComponent(orderId)}`;
 
         const midtransPayload = {
             transaction_details: {
@@ -74,7 +72,7 @@ export async function POST(request) {
                 name: `${product.name} ${weight || ''}g`.trim().slice(0, 50),
             }],
             callbacks: {
-                finish: `${appUrl}/`,
+                finish: receiptUrl,
             },
             // Hardcode notification URL so Midtrans always hits the correct Vercel endpoint
             notification_url: `${appUrl}/api/midtrans/notification`,
@@ -97,7 +95,7 @@ export async function POST(request) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${authString}`,
+                'Authorization': getMidtransAuthHeader(),
             },
             body: JSON.stringify(midtransPayload),
         });
@@ -150,17 +148,11 @@ export async function POST(request) {
             await addItem('orders', order);
         }
 
-        // Kurangi stok
-        try {
-            await updateItem('products', product.id, { stock: currentStock - quantity });
-        } catch (stockErr) {
-            console.error('[midtrans] Stock update failed:', stockErr?.message);
-        }
-
         return Response.json({
             success: true,
             snapToken: midtransData.token,
             redirectUrl: midtransData.redirect_url,
+            receiptUrl,
             data: {
                 orderId: order.orderId,
                 productName: order.productName,
@@ -169,8 +161,9 @@ export async function POST(request) {
                 totalPrice: order.totalPrice,
                 paymentMethod: 'midtrans',
                 status: 'pending',
+                receiptUrl,
                 coffeeId: order.coffeeId,
-                stockLeft: currentStock - quantity,
+                stockLeft: currentStock,
             },
         }, { status: 201 });
 

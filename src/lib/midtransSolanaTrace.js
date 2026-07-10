@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '@/lib/supabase';
 import { MEMO_SIGNER_PUBLIC, getExplorerTxUrl } from '@/lib/contractConfig';
 import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
+import { buildMidtransPaymentProof } from '@/lib/midtrans';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -11,6 +12,7 @@ function generateCoffeeId() {
 }
 
 function buildPaymentMemo(order, product, midtransData = {}) {
+    const proof = buildMidtransPaymentProof(order.order_id, midtransData);
     return JSON.stringify({
         v: 1,
         type: 'midtrans-payment',
@@ -21,8 +23,10 @@ function buildPaymentMemo(order, product, midtransData = {}) {
         amount: Number(order.total_price || midtransData.gross_amount || 0),
         currency: 'IDR',
         status: midtransData.transaction_status || order.status || 'paid',
-        paymentType: midtransData.payment_type || 'midtrans',
-        midtransTx: midtransData.transaction_id || '',
+        method: midtransData.payment_type || 'midtrans',
+        midtransTx: proof.transactionId,
+        paymentHash: proof.paymentHash,
+        sigHash: proof.signatureHash ? proof.signatureHash.slice(0, 24) : '',
         paidAt: midtransData.settlement_time || midtransData.transaction_time || '',
         ts: Math.floor(Date.now() / 1000),
     });

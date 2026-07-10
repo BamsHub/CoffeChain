@@ -50,6 +50,33 @@ function paymentLabel(method) {
     return method || '-';
 }
 
+async function fetchReceiptData(orderId) {
+    const res = await fetch(`/api/public/receipt?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+        const error = new Error(json.message || 'Receipt tidak ditemukan');
+        error.status = res.status;
+        error.payload = json;
+        throw error;
+    }
+    return json.data;
+}
+
+async function syncMidtransReceipt(orderId) {
+    const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+        const error = new Error(json.message || 'Gagal sinkronisasi pembayaran Midtrans');
+        error.status = res.status;
+        throw error;
+    }
+    return json.data;
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function ReceiptContent() {
     const searchParams = useSearchParams();
     const orderId = searchParams.get('orderId');
@@ -68,12 +95,37 @@ function ReceiptContent() {
                 return;
             }
             try {
-                const res = await fetch(`/api/public/receipt?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
-                const json = await res.json();
-                if (!json.success) throw new Error(json.message || 'Receipt tidak ditemukan');
-                if (alive) setData(json.data);
+                const receipt = await fetchReceiptData(orderId);
+                if (alive) setData(receipt);
             } catch (err) {
-                if (alive) setError(err.message || 'Gagal memuat receipt');
+                if (err.status === 402) {
+                    try {
+                        const status = await syncMidtransReceipt(orderId);
+                        if (status?.status === 'paid') {
+                            const retryDelays = [400, 900, 1600, 2600];
+                            for (const delay of retryDelays) {
+                                await wait(delay);
+                                try {
+                                    const receipt = await fetchReceiptData(orderId);
+                                    if (alive) {
+                                        setData(receipt);
+                                        setError('');
+                                    }
+                                    return;
+                                } catch (retryErr) {
+                                    if (retryErr.status !== 402 && retryErr.status !== 404) throw retryErr;
+                                }
+                            }
+                        }
+
+                        const message = status?.paymentInstruction || status?.midtransStatusMessage || err.message;
+                        if (alive) setError(message || 'Pembayaran masih menunggu konfirmasi.');
+                    } catch (syncErr) {
+                        if (alive) setError(syncErr.message || err.message || 'Gagal memuat receipt');
+                    }
+                } else if (alive) {
+                    setError(err.message || 'Gagal memuat receipt');
+                }
             } finally {
                 if (alive) setLoading(false);
             }

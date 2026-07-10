@@ -169,7 +169,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 <div className={styles.sidebarBottom}>
                     <div className={styles.networkStatus}>
                         <span className={styles.networkDot} />
-                        <span className={styles.networkText}>Mainnet Aktif</span>
+                        <span className={styles.networkText}>Testnet Aktif</span>
                     </div>
                     <div className={styles.blockInfo}>
                         <span className={styles.blockLabel}>Block #</span>

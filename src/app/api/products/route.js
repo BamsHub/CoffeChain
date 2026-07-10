@@ -341,8 +341,11 @@ export async function PATCH(request) {
                 id: `appr-${Date.now().toString(36)}`,
                 hash: `APPROVAL-${id.slice(0, 8)}`,
                 farmer: updates.submittedByName || 'Petani',
-                amount: 0,
+                location: updates.name || id,
+                weight: null,
+                amount: null,
                 status: 'Confirmed',
+                block: null,
                 note: `Produk "${updates.name || id}" disetujui.`,
             };
             // Try with extra columns, ignore failure if columns missing

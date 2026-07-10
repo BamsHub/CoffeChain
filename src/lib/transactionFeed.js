@@ -4,22 +4,24 @@ import { getOrders } from '@/lib/orders';
 
 export function transactionsToCamel(row) {
     if (!row) return null;
+    const type = row.type || 'transfer';
+    const isAuditTx = ['product_approval', 'blockchain_verify', 'coffee_trace'].includes(type);
     return {
         id: row.id,
         hash: row.hash,
         farmer: row.farmer,
-        location: row.location,
-        weight: row.weight,
-        variety: row.variety,
+        location: row.location || row.product_name || row.note,
+        weight: isAuditTx ? null : row.weight,
+        variety: row.variety || row.product_name || type,
         grade: row.grade,
-        amount: row.amount,
+        amount: isAuditTx && Number(row.amount || 0) <= 0 ? null : row.amount,
         status: row.status,
-        timestamp: row.timestamp,
-        block: row.block,
+        timestamp: row.timestamp || row.created_at,
+        block: row.block || 'â€”',
         walletFrom: row.wallet_from,
         walletTo: row.wallet_to,
         note: row.note,
-        type: row.type,
+        type,
         productId: row.product_id,
         productName: row.product_name,
         source: 'transaction',

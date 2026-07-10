@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 export function getMidtransApiBaseUrl() {
     return process.env.MIDTRANS_API_BASE_URL || 'https://api.sandbox.midtrans.com';
 }
@@ -32,6 +34,31 @@ export function getPaidAtForStatus(normalizedStatus, midtransData = {}) {
     const midtransPaidAt = midtransData.settlement_time || midtransData.transaction_time;
     if (midtransPaidAt) return new Date(midtransPaidAt.replace(' ', 'T') + '+07:00').toISOString();
     return new Date().toISOString();
+}
+
+export function buildMidtransPaymentProof(orderId, midtransData = {}) {
+    const proof = {
+        orderId,
+        transactionId: midtransData.transaction_id || '',
+        grossAmount: midtransData.gross_amount || '',
+        paymentType: midtransData.payment_type || '',
+        transactionStatus: midtransData.transaction_status || '',
+        statusCode: midtransData.status_code || '',
+        fraudStatus: midtransData.fraud_status || '',
+        settlementTime: midtransData.settlement_time || '',
+        transactionTime: midtransData.transaction_time || '',
+    };
+    const canonical = JSON.stringify(proof);
+    const paymentHash = crypto.createHash('sha256').update(canonical).digest('hex');
+    const signatureHash = midtransData.signature_key
+        ? crypto.createHash('sha256').update(String(midtransData.signature_key)).digest('hex')
+        : null;
+
+    return {
+        ...proof,
+        paymentHash,
+        signatureHash,
+    };
 }
 
 export function getMidtransActionUrl(midtransData = {}, names = []) {

@@ -4,15 +4,7 @@
 seeds = false
 skip-lint = false
 
-[programs.devnet]
-coffee_payment = "CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52"
-coffee_inventory = "7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu"
-
 [programs.testnet]
-coffee_payment = "CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52"
-coffee_inventory = "7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu"
-
-[programs.mainnet]
 coffee_payment = "CvtD1ar7TCaw69xdZYTPPb2vfNQBLnofbmdfHN6HwX52"
 coffee_inventory = "7VC1cEMcdZJLVnEA9FcsDpYUXPMphHDSXeusRZHzWiCu"
 

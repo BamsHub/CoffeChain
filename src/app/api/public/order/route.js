@@ -73,7 +73,7 @@ export async function POST(request) {
         const pricePerUnit = weightIdx >= 0 ? product.pricePerUnit[weightIdx] : product.pricePerUnit?.[0] ?? 0;
         const totalPrice = pricePerUnit * quantity;
 
-        // Hitung SOL equivalent (1 SOL = Rp 2.000.000 devnet demo)
+        // Hitung SOL equivalent (1 SOL = Rp 2.000.000 testnet demo)
         const solAmount = parseFloat((totalPrice / 2_000_000).toFixed(9));
 
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;

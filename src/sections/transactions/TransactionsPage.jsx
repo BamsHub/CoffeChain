@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 import styles from './TransactionsPage.module.css';
 
 function explorerUrl(hashOrSig) {
     if (!hashOrSig || hashOrSig.startsWith('0x') || hashOrSig.includes('...')) return null;
     if (hashOrSig.length >= 60) {
-        return `https://explorer.solana.com/tx/${hashOrSig}?cluster=devnet`;
+        return getExplorerTxUrl(hashOrSig);
     }
     return null;
 }
@@ -25,14 +26,31 @@ const STATUS_COLORS = {
 };
 
 function formatWeight(tx) {
-    const w = tx.weight ?? 0;
+    const w = Number(tx.weight);
+    if (!Number.isFinite(w) || w <= 0) return '-';
     return tx.weightUnit === 'g' ? `${w}g` : `${w} kg`;
 }
 
 function formatAmount(tx) {
-    const amount = Number(tx.amount) || 0;
-    if (tx.source === 'order') return `Rp ${amount.toLocaleString('id-ID')}`;
+    const amount = Number(tx.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return '-';
     return `Rp ${amount.toLocaleString('id-ID')}`;
+}
+
+function formatBlock(block) {
+    if (!block || block === 'null' || block === 'undefined' || block === 'â€”') return 'â€”';
+    return `#${block}`;
+}
+
+function typeLabel(tx) {
+    if (tx.source === 'order') return 'Pembelian';
+    const labels = {
+        product_approval: 'Approval Produk',
+        blockchain_verify: 'On-chain Trace',
+        coffee_trace: 'Trace Kopi',
+        transfer: 'Transfer',
+    };
+    return labels[tx.type] || tx.variety || '-';
 }
 
 export default function TransactionsPage() {
@@ -42,25 +60,30 @@ export default function TransactionsPage() {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('Semua');
     const [deletingId, setDeletingId] = useState(null);
+    const [reconciling, setReconciling] = useState(false);
+    const [reconcileResult, setReconcileResult] = useState(null);
+    const [lastSyncedAt, setLastSyncedAt] = useState(null);
     const realtimeRef = useRef(null);
 
     const canDelete = user?.role === 'developer';
+    const canReconcile = ['developer', 'koperasi'].includes(user?.role);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
+    const fetchData = useCallback(async ({ showLoading = false } = {}) => {
+        if (showLoading) setLoading(true);
         try {
             const res = await fetch('/api/transactions?includeOrders=true');
             const data = await res.json();
             setItems(data.data || []);
+            setLastSyncedAt(new Date());
         } catch (e) {
             console.error('Failed to load data:', e);
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchData();
+        fetchData({ showLoading: true });
 
         const channel = supabase
             .channel('transactions-page-realtime')
@@ -69,13 +92,11 @@ export default function TransactionsPage() {
             .subscribe();
         realtimeRef.current = channel;
 
-        const poll = setInterval(fetchData, 15000);
         const onFocus = () => fetchData();
         window.addEventListener('focus', onFocus);
 
         return () => {
             if (realtimeRef.current) supabase.removeChannel(realtimeRef.current);
-            clearInterval(poll);
             window.removeEventListener('focus', onFocus);
         };
     }, [fetchData]);
@@ -108,6 +129,26 @@ export default function TransactionsPage() {
         }
     }
 
+    async function handleReconcile() {
+        if (!canReconcile || reconciling) return;
+        setReconciling(true);
+        setReconcileResult(null);
+        try {
+            const res = await fetch('/api/admin/reconcile-payments', {
+                method: 'POST',
+                credentials: 'same-origin',
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Reconcile gagal');
+            setReconcileResult(data);
+            await fetchData();
+        } catch (e) {
+            setReconcileResult({ success: false, message: e.message || 'Reconcile gagal' });
+        } finally {
+            setReconciling(false);
+        }
+    }
+
     const counts = {
         total: visibleItems.length,
         confirmed: visibleItems.filter(t => ['Confirmed', 'paid', 'confirmed'].includes(t.status)).length,
@@ -125,7 +166,32 @@ export default function TransactionsPage() {
                         {user?.role === 'farmer' && <span style={{ color: '#F5A623', marginLeft: 6 }}>— Hanya transaksi Anda</span>}
                     </p>
                 </div>
+                <div className={styles.headerActions}>
+                    {lastSyncedAt && (
+                        <span className={styles.syncInfo}>Sync {lastSyncedAt.toLocaleTimeString('id-ID')}</span>
+                    )}
+                    <button type="button" className={styles.btnSecondary} onClick={() => fetchData()} disabled={reconciling}>
+                        Refresh
+                    </button>
+                    {canReconcile && (
+                        <button
+                            type="button"
+                            className={styles.btnPrimary}
+                            onClick={handleReconcile}
+                            disabled={reconciling}
+                            title="Cek ulang payment dan tulis bukti pembayaran ke Solana Testnet jika belum lengkap"
+                        >
+                            {reconciling ? 'Reconciling...' : 'Reconcile Payment'}
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {reconcileResult && (
+                <div className={`${styles.reconcileAlert} ${reconcileResult.success ? styles.reconcileOk : styles.reconcileError}`}>
+                    {reconcileResult.message}
+                </div>
+            )}
 
             <div className={styles.summaryRow}>
                 {[
@@ -206,7 +272,7 @@ export default function TransactionsPage() {
                                             <td className={styles.bold}>{tx.farmer}</td>
                                             <td className={styles.muted}>{tx.variety || tx.location}</td>
                                             <td className={styles.muted}>{formatWeight(tx)}</td>
-                                            <td><span className={styles.typeBadge}>{tx.source === 'order' ? 'Pembelian' : tx.variety}</span></td>
+                                            <td><span className={styles.typeBadge}>{typeLabel(tx)}</span></td>
                                             <td className={styles.amount}>{formatAmount(tx)}</td>
                                             <td className={styles.block}>{tx.block !== '—' ? `#${tx.block}` : '—'}</td>
                                             <td>

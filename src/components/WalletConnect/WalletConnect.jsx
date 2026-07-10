@@ -92,7 +92,7 @@ export default function WalletConnect({ onConnect, onDisconnect }) {
                 <div className={styles.phantomIcon}><SolanaLogo /></div>
                 <div className={styles.walletInfo}>
                     <span className={styles.walletAddr}>{shortenAddress(walletState.publicKey)}</span>
-                    <span className={styles.walletBal}>{walletState.balance.toFixed(3)} SOL</span>
+                    <span className={styles.walletBal}>Testnet · {walletState.balance.toFixed(3)} SOL</span>
                 </div>
                 <div className={styles.connDot} />
                 <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
@@ -112,6 +112,10 @@ export default function WalletConnect({ onConnect, onDisconnect }) {
                     <div className={styles.dropdownBalance}>
                         <span>Saldo:</span>
                         <span className={styles.balValue}>{walletState.balance.toFixed(4)} SOL</span>
+                    </div>
+                    <div className={styles.dropdownBalance}>
+                        <span>Jaringan:</span>
+                        <span className={styles.balValue}>Solana Testnet</span>
                     </div>
                     <div className={styles.dropdownActions}>
                         <a

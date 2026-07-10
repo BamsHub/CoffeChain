@@ -377,6 +377,7 @@ export default function LandingPage() {
                         ...data.data,
                         snapToken: data.snapToken,
                         redirectUrl: data.redirectUrl || null,
+                        receiptUrl: data.receiptUrl || data.data?.receiptUrl || null,
                     };
                     // Jika window.snap belum siap, tunggu sebentar (maks 2 detik)
                     if (!window.snap) {
@@ -417,8 +418,8 @@ export default function LandingPage() {
                                     ? { ...p, stock: data.data.stockLeft ?? Math.max(0, (p.stock ?? 0) - orderForm.quantity) }
                                     : p
                             ));
-                            refreshAfterSnap(nextOrder);
-                            goToReceipt(nextOrder.orderId);
+                            refreshAfterSnap(nextOrder, 250);
+                            goToReceipt(nextOrder.orderId, 1800);
                         },
                         onPending: (result) => {
                             finishSnapPayment();
@@ -662,8 +663,8 @@ export default function LandingPage() {
                         midtransStatus: result.transaction_status || 'capture',
                         midtransStatusMessage: result.status_message || 'Pembayaran berhasil',
                     }));
-                    refreshLater();
-                    goToReceipt(orderResult.orderId);
+                    refreshLater(250);
+                    goToReceipt(orderResult.orderId, 1800);
                 },
                 onPending: (result) => {
                     finish();
