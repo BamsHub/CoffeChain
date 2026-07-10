@@ -112,6 +112,17 @@ CREATE INDEX IF NOT EXISTS idx_products_coffee_id     ON products(coffee_id);
 CREATE INDEX IF NOT EXISTS idx_products_status        ON products(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_type      ON transactions(type);
 CREATE INDEX IF NOT EXISTS idx_transactions_product_id ON transactions(product_id);
+
+-- DASHBOARD SETTINGS: target transaksi harian yang dipakai sebagai pembanding grafik
+CREATE TABLE IF NOT EXISTS dashboard_settings (
+  id TEXT PRIMARY KEY,
+  daily_transaction_target INTEGER NOT NULL DEFAULT 10 CHECK (daily_transaction_target >= 0),
+  updated_by TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO dashboard_settings (id, daily_transaction_target)
+VALUES ('default', 10)
+ON CONFLICT (id) DO NOTHING;
 CREATE INDEX IF NOT EXISTS idx_coffee_traces_product_id ON coffee_traces(product_id);
 
 ALTER TABLE verification_tokens ENABLE ROW LEVEL SECURITY;

@@ -200,6 +200,58 @@
     cursor: pointer;
 }
 
+.chartControls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.targetForm {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+}
+
+.targetForm input {
+    width: 62px;
+    background: var(--color-bg-card2);
+    border: 1px solid var(--color-border);
+    border-radius: 7px;
+    color: var(--color-text);
+    font-size: 12px;
+    padding: 6px 7px;
+    outline: none;
+}
+
+.targetForm input:focus {
+    border-color: var(--color-primary-light);
+}
+
+.targetForm button {
+    background: rgba(74, 124, 40, 0.15);
+    border: 1px solid rgba(74, 124, 40, 0.45);
+    border-radius: 7px;
+    color: var(--color-primary-light);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 8px;
+}
+
+.targetForm button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.targetMessage {
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
 .seeAll {
     font-size: 12px;
     color: var(--color-primary-light);
@@ -507,6 +559,10 @@
     .pageHeader {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .chartControls {
+        justify-content: flex-start;
     }
 }
 

@@ -26,19 +26,27 @@ export default function DashboardPage({ walletPublicKey }) {
     const [loadingTx, setLoadingTx] = useState(true);
     const [recentOrders, setRecentOrders] = useState([]);
     const [orderStats, setOrderStats] = useState({ count: 0, totalKg: 0, totalRevenue: 0 });
+    const [chartPeriod, setChartPeriod] = useState('7');
+    const [dailyTarget, setDailyTarget] = useState(10);
+    const [dailyTargetInput, setDailyTargetInput] = useState('10');
+    const [savingTarget, setSavingTarget] = useState(false);
+    const [targetMessage, setTargetMessage] = useState('');
     const realtimeRef = useRef(null);
+    const todayLabel = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
     useEffect(() => { setMounted(true); }, []);
 
     const refreshData = useCallback(async () => {
         setLoadingTx(true);
         try {
-            const [txRes, orderRes] = await Promise.all([
+            const [txRes, orderRes, settingsRes] = await Promise.all([
                 fetch('/api/transactions?includeOrders=true'),
                 fetch('/api/orders'),
+                fetch('/api/dashboard-settings'),
             ]);
             const txData = await txRes.json();
             const orderData = await orderRes.json();
+            const settingsData = await settingsRes.json();
 
             const feed = txData.data || [];
             setTransactions(feed);
@@ -54,6 +62,11 @@ export default function DashboardPage({ walletPublicKey }) {
                 return sum + (t.weightUnit === 'g' ? w / 1000 : w);
             }, 0);
             setStats(prev => ({ ...prev, total: feed.length, volume: vol }));
+            if (settingsData.success && Number.isInteger(Number(settingsData.dailyTransactionTarget))) {
+                const target = Number(settingsData.dailyTransactionTarget);
+                setDailyTarget(target);
+                setDailyTargetInput(String(target));
+            }
         } catch { /* offline mode */ }
         finally { setLoadingTx(false); }
     }, []);
@@ -78,6 +91,35 @@ export default function DashboardPage({ walletPublicKey }) {
             window.removeEventListener('focus', onFocus);
         };
     }, [refreshData]);
+
+    async function saveDailyTarget(event) {
+        event.preventDefault();
+        const target = Number(dailyTargetInput);
+        if (!Number.isInteger(target) || target < 0 || target > 100000) {
+            setTargetMessage('Masukkan angka 0–100.000.');
+            return;
+        }
+        setSavingTarget(true);
+        setTargetMessage('Menyimpan...');
+        try {
+            const token = localStorage.getItem('cc_token');
+            const response = await fetch('/api/dashboard-settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({ dailyTransactionTarget: target }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'Gagal menyimpan');
+            setDailyTarget(Number(data.dailyTransactionTarget));
+            setDailyTargetInput(String(data.dailyTransactionTarget));
+            setTargetMessage('Tersimpan');
+        } catch (error) {
+            setTargetMessage(error.message);
+        } finally {
+            setSavingTarget(false);
+            window.setTimeout(() => setTargetMessage(''), 2500);
+        }
+    }
 
     function handleTransactionAdded(newTx) {
         setTransactions(prev => [{ ...newTx, source: 'transaction', weightUnit: 'kg' }, ...prev]);
@@ -110,18 +152,52 @@ export default function DashboardPage({ walletPublicKey }) {
         { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
     ];
 
+    const periodDays = chartPeriod === 'all' ? null : Number(chartPeriod);
+    const chartRows = (() => {
+        const dated = transactions
+            .map(tx => ({ tx, date: new Date(tx.timestamp || tx.createdAt || tx.paidAt) }))
+            .filter(item => !Number.isNaN(item.date.getTime()));
+        const latest = new Date();
+        latest.setHours(23, 59, 59, 999);
+        const earliest = periodDays ? new Date(latest.getTime() - (periodDays - 1) * 86400000) : dated.reduce((min, item) => item.date < min ? item.date : min, latest);
+        earliest.setHours(0, 0, 0, 0);
+        const rows = [];
+        const cursor = new Date(earliest);
+        while (cursor <= latest) {
+            const key = cursor.toISOString().slice(0, 10);
+            const dayItems = dated.filter(item => item.date.toISOString().slice(0, 10) === key);
+            rows.push({
+                key,
+                label: cursor.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+                count: dayItems.length,
+                amount: dayItems.reduce((sum, item) => sum + (Number(item.tx.amount) || 0), 0) / 1000000,
+                volume: dayItems.reduce((sum, item) => {
+                    const weight = Number(item.tx.weight) || 0;
+                    return sum + (item.tx.weightUnit === 'g' ? weight / 1000 : weight);
+                }, 0),
+            });
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        return rows;
+    })();
+    const chartSubtitle = chartPeriod === 'all' ? 'Semua data tersimpan' : `${chartPeriod} hari terakhir`;
+    const maxChartValue = Math.max(dailyTarget, ...chartRows.map(row => row.count), 1);
     const txChartOptions = {
         chart: { type: 'area', toolbar: { show: false }, background: 'transparent' },
-        colors: ['#4A7C28', '#F5A623'],
+        colors: ['#4A7C28', '#F5A623', '#00D4FF'],
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.01, stops: [0, 100] } },
         dataLabels: { enabled: false }, stroke: { curve: 'smooth', width: 2.5 },
         grid: { borderColor: 'rgba(74,124,40,0.1)', strokeDashArray: 4 },
-        xaxis: { categories: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'], labels: { style: { colors: '#5E7A5A', fontSize: '12px' } }, axisBorder: { show: false } },
-        yaxis: { labels: { style: { colors: '#5E7A5A', fontSize: '12px' } } },
+        xaxis: { categories: chartRows.map(row => row.label), labels: { style: { colors: '#5E7A5A', fontSize: '12px' }, hideOverlappingLabels: true }, axisBorder: { show: false } },
+        yaxis: { min: 0, max: maxChartValue, labels: { style: { colors: '#5E7A5A', fontSize: '12px' } } },
         legend: { labels: { colors: '#9DB89A' }, position: 'top' },
         tooltip: { theme: 'dark' },
     };
-    const txChartSeries = [{ name: 'Nilai (Juta Rp)', data: [42, 58, 35, 71, 89, 62, 95] }, { name: 'Volume (Ton)', data: [28, 35, 22, 48, 61, 40, 67] }];
+    const txChartSeries = [
+        { name: 'Transaksi', data: chartRows.map(row => row.count) },
+        { name: 'Target harian', data: chartRows.map(() => dailyTarget) },
+        { name: 'Volume (Ton)', data: chartRows.map(row => row.volume) },
+    ];
 
     const donutOptions = {
         chart: { type: 'donut', background: 'transparent' },
@@ -148,7 +224,7 @@ export default function DashboardPage({ walletPublicKey }) {
                 <div className={styles.headerActions}>
                     <div className={styles.dateChip}>
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-                        {selectedDate ? selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '27 Februari 2026'}
+                        {selectedDate ? selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : todayLabel}
                     </div>
                     <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" /></svg>
@@ -182,8 +258,18 @@ export default function DashboardPage({ walletPublicKey }) {
             <div className={styles.chartsRow}>
                 <div className={styles.card} style={{ flex: 2 }}>
                     <div className={styles.cardHeader}>
-                        <div><h3 className={styles.cardTitle}>Aktivitas Transaksi & Volume</h3><p className={styles.cardSubtitle}>7 hari terakhir</p></div>
-                        <select className={styles.selectBox}><option>7 Hari</option><option>30 Hari</option></select>
+                        <div><h3 className={styles.cardTitle}>Aktivitas Transaksi & Volume</h3><p className={styles.cardSubtitle}>{chartSubtitle} · data tersimpan di database</p></div>
+                        <div className={styles.chartControls}>
+                            <select className={styles.selectBox} value={chartPeriod} onChange={event => setChartPeriod(event.target.value)} aria-label="Periode grafik">
+                                <option value="1">1 Hari</option><option value="3">3 Hari</option><option value="7">7 Hari</option><option value="30">30 Hari</option><option value="90">90 Hari</option><option value="all">Semua Hari</option>
+                            </select>
+                            <form className={styles.targetForm} onSubmit={saveDailyTarget}>
+                                <label htmlFor="daily-target">Target/hari</label>
+                                <input id="daily-target" type="number" min="0" max="100000" value={dailyTargetInput} onChange={event => setDailyTargetInput(event.target.value)} />
+                                <button type="submit" disabled={savingTarget} title="Simpan target transaksi harian">Simpan</button>
+                                {targetMessage && <span className={styles.targetMessage}>{targetMessage}</span>}
+                            </form>
+                        </div>
                     </div>
                     {mounted && <ReactApexChart options={txChartOptions} series={txChartSeries} type="area" height={240} />}
                 </div>

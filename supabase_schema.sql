@@ -179,6 +179,17 @@ CREATE INDEX IF NOT EXISTS idx_transactions_type       ON transactions(type);
 CREATE INDEX IF NOT EXISTS idx_transactions_farmer_id  ON transactions(farmer_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_product_id ON transactions(product_id);
 
+-- DASHBOARD SETTINGS
+CREATE TABLE IF NOT EXISTS dashboard_settings (
+  id TEXT PRIMARY KEY,
+  daily_transaction_target INTEGER NOT NULL DEFAULT 10 CHECK (daily_transaction_target >= 0),
+  updated_by TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO dashboard_settings (id, daily_transaction_target)
+VALUES ('default', 10)
+ON CONFLICT (id) DO NOTHING;
+
 -- ── FARMERS ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS farmers (
   id TEXT PRIMARY KEY,
