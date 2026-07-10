@@ -114,9 +114,15 @@ export default function LandingPage() {
     const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
     const [traceData, setTraceData] = useState(null);
     const [traceLoading, setTraceLoading] = useState(false);
+    const [supportOpen, setSupportOpen] = useState(false);
+    const [supportInput, setSupportInput] = useState('');
+    const [supportMessages, setSupportMessages] = useState([
+        { id: 'welcome', sender: 'bot', text: 'Halo, saya asisten CoffeeChain. Saya bisa bantu pembayaran, QR sertifikasi, produk, atau pengaduan.' },
+    ]);
     const solanaIntervalRef = useRef(null);
     const midtransIntervalRef = useRef(null);
     const snapPaymentActiveRef = useRef(false);
+    const supportReplyTimerRef = useRef(null);
 
     /* ── Katalog Search & Filter ── */
     const [catalogSearch, setCatalogSearch] = useState('');
@@ -134,6 +140,40 @@ export default function LandingPage() {
 
     /* ── Theme State ── */
     const [theme, setTheme] = useState('dark');
+
+    useEffect(() => () => {
+        if (supportReplyTimerRef.current) window.clearTimeout(supportReplyTimerRef.current);
+    }, []);
+
+    function getSupportReply(message) {
+        const text = message.toLowerCase();
+        if (/(bayar|pembayaran|midtrans|phantom|qris|transfer)/.test(text)) {
+            return { text: 'Pembayaran tersedia melalui Midtrans untuk Rupiah atau Phantom untuk SOL. Pilih produk lalu tekan Beli Sekarang untuk melihat metode yang tersedia.' };
+        }
+        if (/(qr|sertifikat|sertifikasi|trace|solana)/.test(text)) {
+            return { text: 'Tekan tombol QR pada produk berstatus On-Chain untuk membuka sertifikasi. Anda juga dapat memakai halaman Trace Kopi untuk memeriksa Coffee ID.' };
+        }
+        if (/(produk|stok|kopi|pesan|beli)/.test(text)) {
+            return { text: 'Gunakan pencarian katalog untuk menemukan produk. Setiap card menampilkan stok, harga, asal, dan status sertifikasi.' };
+        }
+        if (/(komplain|pengaduan|keluhan|tiket|masalah|bantuan)/.test(text)) {
+            return { text: 'Untuk masalah yang perlu ditindaklanjuti, buat tiket melalui Hubungi Kami. Petani dapat memantau penanganan oleh admin.', action: 'ticket' };
+        }
+        return { text: 'Saya belum memahami detailnya. Coba tanyakan tentang pembayaran, QR sertifikasi, produk, atau ketik pengaduan untuk membuat tiket.' };
+    }
+
+    function sendSupportMessage(value = supportInput) {
+        const text = String(value || '').trim();
+        if (!text) return;
+        const userMessage = { id: `user-${Date.now()}`, sender: 'user', text };
+        setSupportMessages(current => [...current, userMessage]);
+        setSupportInput('');
+        if (supportReplyTimerRef.current) window.clearTimeout(supportReplyTimerRef.current);
+        supportReplyTimerRef.current = window.setTimeout(() => {
+            const reply = getSupportReply(text);
+            setSupportMessages(current => [...current, { id: `bot-${Date.now()}`, sender: 'bot', ...reply }]);
+        }, 350);
+    }
 
     useEffect(() => {
         let ticking = false;
@@ -1260,13 +1300,39 @@ export default function LandingPage() {
 
             {/* ── WHATSAPP FAB ── */}
             <div style={{ position:'fixed', bottom:28, right:28, zIndex:90 }}>
-                <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer"
-                    style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#25d366,#128c7e)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 20px rgba(37,211,102,0.4)', textDecoration:'none', animation:'wa-pop 0.4s ease', transition:'transform 0.2s,box-shadow 0.2s' }}
-                    title="Chat di WhatsApp"
+                {supportOpen && (
+                    <section aria-label="Chat bantuan CoffeeChain" style={{ position:'absolute', right:0, bottom:66, width:'min(360px, calc(100vw - 32px))', background:'var(--cc-bg)', border:'1px solid rgba(37,211,102,0.35)', borderRadius:14, overflow:'hidden', boxShadow:'0 18px 48px rgba(0,0,0,0.48)' }}>
+                        <header style={{ padding:'13px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', background:'linear-gradient(135deg,#128c7e,#25d366)', color:'#fff' }}>
+                            <div><div style={{ fontSize:13, fontWeight:800 }}>Bantuan CoffeeChain</div><div style={{ fontSize:10, opacity:0.85 }}>Asisten web siap membantu</div></div>
+                            <button type="button" onClick={() => setSupportOpen(false)} aria-label="Tutup chat" style={{ color:'#fff', padding:4, display:'flex' }}><IconClose /></button>
+                        </header>
+                        <div style={{ padding:12, height:264, overflowY:'auto', display:'flex', flexDirection:'column', gap:8, background:'var(--cc-card-bg)' }}>
+                            {supportMessages.map(message => (
+                                <div key={message.id} style={{ alignSelf:message.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth:'88%', padding:'9px 11px', borderRadius:message.sender === 'user' ? '11px 11px 2px 11px' : '11px 11px 11px 2px', background:message.sender === 'user' ? 'rgba(37,211,102,0.18)' : 'var(--cc-input-bg)', border:'1px solid var(--cc-divider)', color:'var(--cc-text)', fontSize:12, lineHeight:1.5 }}>
+                                    {message.text}
+                                    {message.action === 'ticket' && <a href="/contact" style={{ display:'inline-flex', marginTop:8, color:'#84e068', fontWeight:800, textDecoration:'none' }}>Buat tiket pengaduan <IconArrow /></a>}
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ padding:'10px 12px', borderTop:'1px solid var(--cc-divider)', display:'flex', gap:7 }}>
+                            <form onSubmit={event => { event.preventDefault(); sendSupportMessage(); }} style={{ display:'flex', gap:7, width:'100%' }}>
+                                <input value={supportInput} onChange={event => setSupportInput(event.target.value)} placeholder="Tulis pertanyaan..." aria-label="Pesan bantuan" style={{ flex:1, minWidth:0, padding:'9px 10px', borderRadius:8, border:'1px solid var(--cc-input-border)', background:'var(--cc-input-bg)', color:'var(--cc-text)', outline:'none', fontSize:12 }} />
+                                <button type="submit" disabled={!supportInput.trim()} style={{ padding:'9px 11px', borderRadius:8, background:'#25d366', color:'#102d1f', fontWeight:900, fontSize:12, opacity:supportInput.trim() ? 1 : 0.45 }}>Kirim</button>
+                            </form>
+                        </div>
+                        <div style={{ padding:'0 12px 11px', display:'flex', gap:6, flexWrap:'wrap' }}>
+                            {['Pembayaran', 'Cek QR sertifikasi', 'Buat pengaduan'].map(question => <button key={question} type="button" onClick={() => sendSupportMessage(question)} style={{ padding:'5px 8px', borderRadius:999, border:'1px solid rgba(37,211,102,0.3)', color:'#84e068', fontSize:10, fontWeight:700 }}>{question}</button>)}
+                            <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer" style={{ padding:'5px 8px', borderRadius:999, border:'1px solid var(--cc-divider)', color:'var(--cc-text-secondary)', fontSize:10, fontWeight:700, textDecoration:'none' }}>Admin WhatsApp</a>
+                        </div>
+                    </section>
+                )}
+                <button type="button" onClick={() => setSupportOpen(open => !open)} aria-label={supportOpen ? 'Tutup chat bantuan' : 'Buka chat bantuan'}
+                    style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#25d366,#128c7e)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 20px rgba(37,211,102,0.4)', animation:'wa-pop 0.4s ease', transition:'transform 0.2s,box-shadow 0.2s', color:'#fff' }}
+                    title="Chat bantuan CoffeeChain"
                     onMouseEnter={e => { e.currentTarget.style.transform='scale(1.1)'; e.currentTarget.style.boxShadow='0 6px 28px rgba(37,211,102,0.55)'; }}
                     onMouseLeave={e => { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='0 4px 20px rgba(37,211,102,0.4)'; }}>
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                </a>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </button>
             </div>
 
             {/* ══════════════════════════════════════════
