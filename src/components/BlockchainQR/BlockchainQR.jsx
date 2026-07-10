@@ -5,6 +5,7 @@
  * Mendukung tema gelap dan terang via CSS variables.
  */
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { normalizeExplorerUrl } from '@/lib/contractConfig';
 
 /* ── Icons ── */
@@ -243,18 +244,21 @@ export function BlockchainQRModal({ open, onClose, explorerUrl, traceUrl, coffee
         return () => document.removeEventListener('keydown', onKey);
     }, [open, onClose]);
 
-    if (!open) return null;
+    if (!open || typeof document === 'undefined') return null;
 
-    return (
+    const modal = (
         <div
             onClick={e => { if (e.target === e.currentTarget) onClose(); }}
             style={{
-                position: 'fixed', inset: 0, zIndex: 2000,
-                background: 'rgba(0,0,0,0.72)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'fixed', inset: 0, zIndex: 5000,
+                background: 'var(--cc-modal-backdrop, rgba(0,0,0,0.88))',
+                backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: 20,
                 animation: 'qrFadeIn 0.18s ease',
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`QR sertifikasi ${productName || coffeeId || ''}`}
         >
             <style>{`@keyframes qrFadeIn { from{opacity:0;transform:scale(0.94)} to{opacity:1;transform:scale(1)} }`}</style>
             <div style={{
@@ -297,6 +301,7 @@ export function BlockchainQRModal({ open, onClose, explorerUrl, traceUrl, coffee
             </div>
         </div>
     );
+    return createPortal(modal, document.body);
 }
 
 /**
@@ -305,17 +310,21 @@ export function BlockchainQRModal({ open, onClose, explorerUrl, traceUrl, coffee
  */
 export default function QRButton({ explorerUrl, traceUrl, coffeeId, productName, label = 'QR Sertifikasi' }) {
     const [open, setOpen] = useState(false);
+    const canOpen = Boolean(traceUrl || normalizeExplorerUrl(explorerUrl));
 
     return (
         <>
             <button
-                onClick={() => setOpen(true)}
-                title="Lihat QR Code bukti blockchain"
+                type="button"
+                onClick={() => canOpen && setOpen(true)}
+                title={canOpen ? 'Lihat QR Code bukti blockchain' : 'URL verifikasi belum tersedia'}
+                disabled={!canOpen}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     padding: '5px 11px', borderRadius: 7, border: '1px solid rgba(126,212,74,0.3)',
                     background: 'rgba(74,124,40,0.1)', color: '#7ED44A',
-                    fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s',
+                    fontSize: 11, fontWeight: 700, cursor: canOpen ? 'pointer' : 'not-allowed', transition: 'all 0.18s',
+                    opacity: canOpen ? 1 : 0.45,
                 }}
             >
                 <IcoQR /> {label}
