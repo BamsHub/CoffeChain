@@ -61,6 +61,7 @@ export async function POST(req) {
         const sender = users.items.find(user => user.id === session.userId);
         const row = {
             id: generateId(),
+            sender_id: session.userId,
             name: sender?.name || sender?.email || `Petani ${session.userId}`,
             phone: phone || sender?.phone || null,
             category,

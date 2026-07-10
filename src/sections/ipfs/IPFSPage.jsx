@@ -12,10 +12,6 @@ const STAGE_NAMES = {
     6: 'Produk Jadi & Pengemasan',
 };
 
-function tagValue(tags, prefix) {
-    return (Array.isArray(tags) ? tags : []).map(String).find(tag => tag.startsWith(prefix))?.slice(prefix.length) || null;
-}
-
 export default function IPFSPage() {
     const { user, getToken } = useAuth();
     const [items, setItems] = useState([]);
@@ -31,52 +27,24 @@ export default function IPFSPage() {
             const token = await getToken();
             if (!token) throw new Error('Login diperlukan untuk melihat Storage IPFS');
             const headers = { Authorization: `Bearer ${token}` };
-            const productUrl = user?.role === 'farmer' && user?.id
-                ? `/api/products?submittedBy=${encodeURIComponent(user.id)}`
-                : '/api/products';
-            const [batchResponse, logResponse, productResponse] = await Promise.all([
-                fetch('/api/production-batches', { headers }),
-                fetch('/api/production-stages', { headers }),
-                fetch(productUrl),
-            ]);
-            const [batchData, logData, productData] = await Promise.all([
-                batchResponse.json(), logResponse.json(), productResponse.json(),
-            ]);
-            if (!batchResponse.ok || !batchData.success) throw new Error(batchData.message || 'Gagal memuat batch');
-            if (!logResponse.ok || !logData.success) throw new Error(logData.message || 'Gagal memuat storage pipeline');
-            if (!productResponse.ok || !productData.success) throw new Error(productData.message || 'Gagal memuat metadata produk');
+            const response = await fetch('/api/ipfs/assets', { headers });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'Gagal memuat storage IPFS');
 
-            const batches = new Map((batchData.data || []).map(batch => [batch.id, batch]));
-            const pipelineItems = (logData.data || []).map(log => {
-                const evidence = log.data?.evidencePhoto || {};
-                const batch = batches.get(log.batchId);
+            const pipelineItems = (data.data || []).map(asset => {
                 return {
-                    id: `stage-${log.id}`,
+                    id: asset.id,
                     type: 'Bukti Pipeline',
-                    cid: evidence.cid || null,
-                    gatewayUrl: evidence.gatewayUrl || log.photoUrl || null,
-                    imageUrl: log.photoUrl || evidence.gatewayUrl || null,
-                    title: batch?.name || `Batch ${log.batchId}`,
-                    subtitle: `Tahap ${log.stage}: ${STAGE_NAMES[Number(log.stage)] || log.stageName}`,
-                    description: log.data?.description || log.data?.notes || '',
+                    cid: asset.cid,
+                    gatewayUrl: asset.gateway_url,
+                    imageUrl: asset.gateway_url,
+                    title: asset.file_name || `Batch ${asset.batch_id}`,
+                    subtitle: `Tahap ${asset.stage}: ${STAGE_NAMES[Number(asset.stage)] || asset.stage}`,
+                    description: user?.role === 'admin' ? `Pemilik: ${asset.owner_id}` : 'Aset IPFS milik Anda',
                 };
             }).filter(item => item.cid && item.gatewayUrl);
 
-            const metadataItems = (productData.data || []).map(product => {
-                const metadataCid = product.offchain?.metadataCid || tagValue(product.tags, 'ipfs-metadata:');
-                return metadataCid ? {
-                    id: `metadata-${product.id}`,
-                    type: 'Metadata Produk',
-                    cid: metadataCid,
-                    gatewayUrl: `https://gateway.pinata.cloud/ipfs/${metadataCid}`,
-                    imageUrl: product.image || null,
-                    title: product.name,
-                    subtitle: product.coffeeId ? `Coffee ID ${product.coffeeId}` : 'Menunggu sertifikasi',
-                    description: product.description || '',
-                } : null;
-            }).filter(Boolean);
-
-            setItems([...pipelineItems, ...metadataItems]);
+            setItems(pipelineItems);
         } catch (loadError) {
             setError(loadError.message || 'Gagal memuat Storage IPFS');
         }

@@ -8,9 +8,12 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
-const CONNECTION_STRING = 'postgresql://postgres:MXzCwNTXgWuyniW7@db.yjdauinnnilqjfwhytis.supabase.co:5432/postgres';
+const CONNECTION_STRING = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
 
 async function runSQLAndMigrate() {
+    if (!CONNECTION_STRING) {
+        throw new Error('Set DATABASE_URL atau SUPABASE_DB_URL sebelum menjalankan migrasi.');
+    }
     console.log('🔌 Connecting to Supabase PostgreSQL db...');
     const client = new Client({
         connectionString: CONNECTION_STRING,

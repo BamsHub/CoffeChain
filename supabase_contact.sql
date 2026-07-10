@@ -5,6 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS contact_messages (
   id TEXT PRIMARY KEY,
+  sender_id TEXT,
   name TEXT,
   phone TEXT,
   category TEXT NOT NULL,
@@ -27,5 +28,9 @@ CREATE INDEX IF NOT EXISTS idx_contact_created ON contact_messages(created_at DE
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
 
 -- Allow all operations via service role (backend)
-CREATE POLICY "service_role_all" ON contact_messages
-  FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "service_role_all" ON contact_messages;
+DROP POLICY IF EXISTS "contact_messages_service_role_all" ON contact_messages;
+CREATE POLICY "contact_messages_service_role_all" ON contact_messages
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+REVOKE ALL ON TABLE contact_messages FROM anon, authenticated;
+GRANT ALL ON TABLE contact_messages TO service_role;

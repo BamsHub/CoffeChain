@@ -70,12 +70,16 @@ export async function POST(req) {
             return NextResponse.json({ success: false, message: 'Ukuran file maksimal 5MB' }, { status: 400 });
         }
 
+        const ownerId = batch.farmer_id || session.userId;
+        const ownerRole = batch.farmer_id ? 'farmer' : session.role;
         const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-        const fileName = `production-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const fileName = `farmer-${ownerId}-production-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const buffer = Buffer.from(await file.arrayBuffer());
         const result = await pinFileToIPFS(buffer, fileName, {
             app: 'CoffeeChain',
             type: 'production-stage-photo',
+            ownerId: String(ownerId),
+            ownerRole,
             uploadedBy: String(session.userId || 'unknown'),
             batchId,
             stage: String(stage),
@@ -86,6 +90,22 @@ export async function POST(req) {
             throw new Error('Pinata tidak mengembalikan CID IPFS yang valid');
         }
 
+        const { error: assetError } = await supabase.from('ipfs_assets').upsert({
+            owner_id: ownerId,
+            owner_role: ownerRole,
+            uploaded_by: session.userId,
+            batch_id: batchId,
+            stage,
+            cid,
+            ipfs_uri: getIPFSUrl(cid),
+            gateway_url: result.gatewayUrl,
+            file_name: fileName,
+            mime_type: file.type,
+            size_bytes: result.PinSize ?? file.size,
+            pinned_at: result.Timestamp ?? new Date().toISOString(),
+        }, { onConflict: 'owner_id,cid' });
+        if (assetError) throw new Error(`Bukti kepemilikan IPFS gagal disimpan: ${assetError.message}`);
+
         return NextResponse.json({
             success: true,
             storage: 'ipfs',
@@ -95,6 +115,7 @@ export async function POST(req) {
             url: result.gatewayUrl,
             size: result.PinSize ?? file.size,
             pinnedAt: result.Timestamp ?? new Date().toISOString(),
+            ownerId,
         });
     } catch (err) {
         console.error('[upload] IPFS upload error:', err);
