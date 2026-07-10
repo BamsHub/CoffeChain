@@ -34,8 +34,8 @@ export default function DashboardPage({ walletPublicKey }) {
 
     useEffect(() => { setMounted(true); }, []);
 
-    const refreshData = useCallback(async () => {
-        setLoadingTx(true);
+    const refreshData = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setLoadingTx(true);
         try {
             const [txRes, orderRes, settingsRes] = await Promise.all([
                 fetch('/api/transactions?includeOrders=true'),
@@ -56,7 +56,7 @@ export default function DashboardPage({ walletPublicKey }) {
                 setDailyTargetInput(String(target));
             }
         } catch { /* offline mode */ }
-        finally { setLoadingTx(false); }
+        finally { if (!silent) setLoadingTx(false); }
     }, []);
 
     useEffect(() => {
@@ -64,19 +64,13 @@ export default function DashboardPage({ walletPublicKey }) {
 
         const channel = supabase
             .channel('dashboard-transactions-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, refreshData)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, refreshData)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => refreshData({ silent: true }))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => refreshData({ silent: true }))
             .subscribe();
         realtimeRef.current = channel;
 
-        const poll = setInterval(refreshData, 15000);
-        const onFocus = () => refreshData();
-        window.addEventListener('focus', onFocus);
-
         return () => {
             if (realtimeRef.current) supabase.removeChannel(realtimeRef.current);
-            clearInterval(poll);
-            window.removeEventListener('focus', onFocus);
         };
     }, [refreshData]);
 
@@ -133,6 +127,8 @@ export default function DashboardPage({ walletPublicKey }) {
     }
 
     const periodDays = chartPeriod === 'all' ? null : Number(chartPeriod);
+    const useWeeklyBuckets = chartPeriod === '30' || chartPeriod === '90';
+    const bucketDays = useWeeklyBuckets ? 7 : 1;
     const dateOf = item => new Date(item?.timestamp || item?.paidAt || item?.createdAt);
     const allActivityDates = [...transactions, ...orders]
         .map(dateOf)
@@ -152,7 +148,6 @@ export default function DashboardPage({ walletPublicKey }) {
     const periodOrderWeight = periodPaidOrders.reduce((sum, order) => sum + (Number(order.weight) || 0), 0);
     const periodRevenue = periodPaidOrders.reduce((sum, order) => sum + (Number(order.totalPrice) || 0), 0);
     const activeFarmers = new Set(periodTransactions.map(tx => tx.farmerId || tx.farmer).filter(Boolean)).size;
-    const recentOrders = periodPaidOrders.slice(0, 5);
     const periodLabel = chartPeriod === 'all' ? 'Semua periode' : `${chartPeriod} hari terakhir`;
     const statsData = [
         { title: 'Total Transaksi', value: periodTransactions.length.toLocaleString(), change: periodLabel, positive: true, sub: 'Sesuai periode grafik', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
@@ -171,24 +166,34 @@ export default function DashboardPage({ walletPublicKey }) {
         const rows = [];
         const cursor = new Date(earliest);
         while (cursor <= latest) {
-            const key = dayKey(cursor);
-            const dayItems = dated.filter(item => dayKey(item.date) === key);
+            const bucketStart = new Date(cursor);
+            const bucketEnd = new Date(cursor);
+            bucketEnd.setDate(bucketEnd.getDate() + bucketDays - 1);
+            if (bucketEnd > latest) bucketEnd.setTime(latest.getTime());
+            const bucketLength = Math.round((bucketEnd.getTime() - bucketStart.getTime()) / 86400000) + 1;
+            const dayItems = dated.filter(item => item.date >= bucketStart && item.date <= bucketEnd);
             rows.push({
-                key,
-                label: cursor.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+                key: `${dayKey(bucketStart)}-${dayKey(bucketEnd)}`,
+                label: useWeeklyBuckets
+                    ? `${bucketStart.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} - ${bucketEnd.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`
+                    : bucketStart.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
                 count: dayItems.length,
+                target: dailyTarget * bucketLength,
                 amount: dayItems.reduce((sum, item) => sum + (Number(item.tx.amount) || 0), 0) / 1000000,
                 volume: dayItems.reduce((sum, item) => {
                     const weight = Number(item.tx.weight) || 0;
                     return sum + (item.tx.weightUnit === 'g' ? weight / 1000 : weight);
                 }, 0),
             });
-            cursor.setDate(cursor.getDate() + 1);
+            cursor.setDate(cursor.getDate() + bucketDays);
         }
         return rows;
     })();
-    const chartSubtitle = chartPeriod === 'all' ? 'Semua data tersimpan' : `${chartPeriod} hari terakhir`;
-    const maxChartValue = Math.max(dailyTarget, ...chartRows.map(row => row.count), 1);
+    const chartSubtitle = chartPeriod === 'all'
+        ? 'Semua data tersimpan'
+        : `${chartPeriod} hari terakhir${useWeeklyBuckets ? ' · diringkas per minggu' : ''}`;
+    const targetSeriesLabel = useWeeklyBuckets ? 'Target mingguan' : 'Target harian';
+    const maxChartValue = Math.max(...chartRows.map(row => Math.max(row.count, row.target)), 1);
     const txChartOptions = {
         chart: { type: 'area', toolbar: { show: false }, background: 'transparent' },
         colors: ['#4A7C28', '#F5A623', '#00D4FF'],
@@ -202,7 +207,7 @@ export default function DashboardPage({ walletPublicKey }) {
     };
     const txChartSeries = [
         { name: 'Transaksi', data: chartRows.map(row => row.count) },
-        { name: 'Target harian', data: chartRows.map(() => dailyTarget) },
+        { name: targetSeriesLabel, data: chartRows.map(row => row.target) },
         { name: 'Volume (Ton)', data: chartRows.map(row => row.volume) },
     ];
 
@@ -307,10 +312,10 @@ export default function DashboardPage({ walletPublicKey }) {
                 </div>
             </div>
 
-            {/* Recent Transactions from DB */}
+            {/* Unified activity feed: blockchain transactions and paid purchases */}
             <div className={styles.card}>
                 <div className={styles.cardHeader}>
-                    <div><h3 className={styles.cardTitle}>Transaksi Terbaru</h3><p className={styles.cardSubtitle}>Blockchain + pembelian produk • {periodTransactions.length} transaksi • {periodLabel}</p></div>
+                    <div><h3 className={styles.cardTitle}>Riwayat Aktivitas</h3><p className={styles.cardSubtitle}>Blockchain + pembelian produk • {periodTransactions.length} aktivitas • {periodPaidOrders.length} pembelian lunas • {periodLabel}</p></div>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <button className={styles.btnPrimarySmall} onClick={() => setShowModal(true)}>+ Tambah</button>
                         <a href="/transactions" className={styles.seeAll}>Lihat Semua →</a>
@@ -322,13 +327,14 @@ export default function DashboardPage({ walletPublicKey }) {
                     <div className={styles.tableWrapper}>
                         <table className={styles.table}>
                             <thead><tr>
-                                <th>Hash</th><th>Petani</th><th>Lokasi</th><th>Berat</th>
+                                <th>Hash / Order</th><th>Jenis</th><th>Pelaku</th><th>Produk / Lokasi</th><th>Berat</th>
                                 <th>Nilai</th><th>Status</th><th>Waktu</th><th></th>
                             </tr></thead>
                             <tbody>
                                 {periodTransactions.slice(0, 8).map((tx) => (
                                     <tr key={tx.id || tx.orderId}>
                                         <td><span className={styles.txHash}>{tx.hash}</span></td>
+                                        <td className={styles.txLocation}>{tx.source === 'order' ? 'Pembelian' : 'Blockchain'}</td>
                                         <td className={styles.txFarmer}>{tx.farmer}</td>
                                         <td className={styles.txLocation}>{tx.location}</td>
                                         <td className={styles.txWeight}>{formatWeight(tx)}</td>
@@ -340,7 +346,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                         )}</td>
                                     </tr>
                                 ))}
-                                {!periodTransactions.length && <tr><td colSpan="8" className={styles.emptyState}>Tidak ada transaksi pada {periodLabel.toLowerCase()}.</td></tr>}
+                                {!periodTransactions.length && <tr><td colSpan="9" className={styles.emptyState}>Tidak ada aktivitas pada {periodLabel.toLowerCase()}.</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -348,36 +354,6 @@ export default function DashboardPage({ walletPublicKey }) {
             </div>
 
             {/* ── Recent Purchases from orders database ── */}
-            {(
-                <div className={styles.card}>
-                    <div className={styles.cardHeader}>
-                        <div><h3 className={styles.cardTitle}>Riwayat Pembelian Produk Kopi</h3><p className={styles.cardSubtitle}>Data real dari database — {periodPaidOrders.length} transaksi lunas · {periodOrderWeight}g terbeli · Rp {periodRevenue.toLocaleString('id-ID')} revenue · {periodLabel}</p></div>
-                        <a href="/market" className={styles.seeAll}>Lihat di Pasar →</a>
-                    </div>
-                    <div className={styles.tableWrapper}>
-                        <table className={styles.table}>
-                            <thead><tr>
-                                <th>Produk</th><th>Pembeli</th><th>Berat</th><th>Metode</th><th>Total</th><th>Status</th><th>Waktu</th>
-                            </tr></thead>
-                            <tbody>
-                                {recentOrders.map(o => (
-                                    <tr key={o.id}>
-                                        <td className={styles.txFarmer}>{o.productName}</td>
-                                        <td className={styles.txLocation}>{o.userName}</td>
-                                        <td className={styles.txWeight}>{o.weight}g</td>
-                                        <td><span style={{ fontSize: 11, fontWeight: 600, color: o.paymentMethod === 'qris' ? '#A855F7' : '#4CAF50' }}>{o.paymentMethod === 'qris' ? 'QRIS' : 'Phantom'}</span></td>
-                                        <td className={styles.txAmount}>Rp {(o.totalPrice || 0).toLocaleString('id-ID')}</td>
-                                        <td><span className={`${styles.badge} ${styles.badgecompleted}`}> LUNAS</span></td>
-                                        <td className={styles.txTime}>{o.paidAt ? new Date(o.paidAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                                    </tr>
-                                ))}
-                                {!recentOrders.length && <tr><td colSpan="7" className={styles.emptyState}>Tidak ada pembelian lunas pada {periodLabel.toLowerCase()}.</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
             {/* Blockchain Live Feed */}
             <div className={styles.blockchainFeed}>
                 <div className={styles.feedHeader}><span className={styles.feedDot} /><span className={styles.feedTitle}>Live Blockchain Feed — Solana Testnet</span></div>
