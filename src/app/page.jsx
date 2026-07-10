@@ -861,7 +861,7 @@ export default function LandingPage() {
 
                 {/* Desktop Nav Links */}
                 <div className={`cc-nav-links${mobileMenu ? ' open' : ''}`}>
-                    {[['#products','Produk'],['#market','Harga Pasar'],['#how','Cara Kerja'],['/trace','Trace Kopi'],['/documentation','Dokumentasi'],['/contact','Kontak']].map(([href, label]) => (
+                    {[['#products','Produk'],['#market','Harga Pasar'],['#how','Cara Kerja'],['/trace','Trace Kopi'],['/guide','Panduan'],['/documentation','Dokumentasi'],['/contact','Kontak']].map(([href, label]) => (
                         <a key={href} href={href} onClick={() => setMobileMenu(false)}
                             style={{ color:'var(--cc-text-secondary)', fontSize:14, padding:'9px 14px', borderRadius:8, textDecoration:'none', fontWeight:500, transition:'color 0.2s' }}>
                             {label}
@@ -1300,7 +1300,7 @@ export default function LandingPage() {
                         2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana
                     </p>
                     <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
-                        {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
+                        {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/guide', 'Panduan'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
                             <a key={label} href={href} style={{ color:'#2d4a2d', fontSize:12, textDecoration:'none', transition:'color 0.2s' }}
                                 onMouseEnter={e => e.currentTarget.style.color='#84e068'}
                                 onMouseLeave={e => e.currentTarget.style.color='#2d4a2d'}
