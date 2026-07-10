@@ -21,11 +21,9 @@ export default function DashboardPage({ walletPublicKey }) {
     const [mounted, setMounted] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [transactions, setTransactions] = useState([]);
-    const [stats, setStats] = useState({ total: 0, volume: 0, farmers: 3921, price: 68500 });
     const [selectedDate, setSelectedDate] = useState(null);
     const [loadingTx, setLoadingTx] = useState(true);
-    const [recentOrders, setRecentOrders] = useState([]);
-    const [orderStats, setOrderStats] = useState({ count: 0, totalKg: 0, totalRevenue: 0 });
+    const [orders, setOrders] = useState([]);
     const [chartPeriod, setChartPeriod] = useState('7');
     const [dailyTarget, setDailyTarget] = useState(10);
     const [dailyTargetInput, setDailyTargetInput] = useState('10');
@@ -51,17 +49,7 @@ export default function DashboardPage({ walletPublicKey }) {
             const feed = txData.data || [];
             setTransactions(feed);
 
-            const paid = (orderData.data || []).filter(o => o.status === 'paid');
-            const totalKg = paid.reduce((s, o) => s + (o.weight || 0), 0);
-            const totalRevenue = paid.reduce((s, o) => s + (o.totalPrice || 0), 0);
-            setOrderStats({ count: paid.length, totalKg, totalRevenue });
-            setRecentOrders(paid.slice(0, 5));
-
-            const vol = feed.reduce((sum, t) => {
-                const w = Number(t.weight) || 0;
-                return sum + (t.weightUnit === 'g' ? w / 1000 : w);
-            }, 0);
-            setStats(prev => ({ ...prev, total: feed.length, volume: vol }));
+            setOrders(orderData.data || []);
             if (settingsData.success && Number.isInteger(Number(settingsData.dailyTransactionTarget))) {
                 const target = Number(settingsData.dailyTransactionTarget);
                 setDailyTarget(target);
@@ -123,7 +111,6 @@ export default function DashboardPage({ walletPublicKey }) {
 
     function handleTransactionAdded(newTx) {
         setTransactions(prev => [{ ...newTx, source: 'transaction', weightUnit: 'kg' }, ...prev]);
-        setStats(prev => ({ ...prev, total: prev.total + 1, volume: prev.volume + (newTx.weight || 0) }));
         setShowModal(false);
         refreshData();
     }
@@ -145,27 +132,47 @@ export default function DashboardPage({ walletPublicKey }) {
         return `Rp ${(amount / 1000000).toFixed(2)} Jt`;
     }
 
+    const periodDays = chartPeriod === 'all' ? null : Number(chartPeriod);
+    const dateOf = item => new Date(item?.timestamp || item?.paidAt || item?.createdAt);
+    const allActivityDates = [...transactions, ...orders]
+        .map(dateOf)
+        .filter(date => !Number.isNaN(date.getTime()));
+    const periodEnd = new Date();
+    periodEnd.setHours(23, 59, 59, 999);
+    const periodStart = periodDays
+        ? new Date(periodEnd.getTime() - (periodDays - 1) * 86400000)
+        : allActivityDates.reduce((min, date) => date < min ? date : min, periodEnd);
+    periodStart.setHours(0, 0, 0, 0);
+    const inSelectedPeriod = item => {
+        const date = dateOf(item);
+        return !Number.isNaN(date.getTime()) && date >= periodStart && date <= periodEnd;
+    };
+    const periodTransactions = transactions.filter(inSelectedPeriod);
+    const periodPaidOrders = orders.filter(order => order.status === 'paid' && inSelectedPeriod(order));
+    const periodOrderWeight = periodPaidOrders.reduce((sum, order) => sum + (Number(order.weight) || 0), 0);
+    const periodRevenue = periodPaidOrders.reduce((sum, order) => sum + (Number(order.totalPrice) || 0), 0);
+    const activeFarmers = new Set(periodTransactions.map(tx => tx.farmerId || tx.farmer).filter(Boolean)).size;
+    const recentOrders = periodPaidOrders.slice(0, 5);
+    const periodLabel = chartPeriod === 'all' ? 'Semua periode' : `${chartPeriod} hari terakhir`;
     const statsData = [
-        { title: 'Total Transaksi', value: stats.total.toLocaleString(), change: '+18.4%', positive: true, sub: 'Blockchain transactions', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
-        { title: 'Kopi Terbeli', value: orderStats.totalKg >= 1000 ? `${(orderStats.totalKg / 1000).toFixed(1)} Kg` : `${orderStats.totalKg} g`, change: `${orderStats.count} order`, positive: true, sub: 'Total dari database', color: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
-        { title: 'Petani Aktif', value: stats.farmers.toLocaleString(), change: '+241', positive: true, sub: 'Terdaftar di blockchain', color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
-        { title: 'Total Revenue', value: orderStats.totalRevenue >= 1000000 ? `Rp ${(orderStats.totalRevenue / 1000000).toFixed(1)} Jt` : `Rp ${orderStats.totalRevenue.toLocaleString('id-ID')}`, change: `${orderStats.count} produk lunas`, positive: true, sub: 'Dari pembelian produk kopi', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
+        { title: 'Total Transaksi', value: periodTransactions.length.toLocaleString(), change: periodLabel, positive: true, sub: 'Sesuai periode grafik', color: '#4A7C28', bg: 'rgba(74,124,40,0.1)' },
+        { title: 'Kopi Terbeli', value: periodOrderWeight >= 1000 ? `${(periodOrderWeight / 1000).toFixed(1)} Kg` : `${periodOrderWeight} g`, change: `${periodPaidOrders.length} order`, positive: true, sub: 'Pembelian lunas dalam periode', color: '#F5A623', bg: 'rgba(245,166,35,0.1)' },
+        { title: 'Petani Aktif', value: activeFarmers.toLocaleString(), change: periodLabel, positive: true, sub: 'Petani dalam transaksi periode', color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
+        { title: 'Total Revenue', value: periodRevenue >= 1000000 ? `Rp ${(periodRevenue / 1000000).toFixed(1)} Jt` : `Rp ${periodRevenue.toLocaleString('id-ID')}`, change: `${periodPaidOrders.length} produk lunas`, positive: true, sub: 'Revenue dalam periode', color: '#4CAF50', bg: 'rgba(76,175,80,0.1)' },
     ];
 
-    const periodDays = chartPeriod === 'all' ? null : Number(chartPeriod);
     const chartRows = (() => {
         const dated = transactions
-            .map(tx => ({ tx, date: new Date(tx.timestamp || tx.createdAt || tx.paidAt) }))
-            .filter(item => !Number.isNaN(item.date.getTime()));
-        const latest = new Date();
-        latest.setHours(23, 59, 59, 999);
-        const earliest = periodDays ? new Date(latest.getTime() - (periodDays - 1) * 86400000) : dated.reduce((min, item) => item.date < min ? item.date : min, latest);
-        earliest.setHours(0, 0, 0, 0);
+            .map(tx => ({ tx, date: dateOf(tx) }))
+            .filter(item => !Number.isNaN(item.date.getTime()) && item.date >= periodStart && item.date <= periodEnd);
+        const latest = periodEnd;
+        const earliest = periodStart;
+        const dayKey = date => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
         const rows = [];
         const cursor = new Date(earliest);
         while (cursor <= latest) {
-            const key = cursor.toISOString().slice(0, 10);
-            const dayItems = dated.filter(item => item.date.toISOString().slice(0, 10) === key);
+            const key = dayKey(cursor);
+            const dayItems = dated.filter(item => dayKey(item.date) === key);
             rows.push({
                 key,
                 label: cursor.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
@@ -303,7 +310,7 @@ export default function DashboardPage({ walletPublicKey }) {
             {/* Recent Transactions from DB */}
             <div className={styles.card}>
                 <div className={styles.cardHeader}>
-                    <div><h3 className={styles.cardTitle}>Transaksi Terbaru</h3><p className={styles.cardSubtitle}>Blockchain + pembelian produk • {transactions.length} transaksi</p></div>
+                    <div><h3 className={styles.cardTitle}>Transaksi Terbaru</h3><p className={styles.cardSubtitle}>Blockchain + pembelian produk • {periodTransactions.length} transaksi • {periodLabel}</p></div>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <button className={styles.btnPrimarySmall} onClick={() => setShowModal(true)}>+ Tambah</button>
                         <a href="/transactions" className={styles.seeAll}>Lihat Semua →</a>
@@ -319,7 +326,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                 <th>Nilai</th><th>Status</th><th>Waktu</th><th></th>
                             </tr></thead>
                             <tbody>
-                                {transactions.slice(0, 8).map((tx) => (
+                                {periodTransactions.slice(0, 8).map((tx) => (
                                     <tr key={tx.id || tx.orderId}>
                                         <td><span className={styles.txHash}>{tx.hash}</span></td>
                                         <td className={styles.txFarmer}>{tx.farmer}</td>
@@ -333,6 +340,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                         )}</td>
                                     </tr>
                                 ))}
+                                {!periodTransactions.length && <tr><td colSpan="8" className={styles.emptyState}>Tidak ada transaksi pada {periodLabel.toLowerCase()}.</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -340,10 +348,10 @@ export default function DashboardPage({ walletPublicKey }) {
             </div>
 
             {/* ── Recent Purchases from orders database ── */}
-            {recentOrders.length > 0 && (
+            {(
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
-                        <div><h3 className={styles.cardTitle}>Riwayat Pembelian Produk Kopi</h3><p className={styles.cardSubtitle}>Data real dari database — {orderStats.count} transaksi lunas · {orderStats.totalKg}g terbeli · Rp {orderStats.totalRevenue.toLocaleString('id-ID')} revenue</p></div>
+                        <div><h3 className={styles.cardTitle}>Riwayat Pembelian Produk Kopi</h3><p className={styles.cardSubtitle}>Data real dari database — {periodPaidOrders.length} transaksi lunas · {periodOrderWeight}g terbeli · Rp {periodRevenue.toLocaleString('id-ID')} revenue · {periodLabel}</p></div>
                         <a href="/market" className={styles.seeAll}>Lihat di Pasar →</a>
                     </div>
                     <div className={styles.tableWrapper}>
@@ -363,6 +371,7 @@ export default function DashboardPage({ walletPublicKey }) {
                                         <td className={styles.txTime}>{o.paidAt ? new Date(o.paidAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                                     </tr>
                                 ))}
+                                {!recentOrders.length && <tr><td colSpan="7" className={styles.emptyState}>Tidak ada pembelian lunas pada {periodLabel.toLowerCase()}.</td></tr>}
                             </tbody>
                         </table>
                     </div>
