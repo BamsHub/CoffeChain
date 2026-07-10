@@ -1,6 +1,6 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { readDb, updateItem } from '@/lib/db';
-import { verifyPassword, createSession } from '@/lib/auth';
+import { verifyPassword, createSession, hashPassword, needsPasswordUpgrade } from '@/lib/auth';
 
 export async function POST(request) {
     try {
@@ -37,6 +37,11 @@ export async function POST(request) {
 
         if (!isValid) {
             return Response.json({ success: false, message: 'Email atau password salah' }, { status: 401 });
+        }
+
+        // Upgrade one-time for accounts created before PBKDF2 was introduced.
+        if (needsPasswordUpgrade(user.password)) {
+            await updateItem('users', user.id, { password: await hashPassword(password) });
         }
 
         // Buat session token

@@ -2,7 +2,6 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { Analytics } from '@vercel/analytics/react';
-import WhatsAppFloat from '@/components/WhatsAppFloat';
 
 export const metadata = {
     title: 'CoffeeChain — Blockchain Industri Kopi',
@@ -34,7 +33,6 @@ export default function RootLayout({ children }) {
                             {children}
                         </main>
                         <Analytics />
-                        <WhatsAppFloat />
                     </ThemeProvider>
                 </AuthProvider>
             </body>

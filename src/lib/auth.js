@@ -8,17 +8,66 @@ function getJwtSecret() {
     return new TextEncoder().encode(secret);
 }
 
-/** Hash password dengan SHA-256 (Web Crypto API kompatibel dengan Cloudflare Edge) */
-export async function hashPassword(password) {
-    const data = new TextEncoder().encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+const PASSWORD_ITERATIONS = 310_000;
+
+function toBase64(bytes) {
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
 }
 
-/** Verifikasi password */
+function fromBase64(value) {
+    const binary = atob(value);
+    return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+
+async function derivePassword(password, salt, iterations = PASSWORD_ITERATIONS) {
+    const key = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(password),
+        'PBKDF2',
+        false,
+        ['deriveBits'],
+    );
+    return new Uint8Array(await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', hash: 'SHA-256', salt, iterations },
+        key,
+        256,
+    ));
+}
+
+/** Hash password dengan PBKDF2 + salt (kompatibel Node.js dan Edge). */
+export async function hashPassword(password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const derived = await derivePassword(password, salt);
+    return `pbkdf2$${PASSWORD_ITERATIONS}$${toBase64(salt)}$${toBase64(derived)}`;
+}
+
+/** Verifikasi password. Hash SHA-256 lama dipertahankan sementara untuk migrasi akun. */
 export async function verifyPassword(plain, hashed) {
-    return (await hashPassword(plain)) === hashed;
+    if (typeof hashed !== 'string') return false;
+    const [scheme, iterationValue, saltValue, digestValue] = hashed.split('$');
+    if (scheme === 'pbkdf2' && saltValue && digestValue) {
+        const iterations = Number(iterationValue);
+        if (!Number.isInteger(iterations) || iterations < 100_000 || iterations > 1_000_000) return false;
+        const actual = await derivePassword(plain, fromBase64(saltValue), iterations);
+        const expected = fromBase64(digestValue);
+        if (actual.length !== expected.length) return false;
+        let difference = 0;
+        for (let index = 0; index < actual.length; index += 1) difference |= actual[index] ^ expected[index];
+        return difference === 0;
+    }
+
+    // Legacy format from versions before the security migration.
+    if (!/^[a-f0-9]{64}$/i.test(hashed)) return false;
+    const data = new TextEncoder().encode(plain);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const actual = Array.from(new Uint8Array(hashBuffer)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+    return actual === hashed;
+}
+
+export function needsPasswordUpgrade(hashed) {
+    return typeof hashed === 'string' && !hashed.startsWith('pbkdf2$');
 }
 
 /** Generate token JWT baru (stateless) */

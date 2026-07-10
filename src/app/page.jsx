@@ -116,7 +116,7 @@ export default function LandingPage() {
     const [traceLoading, setTraceLoading] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
     const [supportInput, setSupportInput] = useState('');
-    const [supportMessages, setSupportMessages] = useState([
+    const [supportMessages, setSupportMessages] = useState(() => [
         { id: 'welcome', sender: 'bot', text: 'Halo, saya asisten CoffeeChain. Saya bisa bantu pembayaran, QR sertifikasi, produk, atau pengaduan.' },
     ]);
     const solanaIntervalRef = useRef(null);
@@ -144,6 +144,18 @@ export default function LandingPage() {
     useEffect(() => () => {
         if (supportReplyTimerRef.current) window.clearTimeout(supportReplyTimerRef.current);
     }, []);
+
+    function resetSupportChat() {
+        if (supportReplyTimerRef.current) window.clearTimeout(supportReplyTimerRef.current);
+        supportReplyTimerRef.current = null;
+        setSupportInput('');
+        setSupportMessages([{ id: `welcome-${Date.now()}`, sender: 'bot', text: 'Halo, saya asisten CoffeeChain. Saya bisa bantu pembayaran, QR sertifikasi, produk, atau pengaduan.' }]);
+    }
+
+    function toggleSupportChat() {
+        resetSupportChat();
+        setSupportOpen(open => !open);
+    }
 
     function getSupportReply(message) {
         const text = message.toLowerCase();
@@ -1304,7 +1316,7 @@ export default function LandingPage() {
                     <section aria-label="Chat bantuan CoffeeChain" style={{ position:'absolute', right:0, bottom:66, width:'min(360px, calc(100vw - 32px))', background:'var(--cc-bg)', border:'1px solid rgba(37,211,102,0.35)', borderRadius:14, overflow:'hidden', boxShadow:'0 18px 48px rgba(0,0,0,0.48)' }}>
                         <header style={{ padding:'13px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', background:'linear-gradient(135deg,#128c7e,#25d366)', color:'#fff' }}>
                             <div><div style={{ fontSize:13, fontWeight:800 }}>Bantuan CoffeeChain</div><div style={{ fontSize:10, opacity:0.85 }}>Asisten web siap membantu</div></div>
-                            <button type="button" onClick={() => setSupportOpen(false)} aria-label="Tutup chat" style={{ color:'#fff', padding:4, display:'flex' }}><IconClose /></button>
+                            <button type="button" onClick={() => { setSupportOpen(false); resetSupportChat(); }} aria-label="Tutup chat" style={{ color:'#fff', padding:4, display:'flex' }}><IconClose /></button>
                         </header>
                         <div style={{ padding:12, height:264, overflowY:'auto', display:'flex', flexDirection:'column', gap:8, background:'var(--cc-card-bg)' }}>
                             {supportMessages.map(message => (
@@ -1322,11 +1334,10 @@ export default function LandingPage() {
                         </div>
                         <div style={{ padding:'0 12px 11px', display:'flex', gap:6, flexWrap:'wrap' }}>
                             {['Pembayaran', 'Cek QR sertifikasi', 'Buat pengaduan'].map(question => <button key={question} type="button" onClick={() => sendSupportMessage(question)} style={{ padding:'5px 8px', borderRadius:999, border:'1px solid rgba(37,211,102,0.3)', color:'#84e068', fontSize:10, fontWeight:700 }}>{question}</button>)}
-                            <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer" style={{ padding:'5px 8px', borderRadius:999, border:'1px solid var(--cc-divider)', color:'var(--cc-text-secondary)', fontSize:10, fontWeight:700, textDecoration:'none' }}>Admin WhatsApp</a>
                         </div>
                     </section>
                 )}
-                <button type="button" onClick={() => setSupportOpen(open => !open)} aria-label={supportOpen ? 'Tutup chat bantuan' : 'Buka chat bantuan'}
+                <button type="button" onClick={toggleSupportChat} aria-label={supportOpen ? 'Tutup chat bantuan' : 'Buka chat bantuan'}
                     style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#25d366,#128c7e)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 20px rgba(37,211,102,0.4)', animation:'wa-pop 0.4s ease', transition:'transform 0.2s,box-shadow 0.2s', color:'#fff' }}
                     title="Chat bantuan CoffeeChain"
                     onMouseEnter={e => { e.currentTarget.style.transform='scale(1.1)'; e.currentTarget.style.boxShadow='0 6px 28px rgba(37,211,102,0.55)'; }}

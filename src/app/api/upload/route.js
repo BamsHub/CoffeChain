@@ -16,10 +16,17 @@ function isValidCid(cid) {
     );
 }
 
+function hasExpectedFileSignature(buffer, type) {
+    if (type === 'image/jpeg' || type === 'image/jpg') return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    if (type === 'image/png') return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    if (type === 'image/gif') return buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a';
+    if (type === 'image/webp') return buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+    return false;
+}
+
 export async function POST(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '')
-            || new URL(req.url).searchParams.get('token');
+        const token = req.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -75,6 +82,9 @@ export async function POST(req) {
         const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
         const fileName = `farmer-${ownerId}-production-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const buffer = Buffer.from(await file.arrayBuffer());
+        if (!hasExpectedFileSignature(buffer, file.type)) {
+            return NextResponse.json({ success: false, message: 'Isi file tidak cocok dengan format gambar yang dipilih' }, { status: 400 });
+        }
         const result = await pinFileToIPFS(buffer, fileName, {
             app: 'CoffeeChain',
             type: 'production-stage-photo',

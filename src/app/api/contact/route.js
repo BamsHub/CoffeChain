@@ -6,13 +6,14 @@ import { readDb } from '@/lib/db';
 import { sbSelect, sbInsert, sbUpdate } from '@/lib/sdb';
 
 const TABLE = 'contact_messages';
+const CATEGORIES = new Set(['quality', 'delivery', 'payment', 'blockchain', 'account', 'suggestion', 'other']);
 
 function generateId() {
     return `TKT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }
 
 function getToken(req) {
-    return req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+    return req.headers.get('Authorization')?.replace('Bearer ', '');
 }
 
 export async function GET(req) {
@@ -51,10 +52,15 @@ export async function POST(req) {
         const { phone, category, urgency, subject, message } = await req.json();
         const cleanMessage = String(message || '').trim();
         const cleanSubject = String(subject || '').trim();
-        if (!category) return NextResponse.json({ success: false, message: 'Kategori wajib diisi' }, { status: 400 });
-        if (!cleanSubject) return NextResponse.json({ success: false, message: 'Subjek wajib diisi' }, { status: 400 });
+        if (!CATEGORIES.has(category)) return NextResponse.json({ success: false, message: 'Kategori tiket tidak valid' }, { status: 400 });
+        if (!cleanSubject || cleanSubject.length > 140) return NextResponse.json({ success: false, message: 'Subjek harus berisi 1 sampai 140 karakter' }, { status: 400 });
         if (cleanMessage.length < 10 || cleanMessage.length > 2000) {
             return NextResponse.json({ success: false, message: 'Pesan harus berisi 10 sampai 2000 karakter' }, { status: 400 });
+        }
+
+        const cleanPhone = String(phone || '').trim();
+        if (cleanPhone && !/^[+0-9()\s-]{7,25}$/.test(cleanPhone)) {
+            return NextResponse.json({ success: false, message: 'Nomor HP tidak valid' }, { status: 400 });
         }
 
         const users = await readDb('users');
@@ -63,7 +69,7 @@ export async function POST(req) {
             id: generateId(),
             sender_id: session.userId,
             name: sender?.name || sender?.email || `Petani ${session.userId}`,
-            phone: phone || sender?.phone || null,
+            phone: cleanPhone || sender?.phone || null,
             category,
             urgency: ['normal', 'high', 'urgent'].includes(urgency) ? urgency : 'normal',
             subject: cleanSubject,
@@ -103,7 +109,11 @@ export async function PATCH(req) {
 
         const updates = {};
         if (status) updates.status = status;
-        if (admin_notes !== undefined) updates.admin_notes = String(admin_notes).trim();
+        if (admin_notes !== undefined) {
+            const cleanNotes = String(admin_notes).trim();
+            if (cleanNotes.length > 4000) return NextResponse.json({ success: false, message: 'Catatan admin maksimal 4000 karakter' }, { status: 400 });
+            updates.admin_notes = cleanNotes;
+        }
         if (status === 'replied') {
             updates.replied_at = new Date().toISOString();
             updates.replied_by = session.userId;

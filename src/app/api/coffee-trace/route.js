@@ -44,7 +44,7 @@ async function recordOffchainTransaction({ product, proof, txSignature }) {
 
 export async function POST(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         if (!['koperasi', 'developer', 'admin'].includes(session.role)) {
@@ -74,7 +74,22 @@ export async function POST(request) {
         if (productError || !product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
         }
+        if (product.status !== 'pending_certification') {
+            return Response.json({ success: false, message: 'Hanya produk yang menunggu sertifikasi dapat didaftarkan ke Solana' }, { status: 409 });
+        }
         const audit = await getCompleteProductionAudit(product.id);
+        const trustedTraceData = {
+            ...body,
+            name: product.name,
+            origin: product.origin,
+            variety: product.variety,
+            grade: product.grade,
+            weightKg: product.weight?.[0] || body.weightKg || null,
+            farmerName: product.submitted_by_name || audit.batch.farmer_name || null,
+            farmerId: product.submitted_by || audit.batch.farmer_id || null,
+            description: product.description || null,
+            registeredBy: session.userId,
+        };
 
         let proof = offchainProof;
         if (proof) {
@@ -89,7 +104,7 @@ export async function POST(request) {
                 coffeeId: product.coffee_id || generateCoffeeId(),
                 productId: product.id,
                 product,
-                traceData: body,
+                traceData: trustedTraceData,
                 pipeline: audit.pipeline,
             });
         }
@@ -118,22 +133,22 @@ export async function POST(request) {
         const trace = {
             id: uuidv4(),
             coffeeId,
-            name,
-            origin: origin || null,
-            variety: variety || null,
-            grade: grade || null,
-            weightKg: weightKg || null,
-            farmerName: farmerName || null,
-            farmerId: farmerId || null,
+            name: trustedTraceData.name,
+            origin: trustedTraceData.origin || null,
+            variety: trustedTraceData.variety || null,
+            grade: trustedTraceData.grade || null,
+            weightKg: trustedTraceData.weightKg || null,
+            farmerName: trustedTraceData.farmerName || null,
+            farmerId: trustedTraceData.farmerId || null,
             harvestDate: harvestDate || null,
             processMethod: processMethod || null,
             roastLevel: roastLevel || null,
             certification: certification || null,
-            description: description || null,
+            description: trustedTraceData.description || null,
             txSignature,
             explorerUrl,
             status: isVerified ? 'verified' : 'registered',
-            registeredBy: registeredBy || null,
+            registeredBy: session.userId,
             productId: product.id,
             paymentWallet: paymentWallet || phantomWalletAddress || null,
             createdAt: new Date().toISOString(),

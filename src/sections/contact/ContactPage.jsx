@@ -66,7 +66,10 @@ export default function ContactPage() {
         return (
             <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(18px,3vw,32px)' }}>
                 <div style={{ padding: 24, borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
-                    Hubungi Kami tersedia untuk akun petani. Admin menerima dan mengelola tiket melalui menu Pesan Pengaduan.
+                    <div style={{ fontWeight: 800, marginBottom: 8 }}>Tiket pengaduan khusus petani terdaftar</div>
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>Daftar sebagai petani dan verifikasi email terlebih dahulu agar identitas pengirim serta riwayat pipeline dapat ditautkan dengan aman.</div>
+                    {!user && <a href="/register" style={{ color: 'var(--color-primary-light)', fontWeight: 800, textDecoration: 'none' }}>Daftar sebagai Petani</a>}
+                    {user && <div style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Admin menerima dan mengelola tiket melalui menu Pesan Pengaduan.</div>}
                 </div>
             </div>
         );

@@ -4,8 +4,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const token = searchParams.get('token') || request.headers.get('Authorization')?.replace('Bearer ', '');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
         const session = await verifyToken(token);
         if (!session) {

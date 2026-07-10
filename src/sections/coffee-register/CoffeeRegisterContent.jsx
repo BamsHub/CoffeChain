@@ -633,7 +633,6 @@ export default function CoffeeRegisterContent() {
                         <PipelineAuditPanel
                             batch={findProductBatch(regProduct, productionBatches)}
                             logs={getProductStageLogs(regProduct, productionBatches, productionLogs)}
-                            compact
                         />
 
                         {/* Status message */}

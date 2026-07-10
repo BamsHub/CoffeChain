@@ -17,10 +17,35 @@ function isValidCid(cid) {
     );
 }
 
+function getToken(req) {
+    return req.headers.get('Authorization')?.replace('Bearer ', '');
+}
+
+async function getSessionActor(session) {
+    const dbUsers = await readDb('users');
+    const actor = dbUsers.items.find(user => user.id === session.userId);
+    return { id: session.userId, name: actor?.name || actor?.email || session.userId };
+}
+
+async function verifyStageAsset(supabase, { batch, batchId, stage, photoCid, photoUrl, ipfsUri }) {
+    const { data: asset, error } = await supabase
+        .from('ipfs_assets')
+        .select('owner_id, ipfs_uri, gateway_url')
+        .eq('batch_id', batchId)
+        .eq('stage', Number(stage))
+        .eq('cid', photoCid)
+        .maybeSingle();
+    if (error) throw new Error(error.message);
+    return Boolean(asset
+        && asset.owner_id === batch.farmer_id
+        && asset.ipfs_uri === ipfsUri
+        && asset.gateway_url === photoUrl);
+}
+
 // GET — list stage logs for a batch
 export async function GET(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const token = getToken(req);
         const session = await verifyToken(token);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -72,7 +97,7 @@ export async function GET(req) {
 // POST — log a stage and advance batch to next stage
 export async function POST(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const token = getToken(req);
         const session = await verifyToken(token);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -123,6 +148,10 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
+        if (!await verifyStageAsset(supabase, { batch, batchId, stage, photoCid, photoUrl, ipfsUri })) {
+            return NextResponse.json({ success: false, message: 'Bukti IPFS tidak terdaftar untuk pemilik, batch, dan tahap ini' }, { status: 403 });
+        }
+
         const { data: existingLogs, error: existingErr } = await supabase
             .from('production_stage_logs')
             .select('stage')
@@ -142,16 +171,9 @@ export async function POST(req) {
             }
         }
 
-        let targetLoggedBy = loggedBy;
-        let targetLoggedByName = loggedByName;
-        if (session.role === 'farmer') {
-            targetLoggedBy = session.userId;
-            const dbUsers = await readDb('users');
-            const user = dbUsers.items.find(u => u.id === session.userId);
-            if (user) {
-                targetLoggedByName = user.name;
-            }
-        }
+        const actor = await getSessionActor(session);
+        const targetLoggedBy = actor.id;
+        const targetLoggedByName = actor.name;
 
         let productId = batch.product_id || null;
         const stageName = STAGE_NAMES[stage] || `Stage ${stage}`;
@@ -261,7 +283,7 @@ export async function POST(req) {
 // PATCH — edit a completed stage only while its product is rejected
 export async function PATCH(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
+        const token = getToken(req);
         const session = await verifyToken(token);
         if (!session) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
 
@@ -307,6 +329,10 @@ export async function PATCH(req) {
             return NextResponse.json({ success: false, message: 'Pipeline hanya dapat diedit setelah produk ditolak dan belum tersertifikasi' }, { status: 409 });
         }
 
+        if (!await verifyStageAsset(supabase, { batch, batchId, stage: stageNumber, photoCid, photoUrl, ipfsUri })) {
+            return NextResponse.json({ success: false, message: 'Bukti IPFS tidak terdaftar untuk pemilik, batch, dan tahap ini' }, { status: 403 });
+        }
+
         const { data: existingLog, error: logError } = await supabase
             .from('production_stage_logs')
             .select('id')
@@ -317,14 +343,9 @@ export async function PATCH(req) {
             return NextResponse.json({ success: false, message: 'Log tahap belum ada dan tidak dapat diedit' }, { status: 404 });
         }
 
-        let targetLoggedBy = loggedBy || session.userId;
-        let targetLoggedByName = loggedByName || null;
-        if (session.role === 'farmer') {
-            targetLoggedBy = session.userId;
-            const dbUsers = await readDb('users');
-            const user = dbUsers.items.find(item => item.id === session.userId);
-            if (user) targetLoggedByName = user.name;
-        }
+        const actor = await getSessionActor(session);
+        const targetLoggedBy = actor.id;
+        const targetLoggedByName = actor.name;
 
         const { data: updatedLog, error: updateError } = await supabase
             .from('production_stage_logs')

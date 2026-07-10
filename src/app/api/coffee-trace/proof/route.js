@@ -31,8 +31,8 @@ export async function POST(request) {
             .eq('id', body.productId)
             .maybeSingle();
         if (error || !product) return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
-        if (session.role === 'farmer' && product.submitted_by !== session.userId) {
-            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        if (product.status !== 'pending_certification') {
+            return Response.json({ success: false, message: 'Produk belum siap untuk sertifikasi' }, { status: 409 });
         }
 
         const coffeeId = product.coffee_id || generateCoffeeId();
@@ -41,7 +41,18 @@ export async function POST(request) {
             coffeeId,
             productId: product.id,
             product,
-            traceData: body,
+            traceData: {
+                ...body,
+                name: product.name,
+                origin: product.origin,
+                variety: product.variety,
+                grade: product.grade,
+                weightKg: product.weight?.[0] || null,
+                farmerName: product.submitted_by_name || audit.batch.farmer_name || null,
+                farmerId: product.submitted_by || audit.batch.farmer_id || null,
+                description: product.description || null,
+                registeredBy: session.userId,
+            },
             pipeline: audit.pipeline,
         });
 
