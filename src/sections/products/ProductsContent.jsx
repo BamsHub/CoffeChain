@@ -69,9 +69,13 @@ export default function ProductsContent() {
         }
         setSaving(true); setMsg(null);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     name: form.name, origin: form.origin, variety: form.variety,
                     grade: form.grade, roast: form.roast, description: form.description,
@@ -105,9 +109,13 @@ export default function ProductsContent() {
         if (!confirm(`Hapus produk "${name}"?`)) return;
         setDeleting(id);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ id }),
             });
             const data = await res.json();
@@ -201,9 +209,13 @@ export default function ProductsContent() {
         }
         setSaving(true); setMsg(null);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id: editingProduct.id,
                     name: editForm.name,
