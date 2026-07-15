@@ -93,10 +93,20 @@ const coffeeTypes = [
     { name: 'Liberika Riau', grade: 'Grade B', price: 38000, change: +1.8, vol: '920 Ton', origin: 'Riau' },
 ];
 
+/* ── Best Sellers for Hero Carousel ── */
+const BEST_SELLERS = [
+    { img: 'https://images.unsplash.com/photo-1512372388054-a322888e67a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600', name: 'Gayo Arabica Honey', origin: 'Aceh, Gayo', grade: 'Specialty', gradeColor: '#4a9c2e', gradeBg: 'rgba(132,224,104,0.12)', gradeBorder: 'rgba(132,224,104,0.25)', price: 'Rp 145.000', rating: 4.9, flavor: ['Karamel','Aprikot'], weight: '200g', badge: '⭐ Best Seller' },
+    { img: 'https://images.unsplash.com/photo-1774801935527-289b26bcc9e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600', name: 'Toraja Kalosi Natural', origin: 'Sulawesi', grade: 'Specialty', gradeColor: '#4a9c2e', gradeBg: 'rgba(132,224,104,0.12)', gradeBorder: 'rgba(132,224,104,0.25)', price: 'Rp 160.000', rating: 4.8, flavor: ['Dark Choco','Rempah'], weight: '200g', badge: '🆕 Baru' },
+    { img: 'https://images.unsplash.com/photo-1769988426472-e5c665ab08df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600', name: 'Kintamani Bali Natural', origin: 'Bali', grade: 'Specialty', gradeColor: '#4a9c2e', gradeBg: 'rgba(132,224,104,0.12)', gradeBorder: 'rgba(132,224,104,0.25)', price: 'Rp 155.000', rating: 4.9, flavor: ['Lemon','Jeruk Bali'], weight: '200g', badge: '⭐ Best Seller' },
+    { img: 'https://images.unsplash.com/photo-1765533221476-21ba62961497?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600', name: 'Papua Wamena Organic', origin: 'Papua', grade: 'Specialty', gradeColor: '#4a9c2e', gradeBg: 'rgba(132,224,104,0.12)', gradeBorder: 'rgba(132,224,104,0.25)', price: 'Rp 175.000', rating: 4.8, flavor: ['Berry','Floral'], weight: '200g', badge: '🌿 Organik' },
+    { img: 'https://images.unsplash.com/photo-1775434247021-1766d422b552?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=600', name: 'Flores Bajawa Washed', origin: 'NTT, Bajawa', grade: 'Premium', gradeColor: '#b8860b', gradeBg: 'rgba(240,192,32,0.12)', gradeBorder: 'rgba(240,192,32,0.3)', price: 'Rp 128.000', rating: 4.7, flavor: ['Jeruk','Teh Hitam'], weight: '200g', badge: null },
+];
+
 export default function LandingPage() {
     const { logout } = useAuth();
     const [products, setProducts] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
+    const [activeCard, setActiveCard] = useState(0);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [orderModal, setOrderModal] = useState(false);
     const [orderForm, setOrderForm] = useState({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: '', paymentMethod: 'transfer' });
@@ -140,6 +150,12 @@ export default function LandingPage() {
 
     /* ── Theme State ── */
     const [theme, setTheme] = useState('dark');
+
+    /* ── Auto-rotate hero carousel ── */
+    useEffect(() => {
+        const id = setInterval(() => setActiveCard(c => (c + 1) % BEST_SELLERS.length), 2800);
+        return () => clearInterval(id);
+    }, []);
 
     useEffect(() => () => {
         if (supportReplyTimerRef.current) window.clearTimeout(supportReplyTimerRef.current);
@@ -770,7 +786,12 @@ export default function LandingPage() {
     const solAmount = rupiahToSol(totalPrice);
 
     return (
-        <div data-theme={theme} style={{ minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background:'var(--cc-bg)', color:'var(--cc-text)', position: 'relative', overflowX: 'hidden' }}>
+        <div data-theme={theme} style={{ minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background:'var(--cc-bg)', color:'var(--cc-text)', position: 'relative', overflowX: 'hidden',
+            backgroundImage: `var(--cc-bg-grad), url('/coffee-bg.jpg')`,
+            backgroundSize: 'auto, cover',
+            backgroundPosition: 'center, center',
+            backgroundAttachment: 'scroll, fixed',
+        }}>
 
             {/* ── GLOBAL RESPONSIVE STYLES ── */}
             <style>{`
@@ -844,7 +865,10 @@ export default function LandingPage() {
             `}</style>
 
             {/* ── AMBIENT GLOW ── */}
-            <div aria-hidden="true" style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, background:'radial-gradient(ellipse 60% 40% at 50% -10%, rgba(132,224,104,0.07) 0%, transparent 70%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(171,159,242,0.05) 0%, transparent 60%)' }} />
+            <div aria-hidden="true" style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, transition:'all 0.5s', background: theme === 'dark'
+                ? 'radial-gradient(ellipse 60% 40% at 50% -10%, rgba(132,224,104,0.07) 0%, transparent 70%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(171,159,242,0.05) 0%, transparent 60%)'
+                : 'radial-gradient(ellipse 60% 40% at 50% -10%, rgba(132,224,104,0.12) 0%, transparent 70%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(171,159,242,0.08) 0%, transparent 60%)'
+            }} />
 
             {/* ── NAVBAR ── */}
             <nav style={{ position:'sticky', top:0, zIndex:40, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 clamp(16px,3vw,32px)', height:72, background:'var(--cc-nav-bg)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', borderBottom:'1px solid var(--cc-divider)', transition:'all 0.3s' }}>
@@ -934,59 +958,133 @@ export default function LandingPage() {
             )}
 
             {/* ── HERO SECTION ── */}
-            <section style={{ position:'relative', zIndex:10, display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center', padding:'80px clamp(16px,4vw,32px) 64px', animation:'fadeUp 0.6s ease' }}>
-                <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'6px 16px', borderRadius:100, background:'rgba(132,224,104,0.08)', border:'1px solid rgba(132,224,104,0.25)', color:'var(--cc-text-highlight)', fontSize:11, fontWeight:600, letterSpacing:'0.12em', marginBottom:36, textTransform:'uppercase' }}>
-                    <span style={{ width:6, height:6, borderRadius:'50%', background:'#84e068', animation:'pulse 2s infinite', flexShrink:0 }} />
-                    <IconChain /> Blockchain Transparan · On Solana
+            <section style={{ position:'relative', zIndex:10, display:'flex', alignItems:'center', minHeight:'88vh', padding:'64px clamp(16px,4vw,48px)', gap:48, animation:'fadeUp 0.6s ease' }}>
+
+                {/* ── LEFT: Text Content ── */}
+                <div style={{ flex:1, maxWidth:560, display:'flex', flexDirection:'column' }}>
+                    {/* Badge */}
+                    <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'6px 16px', borderRadius:100, background:'rgba(132,224,104,0.08)', border:'1px solid rgba(132,224,104,0.25)', color:'var(--cc-text-highlight)', fontSize:11, fontWeight:600, letterSpacing:'0.12em', marginBottom:28, textTransform:'uppercase', alignSelf:'flex-start' }}>
+                        <IconChain /> BLOCKCHAIN TRANSPARAN · ON SOLANA
+                    </div>
+
+                    <h1 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(2.4rem,5vw,4rem)', fontWeight:900, lineHeight:1.08, letterSpacing:'-0.025em', marginBottom:24 }}>
+                        <span style={{ background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>Kopi Premium</span>
+                        <br /><span style={{ color:'var(--cc-text)' }}>Langsung dari</span>
+                        <br /><span style={{ background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>Petani Nusantara</span>
+                    </h1>
+
+                    <p style={{ maxWidth:460, fontSize:'clamp(14px,1.6vw,16px)', color:'var(--cc-text-secondary)', lineHeight:1.8, marginBottom:36 }}>
+                        Platform blockchain pertama untuk industri kopi Indonesia. Bayar via{' '}
+                        <span style={{ color:'var(--cc-text-highlight)', fontWeight:600, padding:'1px 6px', borderRadius:4, background:'rgba(132,224,104,0.12)', border:'1px solid rgba(132,224,104,0.25)' }}>Transfer Bank / QR Rupiah</span>
+                        {' '}atau{' '}
+                        <span style={{ color:'#ab9ff2', fontWeight:600, padding:'1px 6px', borderRadius:4, background:'rgba(171,159,242,0.12)', border:'1px solid rgba(171,159,242,0.25)', whiteSpace:'nowrap' }}>Phantom Wallet Solana</span>.
+                    </p>
+
+                    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:48, flexWrap:'wrap' }}>
+                        <a href="#products" className="cc-btn-green" style={{ padding:'14px 28px', fontSize:15, boxShadow:'0 0 24px rgba(132,224,104,0.3)' }}>
+                            <IconCart /> Belanja Sekarang
+                        </a>
+                        {walletPublicKey ? (
+                            <div style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'12px 20px', borderRadius:12, background:'rgba(107,70,196,0.2)', border:'1px solid rgba(171,159,242,0.35)', fontSize:13, color:'var(--cc-text)' }}>
+                                <IconPhantomLogo size={18} />
+                                <span style={{ fontWeight:600 }}>{shortenAddress(walletPublicKey)}</span>
+                                <span style={{ color:'var(--cc-text-highlight)', fontWeight:700 }}>{walletBalance.toFixed(3)} SOL</span>
+                            </div>
+                        ) : (
+                            <button onClick={connectWallet} disabled={walletConnecting} className="cc-btn-phantom" style={{ padding:'14px 24px', fontSize:15, boxShadow:'0 0 24px rgba(107,70,196,0.25)' }}>
+                                {walletConnecting ? <span className="cc-spinner" /> : <IconPhantomLogo size={18} />}
+                                {walletConnecting ? 'Menghubungkan...' : 'Connect Phantom'}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Stats bar */}
+                    <div className="cc-stats-row" style={{ alignSelf:'flex-start' }}>
+                        {[
+                            { icon:<IconFarmer />, value: loading ? '–' : `${stats.farmers}+`, label:'Petani Bergabung' },
+                            { icon:<IconPackage />, value: loading ? '–' : `${stats.products}+`, label:'Produk Kopi' },
+                            { icon:<IconTx />, value: loading ? '–' : `${stats.transactions}+`, label:'Transaksi' },
+                            { icon:<IconSolana />, value:'100%', label:'On-Chain Solana' },
+                        ].map(({ icon, value, label }, i, arr) => (
+                            <div key={label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, padding:'16px 20px', borderRight: i < arr.length-1 ? '1px solid var(--cc-divider)' : 'none', minWidth:100 }}>
+                                <div style={{ color:'rgba(132,224,104,0.6)', display:'flex' }}>{icon}</div>
+                                <span style={{ fontSize:'clamp(18px,3vw,26px)', fontWeight:800, background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', fontFamily:"'Space Grotesk',sans-serif", lineHeight:1 }}>{value}</span>
+                                <span style={{ fontSize:10, color:'var(--cc-text-muted)', textAlign:'center', lineHeight:1.3 }}>{label}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                <h1 style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'clamp(2.2rem,6vw,4rem)', fontWeight:900, lineHeight:1.1, letterSpacing:'-0.03em', marginBottom:24, maxWidth:720 }}>
-                    <span style={{ background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>Kopi Premium</span>
-                    <br /><span style={{ color:'var(--cc-text)' }}>Langsung dari</span>
-                    <br /><span style={{ background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>Petani Nusantara</span>
-                </h1>
+                {/* ── RIGHT: Auto-sliding Best Seller Carousel ── */}
+                <div className="cc-hero-carousel-wrap" style={{ flex:'0 0 auto', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:16 }}>
+                    <p style={{ fontSize:11, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:'var(--cc-text-highlight)', alignSelf:'flex-start' }}>Produk Terlaris</p>
 
-                <p style={{ maxWidth:520, fontSize:'clamp(14px,1.8vw,17px)', color:'var(--cc-text-secondary)', lineHeight:1.8, marginBottom:44 }}>
-                    Platform blockchain pertama untuk industri kopi Indonesia. Bayar via{' '}
-                    <strong style={{ color:'var(--cc-text-highlight)', display:'inline-flex', alignItems:'center', gap:4 }}><IconBank /> Transfer Bank / QR Rupiah</strong>
-                    {' '}atau{' '}
-                    <strong style={{ color:'#ab9ff2', display:'inline-flex', alignItems:'center', gap:4 }}><IconPhantomLogo size={14} /> Phantom Wallet Solana</strong>.
-                </p>
+                    {/* Card viewport */}
+                    <div style={{ position:'relative', width:340, height:600, borderRadius:24, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.22)', flexShrink:0 }}>
+                        {BEST_SELLERS.map((p, i) => (
+                            <div key={p.name} style={{
+                                position:'absolute', inset:0, display:'flex', flexDirection:'column',
+                                background:'var(--cc-card-bg)', border:'1px solid var(--cc-card-border)',
+                                backdropFilter:'blur(16px)',
+                                opacity: i === activeCard ? 1 : 0,
+                                transform: i === activeCard ? 'translateX(0)' : 'translateX(28px)',
+                                transition:'opacity 0.5s ease, transform 0.5s ease',
+                                pointerEvents: i === activeCard ? 'auto' : 'none',
+                                visibility: i === activeCard ? 'visible' : 'hidden',
+                            }}>
+                                {/* Photo */}
+                                <div style={{ position:'relative', height:300, flexShrink:0, overflow:'hidden' }}>
+                                    <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                    <div style={{ position:'absolute', bottom:0, left:0, right:0, height:100, background:'linear-gradient(to top, var(--cc-bg), transparent)' }} />
+                                    <div style={{ position:'absolute', top:12, right:12, display:'flex', alignItems:'center', gap:6, padding:'3px 10px', borderRadius:100, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(8px)', color:'#84e068', border:'1px solid rgba(132,224,104,0.3)', fontSize:10, fontWeight:600 }}>
+                                        <span style={{ width:6, height:6, borderRadius:'50%', background:'#84e068', animation:'pulse 1.5s infinite' }} /> On-Chain
+                                    </div>
+                                    {p.badge && (
+                                        <div style={{ position:'absolute', top:12, left:12, padding:'3px 10px', borderRadius:100, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(8px)', color:'#f0c020', fontSize:10, fontWeight:700 }}>{p.badge}</div>
+                                    )}
+                                </div>
+                                {/* Body */}
+                                <div style={{ display:'flex', flexDirection:'column', flex:1, padding:'16px 20px 20px' }}>
+                                    <span style={{ display:'inline-flex', alignSelf:'flex-start', padding:'2px 10px', borderRadius:100, fontSize:10, fontWeight:700, marginBottom:8, background:p.gradeBg, color:p.gradeColor, border:`1px solid ${p.gradeBorder}` }}>{p.grade} Grade</span>
+                                    <h4 style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:18, lineHeight:1.2, color:'var(--cc-text)', marginBottom:6 }}>{p.name}</h4>
+                                    <div style={{ fontSize:12, color:'var(--cc-text-muted)', marginBottom:10 }}>📍 {p.origin}</div>
+                                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+                                        {p.flavor.map(f => <span key={f} style={{ fontSize:10, padding:'2px 8px', borderRadius:100, background:'var(--cc-input-bg)', color:'var(--cc-text-secondary)', border:'1px solid var(--cc-card-border)' }}>{f}</span>)}
+                                    </div>
+                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:'auto', paddingTop:12, borderTop:'1px solid var(--cc-divider)' }}>
+                                        <div>
+                                            <div style={{ fontSize:10, color:'var(--cc-text-dim)', marginBottom:2 }}>Harga / {p.weight}</div>
+                                            <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:18, fontWeight:800, background:'linear-gradient(135deg,#4a9c2e,#84e068)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>{p.price}</div>
+                                        </div>
+                                        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
+                                            <div style={{ display:'flex', alignItems:'center', gap:2 }}>
+                                                {[1,2,3,4,5].map(s => <span key={s} style={{ color:'#f0c020', fontSize:12 }}>★</span>)}
+                                            </div>
+                                            <span style={{ fontSize:10, color:'var(--cc-text-dim)' }}>{p.rating} rating</span>
+                                        </div>
+                                    </div>
+                                    <a href="#products" className="cc-btn-green" style={{ marginTop:14, justifyContent:'center', padding:'11px', fontSize:13, width:'100%' }}>
+                                        <IconCart /> Tambah ke Keranjang
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
 
-                <div className="cc-hero-btns" style={{ marginBottom:64 }}>
-                    <a href="#products" className="cc-btn-green" style={{ padding:'14px 32px', fontSize:15, boxShadow:'0 0 24px rgba(132,224,104,0.3)' }}>
-                        <IconCart /> Belanja Sekarang
-                    </a>
-                    {walletPublicKey ? (
-                        <div style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'12px 20px', borderRadius:12, background:'rgba(107,70,196,0.2)', border:'1px solid rgba(171,159,242,0.35)', fontSize:13, color:'var(--cc-text)' }}>
-                            <IconPhantomLogo size={18} />
-                            <span style={{ fontWeight:600 }}>{shortenAddress(walletPublicKey)}</span>
-                            <span style={{ color:'var(--cc-text-highlight)', fontWeight:700 }}>{walletBalance.toFixed(3)} SOL</span>
-                        </div>
-                    ) : (
-                        <button onClick={connectWallet} disabled={walletConnecting} className="cc-btn-phantom" style={{ padding:'14px 28px', fontSize:15, boxShadow:'0 0 24px rgba(107,70,196,0.25)' }}>
-                            {walletConnecting ? <span className="cc-spinner" /> : <IconPhantomLogo size={18} />}
-                            {walletConnecting ? 'Menghubungkan...' : 'Connect Phantom'}
-                        </button>
-                    )}
-                </div>
-
-                {/* Stats bar */}
-                <div className="cc-stats-row">
-                    {[
-                        { icon:<IconFarmer />, value: loading ? '–' : `${stats.farmers}+`, label:'Petani Bergabung' },
-                        { icon:<IconPackage />, value: loading ? '–' : `${stats.products}+`, label:'Produk Kopi' },
-                        { icon:<IconTx />, value: loading ? '–' : `${stats.transactions}+`, label:'Transaksi' },
-                        { icon:<IconSolana />, value:'100%', label:'On-Chain Solana' },
-                    ].map(({ icon, value, label }, i, arr) => (
-                        <div key={label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, padding:'20px 28px', borderRight: i < arr.length-1 ? '1px solid var(--cc-divider)' : 'none', minWidth:120 }}>
-                            <div style={{ color:'rgba(132,224,104,0.6)', display:'flex' }}>{icon}</div>
-                            <span style={{ fontSize:'clamp(22px,4vw,32px)', fontWeight:800, background:'var(--cc-text-gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', fontFamily:"'Space Grotesk',sans-serif", lineHeight:1 }}>{value}</span>
-                            <span style={{ fontSize:11, color:'var(--cc-text-muted)', textAlign:'center', lineHeight:1.3 }}>{label}</span>
-                        </div>
-                    ))}
+                    {/* Dot indicators */}
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                        {BEST_SELLERS.map((_, i) => (
+                            <button key={i} onClick={() => setActiveCard(i)} style={{
+                                borderRadius:100, border:'none', cursor:'pointer', transition:'all 0.3s',
+                                width: i === activeCard ? 24 : 8, height:8,
+                                background: i === activeCard ? '#84e068' : 'var(--cc-card-border)',
+                                padding:0,
+                            }} />
+                        ))}
+                    </div>
                 </div>
             </section>
+            <style>{`.cc-hero-carousel-wrap { display: flex !important; } @media (max-width: 1024px) { .cc-hero-carousel-wrap { display: none !important; } }`}</style>
 
             {/* ── PRODUCTS CATALOG ── */}
             <section id="products" style={{ position:'relative', zIndex:10, padding:'clamp(40px,8vw,80px) clamp(16px,4vw,32px)', scrollMarginTop:72 }}>
