@@ -958,10 +958,10 @@ export default function LandingPage() {
             )}
 
             {/* ── HERO SECTION ── */}
-            <section style={{ position:'relative', zIndex:10, display:'flex', alignItems:'center', minHeight:'88vh', padding:'64px clamp(16px,4vw,48px)', gap:48, animation:'fadeUp 0.6s ease' }}>
+            <section style={{ position:'relative', zIndex:10, display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', maxWidth:1500, margin:'0 auto', minHeight:'88vh', padding:'64px clamp(24px,4vw,64px)', gap:'clamp(56px,7vw,112px)', animation:'fadeUp 0.6s ease' }}>
 
                 {/* ── LEFT: Text Content ── */}
-                <div style={{ flex:1, maxWidth:560, display:'flex', flexDirection:'column' }}>
+                <div style={{ flex:'1 1 620px', maxWidth:680, minWidth:0, display:'flex', flexDirection:'column' }}>
                     {/* Badge */}
                     <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'6px 16px', borderRadius:100, background:'rgba(132,224,104,0.08)', border:'1px solid rgba(132,224,104,0.25)', color:'var(--cc-text-highlight)', fontSize:11, fontWeight:600, letterSpacing:'0.12em', marginBottom:28, textTransform:'uppercase', alignSelf:'flex-start' }}>
                         <IconChain /> BLOCKCHAIN TRANSPARAN · ON SOLANA
@@ -1016,11 +1016,11 @@ export default function LandingPage() {
                 </div>
 
                 {/* ── RIGHT: Auto-sliding Best Seller Carousel ── */}
-                <div className="cc-hero-carousel-wrap" style={{ flex:'0 0 auto', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:16 }}>
+                <div className="cc-hero-carousel-wrap" style={{ flex:'1 1 520px', width:'100%', maxWidth:620, minWidth:0, display:'flex', flexDirection:'column', alignItems:'stretch', gap:16 }}>
                     <p style={{ fontSize:11, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:'var(--cc-text-highlight)', alignSelf:'flex-start' }}>Produk Terlaris</p>
 
                     {/* Card viewport */}
-                    <div style={{ position:'relative', width:340, height:600, borderRadius:24, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.22)', flexShrink:0 }}>
+                    <div style={{ position:'relative', width:'100%', height:'clamp(600px,68vh,680px)', borderRadius:28, overflow:'hidden', boxShadow:'0 28px 80px rgba(0,0,0,0.32), 0 0 48px rgba(132,224,104,0.07)', flexShrink:0 }}>
                         {BEST_SELLERS.map((p, i) => (
                             <div key={p.name} style={{
                                 position:'absolute', inset:0, display:'flex', flexDirection:'column',
@@ -1033,7 +1033,7 @@ export default function LandingPage() {
                                 visibility: i === activeCard ? 'visible' : 'hidden',
                             }}>
                                 {/* Photo */}
-                                <div style={{ position:'relative', height:300, flexShrink:0, overflow:'hidden' }}>
+                                <div style={{ position:'relative', height:'52%', minHeight:310, flexShrink:0, overflow:'hidden' }}>
                                     <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                     <div style={{ position:'absolute', bottom:0, left:0, right:0, height:100, background:'linear-gradient(to top, var(--cc-bg), transparent)' }} />
                                     <div style={{ position:'absolute', top:12, right:12, display:'flex', alignItems:'center', gap:6, padding:'3px 10px', borderRadius:100, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(8px)', color:'#84e068', border:'1px solid rgba(132,224,104,0.3)', fontSize:10, fontWeight:600 }}>
