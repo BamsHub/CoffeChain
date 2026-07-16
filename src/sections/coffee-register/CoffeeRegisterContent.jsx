@@ -83,6 +83,7 @@ export default function CoffeeRegisterContent() {
     /* ── Batch on-chain (server wallet) ── */
     const [batchLoading, setBatchLoading] = useState(false);
     const [batchResult, setBatchResult]   = useState(null);
+    const [batchAudit, setBatchAudit]     = useState(null);
 
     /* ── Auto-connect Phantom ── */
     useEffect(() => {
@@ -140,7 +141,23 @@ export default function CoffeeRegisterContent() {
         } catch { }
     }, []);
 
-    useEffect(() => { loadProducts(); loadTraces(); loadProductionAudit(); }, [loadProducts, loadTraces, loadProductionAudit]);
+    const loadOnchainAudit = useCallback(async () => {
+        try {
+            const token = getToken();
+            if (!token || !['koperasi', 'developer', 'admin'].includes(user?.role)) return;
+            const res = await fetch('/api/admin/batch-onchain', {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: 'no-store',
+            });
+            const data = await res.json();
+            if (data.success) setBatchAudit(data);
+            else setBatchAudit({ success: false, remaining: null, message: data.message });
+        } catch (error) {
+            setBatchAudit({ success: false, remaining: null, message: error.message });
+        }
+    }, [getToken, user?.role]);
+
+    useEffect(() => { loadProducts(); loadTraces(); loadProductionAudit(); loadOnchainAudit(); }, [loadProducts, loadTraces, loadProductionAudit, loadOnchainAudit]);
 
     /* ── Phantom Wallet Handlers ── */
     async function handleConnect() {
@@ -304,23 +321,56 @@ export default function CoffeeRegisterContent() {
 
     /* ── Batch on-chain via server wallet ── */
     async function handleBatchOnchain() {
-        if (!window.confirm(`On-chain ${unregistered.length} produk menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
+        const expectedTotal = batchAudit?.remaining ?? unregistered.length;
+        if (!window.confirm(`Tulis ulang ${expectedTotal} data yang belum valid ke Solana Testnet menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
         setBatchLoading(true); setBatchResult(null);
         try {
-            const token = await getToken();
-            const res = await fetch('/api/admin/batch-onchain', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify({}),
+            const token = getToken();
+            if (!token) throw new Error('Sesi login tidak ditemukan');
+
+            let remaining = expectedTotal;
+            let succeeded = 0;
+            const results = [];
+            for (let round = 0; round < 50 && remaining > 0; round += 1) {
+                setBatchResult({
+                    success: true,
+                    message: `Backfill berjalan: ${succeeded} berhasil, sekitar ${remaining} data tersisa...`,
+                    results,
+                });
+                const res = await fetch('/api/admin/batch-onchain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ limit: 3 }),
+                });
+                const data = await res.json();
+                results.push(...(data.results || []));
+                succeeded += Number(data.succeeded || 0);
+                remaining = Number.isFinite(Number(data.remaining)) ? Number(data.remaining) : remaining;
+
+                if (!res.ok || Number(data.failed || 0) > 0) {
+                    throw new Error(data.message || 'Sebagian data gagal ditulis ke Solana');
+                }
+                if (!data.processed) break;
+            }
+
+            setBatchResult({
+                success: remaining === 0,
+                message: remaining === 0
+                    ? `Selesai! ${succeeded} data berhasil dicatat permanen di Solana Testnet.`
+                    : `${succeeded} data berhasil, tetapi masih ada ${remaining} data yang perlu diproses.`,
+                results,
             });
-            const data = await res.json();
-            setBatchResult(data);
-            if (data.success) { await Promise.all([loadProducts(), loadTraces()]); }
+            await Promise.all([loadProducts(), loadTraces(), loadOnchainAudit()]);
         } catch (err) {
-            setBatchResult({ success: false, message: err.message });
+            setBatchResult(current => ({
+                success: false,
+                message: err.message,
+                results: current?.results || [],
+            }));
+            await loadOnchainAudit();
         }
         setBatchLoading(false);
     }
@@ -393,7 +443,7 @@ export default function CoffeeRegisterContent() {
             <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
                 {[
                     { label: 'Total Produk',    value: products.length,    color: 'rgba(232,245,224,0.7)' },
-                    { label: 'Belum di-Chain',  value: unregistered.length, color: '#FFB300' },
+                    { label: 'Audit Belum Valid', value: batchAudit?.remaining ?? unregistered.length, color: '#FFB300' },
                     { label: 'Sudah di-Chain',  value: registered.length,  color: '#7ED44A' },
                     { label: 'Total Trace',     value: traces.length,      color: '#b388ff' },
                 ].map(s => (
@@ -403,6 +453,55 @@ export default function CoffeeRegisterContent() {
                     </div>
                 ))}
             </div>
+
+            {['koperasi', 'developer', 'admin'].includes(user?.role) && (
+                <div style={{ ...S.card, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', borderColor: batchAudit?.remaining > 0 ? 'rgba(255,179,0,0.35)' : 'rgba(76,175,80,0.3)' }}>
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#E8F5E0', marginBottom: 4 }}>
+                            Audit Solana Testnet
+                        </div>
+                        <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.55)' }}>
+                            {batchAudit?.remaining == null
+                                ? (batchAudit?.message || 'Memeriksa signature di RPC Solana...')
+                                : `${batchAudit.remaining} data belum memiliki signature yang benar-benar terkonfirmasi di Testnet.`}
+                            {batchAudit?.wallet && ` Wallet ${shortenAddress(batchAudit.wallet.signer)}: ${Number(batchAudit.wallet.balanceSol || 0).toFixed(4)} SOL.`}
+                        </div>
+                        {batchAudit?.counts && (
+                            <div style={{ marginTop: 5, fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>
+                                Trace {batchAudit.counts.coffee_traces || 0} · Produk {batchAudit.counts.products || 0} · Transaksi {batchAudit.counts.transactions || 0} · Order lunas {batchAudit.counts.orders || 0}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleBatchOnchain}
+                        disabled={batchLoading || !batchAudit?.remaining || batchAudit?.wallet?.ready === false}
+                        style={{ ...S.btnP, opacity: batchLoading || !batchAudit?.remaining || batchAudit?.wallet?.ready === false ? 0.55 : 1 }}
+                    >
+                        {batchLoading ? <><IcoSpin /> Menulis ke Solana...</> : 'Perbaiki Semua Data On-Chain'}
+                    </button>
+                </div>
+            )}
+
+            {batchResult && (
+                <div style={{ padding:'12px 14px', borderRadius:10, marginBottom:18, fontSize:13, fontWeight:600,
+                    background: batchResult.success ? 'rgba(76,175,80,0.1)' : 'rgba(244,67,54,0.1)',
+                    border: `1px solid ${batchResult.success ? 'rgba(76,175,80,0.3)' : 'rgba(244,67,54,0.3)'}`,
+                    color: batchResult.success ? '#4CAF50' : '#f44336',
+                }}>
+                    {batchResult.message}
+                    {batchResult.results?.length > 0 && (
+                        <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
+                            {batchResult.results.slice(-10).map((result, index) => (
+                                <div key={`${result.source}-${result.id}-${index}`} style={{ fontSize:11, color: result.status === 'success' ? '#7ED44A' : '#f44336' }}>
+                                    {result.source}: {result.name} {result.status === 'success' ? '✓' : `(${result.error || 'gagal'})`}
+                                    {result.explorerUrl && <a href={result.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color:'#b388ff', marginLeft:6 }}>Explorer</a>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ── TABS ── */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid rgba(74,124,40,0.15)' }}>

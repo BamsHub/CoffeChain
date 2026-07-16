@@ -6,7 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
-import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
+import { sendServerMemoTx, verifySolanaTransaction } from '@/lib/serverSolanaMemo';
 import {
     createProductOffchainProof,
     mergeOffchainTags,
@@ -115,6 +115,7 @@ export async function POST(request) {
         let txError = null;
 
         if (phantomTxSignature) {
+            await verifySolanaTransaction(phantomTxSignature, phantomWalletAddress, proof.memo);
             txSignature = phantomTxSignature;
             explorerUrl = getExplorerTxUrl(phantomTxSignature);
             console.log('[coffee-trace] Using Phantom hash-proof TX:', phantomTxSignature);
@@ -180,13 +181,13 @@ export async function POST(request) {
         }
 
         return Response.json({
-            success: true,
+            success: isVerified,
             verified: isVerified,
             message: isVerified
                 ? `Kopi ${coffeeId} terverifikasi: foto dan metadata di IPFS, hanya hash di Solana.`
                 : `Kopi ${coffeeId} tersimpan di IPFS tetapi bukti Solana gagal: ${txError}`,
             data: { ...trace, offchainProof: proof },
-        }, { status: 201 });
+        }, { status: isVerified ? 201 : 502 });
     } catch (error) {
         console.error('[coffee-trace] Error:', error);
         return Response.json({ success: false, message: error.message || 'Server error' }, { status: 500 });

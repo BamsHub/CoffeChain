@@ -9,6 +9,7 @@ export function transactionsToCamel(row) {
     return {
         id: row.id,
         hash: row.hash,
+        txSignature: row.tx_signature || (typeof row.hash === 'string' && row.hash.length >= 80 ? row.hash : null),
         farmer: row.farmer,
         location: row.location || row.product_name || row.note,
         weight: isAuditTx ? null : row.weight,

@@ -68,7 +68,10 @@ export async function sendSolTransaction(fromPublicKey, toAddress, amountSol) {
 
     const signed = await window.solana.signTransaction(transaction);
     const signature = await connection.sendRawTransaction(signed.serialize());
-    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+    const confirmation = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+    if (confirmation.value.err) {
+        throw new Error(`Transfer SOL gagal: ${JSON.stringify(confirmation.value.err)}`);
+    }
     return signature;
 }
 
@@ -138,7 +141,10 @@ export async function sendMemoWithPhantom(walletPublicKey, memoText) {
         maxRetries: 3,
     });
 
-    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+    const confirmation = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+    if (confirmation.value.err) {
+        throw new Error(`Memo Solana gagal: ${JSON.stringify(confirmation.value.err)}`);
+    }
     return signature;
 }
 

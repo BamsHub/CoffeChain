@@ -269,6 +269,7 @@ export default function ProductsContent() {
         setVerifying(product.id);
         setMsg({ type: 'ok', text: ` Mengirim "${product.name}" ke Solana Testnet... (maks 30 detik)` });
         try {
+            const token = getToken();
             const payload = {
                 productId: product.id,
                 name: product.name,
@@ -285,7 +286,10 @@ export default function ProductsContent() {
             };
             const res = await fetch('/api/coffee-trace', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify(payload),
             });
             const data = await res.json();
