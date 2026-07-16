@@ -166,6 +166,8 @@ export async function POST(request) {
 }
 
 // ── DELETE /api/products ─────────────────────────────────────────
+// Soft-delete katalog off-chain. Bukti, trace, pipeline, dan Coffee ID on-chain
+// tidak boleh dihapus karena merupakan riwayat audit permanen.
 export async function DELETE(request) {
     try {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '');
@@ -176,11 +178,9 @@ export async function DELETE(request) {
 
         const { id } = await request.json();
         if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-
         const { data: product, error: findErr } = await supabaseAdmin
             .from('products')
-            .select('id, coffee_id, submitted_by')
+            .select('id, coffee_id, submitted_by, status')
             .eq('id', id)
             .maybeSingle();
 
@@ -197,38 +197,23 @@ export async function DELETE(request) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
+        const { data: archived, error } = await supabaseAdmin
+            .from('products')
+            .update({ status: 'archived' })
+            .eq('id', id)
+            .select('id, name, status, coffee_id')
+            .single();
         if (error) throw error;
 
-        if (isUuid) {
-            const { error: batchErr } = await supabaseAdmin
-                .from('production_batches')
-                .delete()
-                .eq('product_id', id);
-            if (batchErr && !batchErr.message?.includes('does not exist')) {
-                console.warn('[products DELETE] production batch cleanup failed:', batchErr.message);
-            }
-        }
-
-        const { error: traceProductErr } = await supabaseAdmin
-            .from('coffee_traces')
-            .delete()
-            .eq('product_id', id);
-        if (traceProductErr && !traceProductErr.message?.includes('does not exist')) {
-            console.warn('[products DELETE] trace cleanup by product failed:', traceProductErr.message);
-        }
-
-        if (product?.coffee_id) {
-            const { error: traceCoffeeErr } = await supabaseAdmin
-                .from('coffee_traces')
-                .delete()
-                .eq('coffee_id', product.coffee_id);
-            if (traceCoffeeErr && !traceCoffeeErr.message?.includes('does not exist')) {
-                console.warn('[products DELETE] trace cleanup by coffee ID failed:', traceCoffeeErr.message);
-            }
-        }
-
-        return Response.json({ success: true });
+        return Response.json({
+            success: true,
+            archived: true,
+            onchainPreserved: Boolean(product.coffee_id),
+            data: convertKeys(archived, toCamel),
+            message: product.coffee_id
+                ? 'Produk diarsipkan dari landing page. Coffee ID dan sertifikat Solana tetap tersimpan.'
+                : 'Produk diarsipkan dari landing page.',
+        });
     } catch (err) {
         console.error('[products DELETE]', err.message);
         return Response.json({ success: false, message: err.message }, { status: 500 });
@@ -246,6 +231,7 @@ export async function PATCH(request) {
 
         const body = await request.json();
         const { id, ...updates } = body;
+        const action = updates.action;
         if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
 
         // Get existing product to verify ownership/status update permission
@@ -340,7 +326,7 @@ export async function PATCH(request) {
         const result = convertKeys(data, toCamel);
 
         // Log approval to transactions
-        if (updates.status === 'published') {
+        if (updates.status === 'published' && action !== 'restore') {
             const logEntry = {
                 id: `appr-${Date.now().toString(36)}`,
                 hash: `APPROVAL-${id.slice(0, 8)}`,

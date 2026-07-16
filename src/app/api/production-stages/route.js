@@ -42,6 +42,35 @@ async function verifyStageAsset(supabase, { batch, batchId, stage, photoCid, pho
         && asset.gateway_url === photoUrl);
 }
 
+function getEvidencePhotos(stageData, primary) {
+    const source = Array.isArray(stageData?.evidencePhotos) && stageData.evidencePhotos.length
+        ? stageData.evidencePhotos
+        : [stageData?.evidencePhoto || primary];
+    const photos = source.filter(Boolean).map(photo => ({
+        cid: photo.cid,
+        uri: photo.uri,
+        gatewayUrl: photo.gatewayUrl,
+    }));
+    if (!photos.length || photos.some(photo => (
+        !isValidCid(photo.cid)
+        || photo.uri !== `ipfs://${photo.cid}`
+        || !photo.gatewayUrl
+    ))) return null;
+    const first = photos[0];
+    if (first.cid !== primary.cid || first.uri !== primary.uri || first.gatewayUrl !== primary.gatewayUrl) return null;
+    return photos;
+}
+
+async function verifyStageAssets(supabase, context, photos) {
+    const results = await Promise.all(photos.map(photo => verifyStageAsset(supabase, {
+        ...context,
+        photoCid: photo.cid,
+        photoUrl: photo.gatewayUrl,
+        ipfsUri: photo.uri,
+    })));
+    return results.every(Boolean);
+}
+
 // GET — list stage logs for a batch
 export async function GET(req) {
     try {
@@ -118,10 +147,8 @@ export async function POST(req) {
                 message: 'Bukti foto yang sudah dipin ke IPFS wajib sebelum menyimpan tahap produksi',
             }, { status: 400 });
         }
-        if (!stageData?.evidencePhoto
-            || stageData.evidencePhoto.cid !== photoCid
-            || stageData.evidencePhoto.uri !== ipfsUri
-            || stageData.evidencePhoto.gatewayUrl !== photoUrl) {
+        const evidencePhotos = getEvidencePhotos(stageData, { cid: photoCid, uri: ipfsUri, gatewayUrl: photoUrl });
+        if (!evidencePhotos) {
             return NextResponse.json({ success: false, message: 'Metadata bukti foto IPFS tidak valid' }, { status: 400 });
         }
         const description = String(stageData?.description || stageData?.notes || '').trim();
@@ -148,7 +175,7 @@ export async function POST(req) {
             }, { status: 409 });
         }
 
-        if (!await verifyStageAsset(supabase, { batch, batchId, stage, photoCid, photoUrl, ipfsUri })) {
+        if (!await verifyStageAssets(supabase, { batch, batchId, stage }, evidencePhotos)) {
             return NextResponse.json({ success: false, message: 'Bukti IPFS tidak terdaftar untuk pemilik, batch, dan tahap ini' }, { status: 403 });
         }
 
@@ -213,7 +240,7 @@ export async function POST(req) {
                 price_per_unit: prices,
                 description: stageData?.description || `Produk jadi dari batch ${batch.name}`,
                 image: photoUrl || stageData?.image || null,
-                tags: [batch.variety, batch.grade, 'Produk Jadi', `ipfs-image:${photoCid}`].filter(Boolean),
+                tags: [batch.variety, batch.grade, 'Produk Jadi', ...evidencePhotos.map(photo => `ipfs-image:${photo.cid}`)].filter(Boolean),
                 stock: Number(stageData?.stock) || 0,
                 rating: 4.5,
                 sold: 0,
@@ -280,7 +307,8 @@ export async function POST(req) {
     }
 }
 
-// PATCH — edit a completed stage only while its product is rejected
+// PATCH — edit the latest completed stage before the pipeline advances.
+// Rejected products may reopen earlier stages, but an on-chain certificate is immutable.
 export async function PATCH(req) {
     try {
         const token = getToken(req);
@@ -296,10 +324,8 @@ export async function PATCH(req) {
         if (!photoUrl || !isValidCid(photoCid) || ipfsUri !== `ipfs://${photoCid}`) {
             return NextResponse.json({ success: false, message: 'Bukti foto IPFS tahap wajib valid' }, { status: 400 });
         }
-        if (!stageData?.evidencePhoto
-            || stageData.evidencePhoto.cid !== photoCid
-            || stageData.evidencePhoto.uri !== ipfsUri
-            || stageData.evidencePhoto.gatewayUrl !== photoUrl) {
+        const evidencePhotos = getEvidencePhotos(stageData, { cid: photoCid, uri: ipfsUri, gatewayUrl: photoUrl });
+        if (!evidencePhotos) {
             return NextResponse.json({ success: false, message: 'Metadata bukti foto IPFS tidak valid' }, { status: 400 });
         }
         const description = String(stageData?.description || stageData?.notes || '').trim();
@@ -315,21 +341,32 @@ export async function PATCH(req) {
         if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
-        if (!batch.product_id) {
-            return NextResponse.json({ success: false, message: 'Tahap aktif baru harus disimpan berurutan, bukan diedit' }, { status: 409 });
+        let product = null;
+        if (batch.product_id) {
+            const { data, error: productError } = await supabase
+                .from('products')
+                .select('id, status, coffee_id, tags')
+                .eq('id', batch.product_id)
+                .maybeSingle();
+            if (productError || !data) return NextResponse.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+            product = data;
+            if (product.coffee_id) {
+                return NextResponse.json({ success: false, message: 'Pipeline sudah tersertifikasi on-chain dan tidak dapat diubah' }, { status: 409 });
+            }
         }
 
-        const { data: product, error: productError } = await supabase
-            .from('products')
-            .select('id, status, coffee_id, tags')
-            .eq('id', batch.product_id)
-            .maybeSingle();
-        if (productError || !product) return NextResponse.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
-        if (product.status !== 'rejected' || product.coffee_id) {
-            return NextResponse.json({ success: false, message: 'Pipeline hanya dapat diedit setelah produk ditolak dan belum tersertifikasi' }, { status: 409 });
+        const { data: laterLogs, error: laterError } = await supabase
+            .from('production_stage_logs')
+            .select('id, stage')
+            .eq('batch_id', batchId)
+            .gt('stage', stageNumber)
+            .limit(1);
+        if (laterError) throw new Error(laterError.message);
+        if ((laterLogs || []).length && product?.status !== 'rejected') {
+            return NextResponse.json({ success: false, message: 'Tahap ini terkunci karena pipeline sudah dilanjutkan ke tahap berikutnya' }, { status: 409 });
         }
 
-        if (!await verifyStageAsset(supabase, { batch, batchId, stage: stageNumber, photoCid, photoUrl, ipfsUri })) {
+        if (!await verifyStageAssets(supabase, { batch, batchId, stage: stageNumber }, evidencePhotos)) {
             return NextResponse.json({ success: false, message: 'Bukti IPFS tidak terdaftar untuk pemilik, batch, dan tahap ini' }, { status: 403 });
         }
 
@@ -360,10 +397,10 @@ export async function PATCH(req) {
             .single();
         if (updateError) throw new Error(updateError.message);
 
-        if (stageNumber === 6) {
+        if (stageNumber === 6 && product) {
             const tags = (Array.isArray(product.tags) ? product.tags : [])
                 .filter(tag => !String(tag).startsWith('ipfs-image:'));
-            tags.push(`ipfs-image:${photoCid}`);
+            tags.push(...evidencePhotos.map(photo => `ipfs-image:${photo.cid}`));
             const productUpdates = {
                 name: stageData.productName || batch.name,
                 roast: stageData.roast || stageData.levelRoast || 'Medium Roast',
@@ -388,7 +425,7 @@ export async function PATCH(req) {
                 stageName: updatedLog.stage_name,
                 stageData: updatedLog.data,
                 photoUrl: updatedLog.photo_url,
-                productId: product.id,
+                productId: product?.id || null,
             },
         });
     } catch (err) {

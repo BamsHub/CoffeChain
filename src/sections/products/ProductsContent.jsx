@@ -106,7 +106,7 @@ export default function ProductsContent() {
     }
 
     async function handleDelete(id, name) {
-        if (!confirm(`Hapus produk "${name}"?`)) return;
+        if (!confirm(`Arsipkan "${name}" dari landing page? Coffee ID dan sertifikat Solana akan tetap tersimpan.`)) return;
         setDeleting(id);
         try {
             const token = await getToken();
@@ -120,10 +120,32 @@ export default function ProductsContent() {
             });
             const data = await res.json();
             if (data.success) {
-                setMsg({ type: 'ok', text: `Produk "${name}" dihapus.`, landingLink: true });
+                setMsg({ type: 'ok', text: data.message || `Produk "${name}" diarsipkan dari landing page.`, landingLink: true });
                 load();
             } else setMsg({ type: 'err', text: data.message });
         } catch { setMsg({ type: 'err', text: 'Gagal menghapus' }); }
+        setDeleting(null);
+    }
+
+    async function handleRestore(product) {
+        setDeleting(product.id);
+        try {
+            const token = await getToken();
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ id: product.id, status: 'published', action: 'restore' }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Gagal menampilkan produk');
+            setMsg({ type: 'ok', text: `Produk "${product.name}" kembali tampil di landing page.`, landingLink: true });
+            load();
+        } catch (error) {
+            setMsg({ type: 'err', text: error.message || 'Gagal menampilkan produk' });
+        }
         setDeleting(null);
     }
 
@@ -587,11 +609,13 @@ export default function ProductsContent() {
                                     {p.status === 'pending' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Persetujuan</span>}
                                     {p.status === 'pending_certification' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Register Admin</span>}
                                     {p.status === 'rejected' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(244,67,54,0.12)', color: '#f44336', border: '1px solid rgba(244,67,54,0.3)', fontWeight: 700 }}>Ditolak</span>}
+                                    {p.status === 'archived' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(179,136,255,0.12)', color: '#b388ff', border: '1px solid rgba(179,136,255,0.3)', fontWeight: 700 }}>Diarsipkan dari Landing</span>}
                                 </div>
                                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                                     {/* Non-farmer: Edit + Delete */}
-                                    {!isFarmer && <button onClick={() => openEditModal(p)} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Edit</button>}
-                                    {!isFarmer && <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting === p.id} style={btnDanger}>{deleting === p.id ? '...' : 'Hapus'}</button>}
+                                    {!isFarmer && p.status !== 'archived' && <button onClick={() => openEditModal(p)} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Edit</button>}
+                                    {!isFarmer && p.status !== 'archived' && <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting === p.id} style={btnDanger}>{deleting === p.id ? '...' : 'Arsipkan'}</button>}
+                                    {!isFarmer && p.status === 'archived' && <button onClick={() => handleRestore(p)} disabled={deleting === p.id} style={{ ...btnDanger, color: '#7ED44A', borderColor: 'rgba(126,212,74,0.3)', background: 'rgba(126,212,74,0.1)' }}>{deleting === p.id ? '...' : 'Tampilkan Lagi'}</button>}
                                     {isFarmer && p.submittedBy === (user?.id || '') && !p.coffeeId && (
                                         <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: 'rgba(245,166,35,0.1)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.25)', fontWeight: 600 }}>Menunggu review</span>
                                     )}

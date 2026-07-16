@@ -36,9 +36,16 @@ export async function getCompleteProductionAudit(productId) {
         const log = (logs || []).find(item => Number(item.stage) === stage.id);
         if (!log) throw new Error(`Tahap ${stage.id} (${stage.name}) belum diisi`);
         const description = String(log.data?.description || log.data?.notes || '').trim();
-        const evidence = log.data?.evidencePhoto || {};
+        const evidencePhotos = Array.isArray(log.data?.evidencePhotos) && log.data.evidencePhotos.length
+            ? log.data.evidencePhotos
+            : [log.data?.evidencePhoto || {}];
+        const evidence = evidencePhotos[0] || {};
         if (!description) throw new Error(`Deskripsi Tahap ${stage.id} (${stage.name}) belum diisi`);
-        if (!log.photo_url || !isValidCid(evidence.cid) || evidence.uri !== `ipfs://${evidence.cid}`) {
+        if (!log.photo_url || evidencePhotos.some(photo => (
+            !isValidCid(photo.cid)
+            || photo.uri !== `ipfs://${photo.cid}`
+            || !photo.gatewayUrl
+        ))) {
             throw new Error(`Foto IPFS Tahap ${stage.id} (${stage.name}) belum valid`);
         }
         return {
@@ -48,7 +55,7 @@ export async function getCompleteProductionAudit(productId) {
             operator: log.data?.operator || log.logged_by_name || null,
             recordedAt: log.created_at,
             measurements: Object.fromEntries(Object.entries(log.data || {}).filter(([key, value]) => (
-                !['description', 'notes', 'evidencePhoto', 'image'].includes(key)
+                !['description', 'notes', 'evidencePhoto', 'evidencePhotos', 'image'].includes(key)
                 && value !== null
                 && value !== undefined
                 && value !== ''
@@ -58,6 +65,11 @@ export async function getCompleteProductionAudit(productId) {
                 uri: evidence.uri,
                 gatewayUrl: log.photo_url,
             },
+            photos: evidencePhotos.map(photo => ({
+                cid: photo.cid,
+                uri: photo.uri,
+                gatewayUrl: photo.gatewayUrl,
+            })),
         };
     });
 

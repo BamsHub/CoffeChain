@@ -55,8 +55,7 @@ export default function StockManagement() {
     const [batchForm, setBatchForm] = useState(initialBatchForm);
     const [stageModal, setStageModal] = useState(null);
     const [stageForm, setStageForm] = useState(initialStageForm);
-    const [photoUrl, setPhotoUrl] = useState('');
-    const [photoIpfs, setPhotoIpfs] = useState(null);
+    const [photoProofs, setPhotoProofs] = useState([]);
     const [msg, setMsg] = useState(null);
     const [search, setSearch] = useState('');
     const [detailLog, setDetailLog] = useState(null);
@@ -183,42 +182,54 @@ export default function StockManagement() {
         }
     }
 
-    async function uploadPhoto(file) {
+    async function uploadPhotos(files) {
+        const selectedFiles = Array.from(files || []);
+        if (!selectedFiles.length) return;
         setUploading(true);
-        setPhotoUrl('');
-        setPhotoIpfs(null);
         setMsg(null);
         try {
             const token = await getToken();
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('batchId', stageModal?.batch?.id || '');
-            formData.append('stage', String(stageModal?.stage?.id || ''));
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-                body: formData
-            });
-            const data = await res.json();
-            if (!data.success) throw new Error(data.message || 'Upload gagal');
-            if (data.storage !== 'ipfs' || !data.cid || !data.ipfsUri || !data.gatewayUrl) {
-                throw new Error('Server tidak mengembalikan bukti pinning IPFS yang valid');
+            const uploaded = [];
+            for (const file of selectedFiles) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('batchId', stageModal?.batch?.id || '');
+                formData.append('stage', String(stageModal?.stage?.id || ''));
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    body: formData,
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message || `Upload ${file.name} gagal`);
+                if (data.storage !== 'ipfs' || !data.cid || !data.ipfsUri || !data.gatewayUrl) {
+                    throw new Error('Server tidak mengembalikan bukti pinning IPFS yang valid');
+                }
+                uploaded.push({ cid: data.cid, uri: data.ipfsUri, gatewayUrl: data.gatewayUrl });
             }
-            setPhotoUrl(data.gatewayUrl);
-            setPhotoIpfs({ cid: data.cid, uri: data.ipfsUri, gatewayUrl: data.gatewayUrl });
-            setMsg({ type: 'ok', text: `Foto berhasil dipin ke IPFS. CID: ${data.cid}` });
+            setPhotoProofs(current => {
+                const merged = [...current, ...uploaded].filter((photo, index, all) => all.findIndex(item => item.cid === photo.cid) === index);
+                return merged;
+            });
+            setMsg({ type: 'ok', text: `${uploaded.length} foto berhasil dipin ke IPFS.` });
         } catch (err) {
             setMsg({ type: 'err', text: err.message });
         }
         setUploading(false);
     }
 
+    function removePhoto(cid) {
+        setPhotoProofs(current => current.filter(photo => photo.cid !== cid));
+    }
+
     function openStageCard(batch, stage, existingLog = null) {
         const existingData = existingLog?.data || {};
         const existingEvidence = existingData.evidencePhoto || null;
+        const existingPhotos = Array.isArray(existingData.evidencePhotos) && existingData.evidencePhotos.length
+            ? existingData.evidencePhotos
+            : (existingEvidence ? [existingEvidence] : []);
         setStageModal({ batch, stage, isEditing: !!existingLog });
-        setPhotoUrl(existingLog?.photoUrl || '');
-        setPhotoIpfs(existingEvidence);
+        setPhotoProofs(existingPhotos);
         setStageForm({
             ...initialStageForm,
             ...existingData,
@@ -260,8 +271,9 @@ export default function StockManagement() {
         if (!stageModal) return;
 
         const { batch, stage } = stageModal;
-        if (!photoUrl || !photoIpfs?.cid || !photoIpfs?.uri) {
-            setMsg({ type: 'err', text: 'Upload dan pin bukti foto ke IPFS wajib sebelum menyimpan tahap produksi.' });
+        const primaryPhoto = photoProofs[0];
+        if (!primaryPhoto?.gatewayUrl || !primaryPhoto?.cid || !primaryPhoto?.uri) {
+            setMsg({ type: 'err', text: 'Upload dan pin minimal satu bukti foto ke IPFS sebelum menyimpan tahap produksi.' });
             return;
         }
         setSaving(true);
@@ -288,10 +300,11 @@ export default function StockManagement() {
                 ukuranGiling: stageForm.ukuranGiling,
                 gasReleaseHours: Number(stageForm.gasReleaseHours) || null,
                 evidencePhoto: {
-                    cid: photoIpfs.cid,
-                    uri: photoIpfs.uri,
-                    gatewayUrl: photoIpfs.gatewayUrl,
+                    cid: primaryPhoto.cid,
+                    uri: primaryPhoto.uri,
+                    gatewayUrl: primaryPhoto.gatewayUrl,
                 },
+                evidencePhotos: photoProofs,
                 ...(isFinal ? {
                     productName: stageForm.productName || batch.name,
                     stock: Number(stageForm.stock) || 0,
@@ -299,7 +312,7 @@ export default function StockManagement() {
                     pricePerUnit: [Number(stageForm.price) || 0],
                     description: stageForm.description,
                     roast: stageForm.levelRoast,
-                    image: photoUrl || null,
+                    image: primaryPhoto.gatewayUrl,
                 } : {}),
             };
 
@@ -313,9 +326,9 @@ export default function StockManagement() {
                     batchId: batch.id,
                     stage: stage.id,
                     stageData,
-                    photoUrl,
-                    photoCid: photoIpfs.cid,
-                    ipfsUri: photoIpfs.uri,
+                    photoUrl: primaryPhoto.gatewayUrl,
+                    photoCid: primaryPhoto.cid,
+                    ipfsUri: primaryPhoto.uri,
                     loggedBy: user?.id || null,
                     loggedByName: user?.name || user?.email || null,
                 }),
@@ -325,7 +338,9 @@ export default function StockManagement() {
 
             const nextStage = STAGES.find(item => item.id === data.nextStage);
             const successText = stageModal.isEditing
-                ? `${stage.name} untuk "${batch.name}" berhasil diperbarui. Periksa tahap lain lalu kirim ulang request produk.`
+                ? isRejected
+                    ? `${stage.name} untuk "${batch.name}" berhasil diperbarui. Periksa tahap lain lalu kirim ulang request produk.`
+                    : `${stage.name} untuk "${batch.name}" berhasil diperbarui. Data masih dapat disunting sampai tahap berikutnya disimpan.`
                 : isFinal
                 ? `${stage.name} untuk "${batch.name}" tersimpan. Produk menunggu review admin sebelum dikirim ke Solana Testnet.`
                 : `${stage.name} tersimpan di IPFS. Batch "${batch.name}" otomatis lanjut ke Tahap ${data.nextStage}: ${nextStage?.name || 'tahap berikutnya'}.`;
@@ -390,15 +405,20 @@ export default function StockManagement() {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                    <label style={label}>Bukti Foto IPFS *</label>
+                    <label style={label}>Bukti Foto IPFS * (bisa lebih dari satu)</label>
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 800, cursor: uploading ? 'wait' : 'pointer' }}>
-                        {uploading ? 'Mengunggah ke IPFS...' : 'Pilih Foto dan Pin ke IPFS'}
-                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" required={!photoIpfs?.cid} disabled={uploading} style={{ display: 'none' }} onChange={event => { const file = event.target.files?.[0]; if (file) uploadPhoto(file); }} />
+                        {uploading ? 'Mengunggah ke IPFS...' : 'Pilih Beberapa Foto dan Pin ke IPFS'}
+                        <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" required={!photoProofs.length} disabled={uploading} style={{ display: 'none' }} onChange={event => uploadPhotos(event.target.files)} />
                     </label>
-                    {photoUrl && (
-                        <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', color: 'var(--color-text-muted)', fontSize: 12 }}>
-                            <img src={photoUrl} alt="Bukti tahap" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
-                            <span>Foto sudah dipin ke IPFS.<br />CID: <code style={{ wordBreak: 'break-all' }}>{photoIpfs?.cid}</code></span>
+                    {photoProofs.length > 0 && (
+                        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 10 }}>
+                            {photoProofs.map((photo, index) => (
+                                <div key={photo.cid} style={{ position: 'relative', padding: 8, borderRadius: 9, border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: 10 }}>
+                                    <img src={photo.gatewayUrl} alt={`Bukti tahap ${index + 1}`} style={{ width: '100%', height: 88, objectFit: 'cover', borderRadius: 7, marginBottom: 6 }} />
+                                    <div>{index === 0 ? 'Cover · ' : ''}CID: <code>{photo.cid.slice(0, 12)}...</code></div>
+                                    <button type="button" onClick={() => removePhoto(photo.cid)} disabled={uploading} style={{ position: 'absolute', top: 4, right: 4, border: 'none', borderRadius: 999, width: 24, height: 24, cursor: 'pointer', background: 'rgba(244,67,54,0.9)', color: '#fff', fontWeight: 900 }}>×</button>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
@@ -410,7 +430,7 @@ export default function StockManagement() {
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                     <button type="button" style={mutedButton} onClick={() => setStageModal(null)}>Batal</button>
-                    <button type="submit" style={{ ...primaryButton, opacity: photoIpfs?.cid ? 1 : 0.6 }} disabled={saving || uploading || !photoIpfs?.cid}>
+                    <button type="submit" style={{ ...primaryButton, opacity: photoProofs.length ? 1 : 0.6 }} disabled={saving || uploading || !photoProofs.length}>
                         {saving ? 'Menyimpan...' : stageModal.isEditing ? 'Simpan Perbaikan Tahap' : stageModal.stage.id === 6 ? 'Jadikan Produk' : 'Simpan & Lanjut Tahap'}
                     </button>
                 </div>
@@ -514,7 +534,8 @@ export default function StockManagement() {
                                     {STAGES.map(stage => {
                                         const done = batchLogs.some(log => Number(log.stage) === stage.id);
                                         const active = Number(batch.currentStage) === stage.id && !batch.productId;
-                                        const editable = isRejected && done;
+                                        const hasLaterLog = batchLogs.some(log => Number(log.stage) > stage.id);
+                                        const editable = done && !batch.coffeeId && (isRejected || !hasLaterLog);
                                         return (
                                             <button
                                                 key={stage.id}
@@ -539,7 +560,11 @@ export default function StockManagement() {
                                 </div>
 
                                 <div style={{ color: 'var(--color-text)', fontSize: 13, fontWeight: 800, marginBottom: 10 }}>
-                                    {isRejected ? 'Status: Ditolak — klik tahap 1-6 untuk memperbaiki' : `Sekarang: ${currentStage.name}`}
+                                    {isRejected
+                                        ? 'Status: Ditolak - klik tahap 1-6 untuk memperbaiki'
+                                        : batch.coffeeId
+                                            ? 'Pipeline tersertifikasi on-chain dan tidak dapat diubah'
+                                            : `Sekarang: ${currentStage.name} - tahap terakhir masih dapat diperbarui sebelum lanjut`}
                                 </div>
                                 {isRejected && (
                                     <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 9, color: '#ff8a80', background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.28)', fontSize: 12 }}>
@@ -618,14 +643,19 @@ export default function StockManagement() {
                             <button type="button" onClick={() => setDetailLog(null)} style={{ ...mutedButton, padding: '6px 10px' }}>Tutup</button>
                         </div>
 
-                        {detailLog.photoUrl && (
-                            <a href={detailLog.photoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: 14 }}>
-                                <img src={detailLog.photoUrl} alt={`Bukti ${detailLog.stageName}`} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--color-border)' }} />
-                            </a>
+                        {getLogPhotos(detailLog).length > 0 && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginBottom: 14 }}>
+                                {getLogPhotos(detailLog).map((photo, index) => (
+                                    <a key={`${photo.gatewayUrl}-${index}`} href={photo.gatewayUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                                        <img src={photo.gatewayUrl} alt={`Bukti ${detailLog.stageName} ${index + 1}`} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--color-border)' }} />
+                                    </a>
+                                ))}
+                            </div>
                         )}
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
                             {Object.entries(detailLog.data || {})
+                                .filter(([key]) => !['evidencePhoto', 'evidencePhotos', 'image'].includes(key))
                                 .filter(([, value]) => value !== null && value !== undefined && value !== '')
                                 .map(([key, value]) => (
                                     <div key={key} style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid var(--color-border)', borderRadius: 9, padding: 10 }}>
@@ -723,6 +753,17 @@ function formatLogKey(key) {
         image: 'Foto',
     };
     return labels[key] || key.replace(/[A-Z]/g, letter => ` ${letter}`).trim();
+}
+
+function getLogPhotos(log) {
+    const evidencePhotos = Array.isArray(log?.data?.evidencePhotos) && log.data.evidencePhotos.length
+        ? log.data.evidencePhotos
+        : (log?.data?.evidencePhoto ? [log.data.evidencePhoto] : []);
+    const normalized = evidencePhotos
+        .map(photo => ({ cid: photo?.cid || '', gatewayUrl: photo?.gatewayUrl || '' }))
+        .filter(photo => photo.gatewayUrl);
+    if (!normalized.length && log?.photoUrl) return [{ cid: '', gatewayUrl: log.photoUrl }];
+    return normalized;
 }
 
 function formatLogValue(value) {

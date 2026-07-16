@@ -39,7 +39,7 @@ export async function GET(req) {
         if (productIds.length) {
             const { data: existingProducts, error: productErr } = await supabase
                 .from('products')
-                .select('id, status, rejected_reason')
+                .select('id, status, rejected_reason, coffee_id')
                 .in('id', productIds);
             if (!productErr) {
                 for (const product of existingProducts || []) productById.set(product.id, product);
@@ -59,7 +59,7 @@ export async function GET(req) {
             farmerId: row.farmer_id,
             farmerName: row.farmer_name,
             currentStage: row.current_stage,
-            coffeeId: row.coffee_id,
+            coffeeId: row.coffee_id || productById.get(row.product_id)?.coffee_id || null,
             productId: row.product_id,
             productStatus: productById.get(row.product_id)?.status || null,
             rejectedReason: productById.get(row.product_id)?.rejected_reason || null,
