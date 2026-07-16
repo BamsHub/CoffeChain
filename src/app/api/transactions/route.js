@@ -11,8 +11,9 @@ import { v4 as uuidv4 } from 'uuid';
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const includeOrders = searchParams.get('includeOrders') === 'true';
+    const includeTraces = searchParams.get('includeTraces') === 'true';
 
-    const data = await getTransactionFeed({ includeOrders });
+    const data = await getTransactionFeed({ includeOrders, includeTraces });
     return Response.json({ success: true, data });
 }
 

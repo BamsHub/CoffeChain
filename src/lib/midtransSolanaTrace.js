@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '@/lib/supabase';
-import { MEMO_SIGNER_PUBLIC, getExplorerTxUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
 import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
 import { buildMidtransPaymentProof } from '@/lib/midtrans';
 
@@ -58,7 +58,7 @@ async function attachCoffeeTraceIfNeeded({ order, product, txSignature, explorer
             status: 'verified',
             registered_by: order.user_id || 'midtrans',
             product_id: product.id,
-            payment_wallet: product.payment_wallet || MEMO_SIGNER_PUBLIC,
+            payment_wallet: STORE_WALLET,
             created_at: new Date().toISOString(),
         });
 
@@ -75,7 +75,7 @@ async function attachCoffeeTraceIfNeeded({ order, product, txSignature, explorer
         .update({
             coffee_id: coffeeId,
             status: 'published',
-            payment_wallet: product.payment_wallet || MEMO_SIGNER_PUBLIC,
+            payment_wallet: STORE_WALLET,
         })
         .eq('id', product.id);
 

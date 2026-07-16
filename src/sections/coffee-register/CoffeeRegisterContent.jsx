@@ -1,15 +1,15 @@
 'use client';
 /**
  * CoffeeRegisterContent — Unified Register Kopi + Request Log
- * Alur: Kelola Produk → status blockchain per produk → klik → Phantom sign → Solana
+ * Alur: Kelola Produk → status blockchain per produk → server wallet → Solana
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
     isPhantomInstalled, connectPhantom, disconnectPhantom,
-    getSolBalance, shortenAddress, sendMemoWithPhantom,
+    getSolBalance, shortenAddress,
 } from '@/lib/phantom';
-import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, normalizeExplorerUrl } from '@/lib/contractConfig';
 import QRButton, { BlockchainQRCard } from '@/components/BlockchainQR/BlockchainQR';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
@@ -188,11 +188,10 @@ export default function CoffeeRegisterContent() {
         setPreviewOpen(false);
     }
 
-    /* ── Submit: Phantom sign → Solana → save to DB ── */
+    /* ── Submit: server wallet sign → Solana → save to DB ── */
     async function handleRegister(e) {
         e.preventDefault();
         if (!regProduct) return;
-        if (!walletPK) { alert('Hubungkan Phantom Wallet terlebih dahulu!'); return; }
 
         setSubmitting(true); setRegMsg(null);
         try {
@@ -210,8 +209,8 @@ export default function CoffeeRegisterContent() {
                 roastLevel: regForm.roastLevel,
                 certification: regForm.certification,
                 description: regProduct.description || '',
-                registeredBy: user?.id || walletPK,
-                paymentWallet: walletPK,
+                registeredBy: user?.id || STORE_WALLET,
+                paymentWallet: STORE_WALLET,
             };
 
             setRegMsg({ type: 'info', text: 'Memindahkan foto dan metadata produk ke IPFS...' });
@@ -228,20 +227,7 @@ export default function CoffeeRegisterContent() {
                 throw new Error(proofData.message || 'Gagal membuat bukti IPFS');
             }
 
-            setRegMsg({ type: 'info', text: 'Menunggu tanda tangan Phantom Wallet... Konfirmasi di popup Phantom Anda.' });
-
-            let phantomTxSignature;
-            try {
-                phantomTxSignature = await sendMemoWithPhantom(walletPK, proofData.proof.memo);
-            } catch (phantomErr) {
-                if (phantomErr.message?.includes('rejected') || phantomErr.code === 4001) {
-                    setRegMsg({ type: 'error', text: 'Transaksi dibatalkan oleh pengguna.' });
-                    setSubmitting(false); return;
-                }
-                throw phantomErr;
-            }
-
-            setRegMsg({ type: 'info', text: 'TX diterima Solana! Menyimpan data trace ke database...' });
+            setRegMsg({ type: 'info', text: 'Server wallet sedang menulis bukti Memo ke Solana Testnet...' });
 
             const res = await fetch('/api/coffee-trace', {
                 method: 'POST',
@@ -251,8 +237,6 @@ export default function CoffeeRegisterContent() {
                 },
                 body: JSON.stringify({
                     ...tracePayload,
-                    phantomTxSignature,
-                    phantomWalletAddress: walletPK,
                     offchainProof: proofData.proof,
                 }),
             });
@@ -263,8 +247,8 @@ export default function CoffeeRegisterContent() {
                     type: 'success',
                     text: `"${regProduct.name}" berhasil terdaftar di Solana Blockchain!`,
                     coffeeId:    data.data?.coffeeId,
-                    txSig:       phantomTxSignature,
-                    explorerUrl: getExplorerTxUrl(phantomTxSignature),
+                    txSig:       data.data?.txSignature,
+                    explorerUrl: data.data?.explorerUrl,
                 });
                 await Promise.all([loadProducts(), loadTraces()]);
                 setTimeout(() => { setRegProduct(null); setRegMsg(null); }, 4500);
@@ -524,12 +508,10 @@ export default function CoffeeRegisterContent() {
             {/* ══ TAB: PRODUCTS ══ */}
             {tab === 'products' && (
                 <div>
-                    {!walletPK && (
-                        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(153,69,255,0.08)', border: '1px solid rgba(153,69,255,0.25)', fontSize: 13, color: 'rgba(232,245,224,0.6)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <IcoPhantom />
-                            Hubungkan <strong style={{ color: '#9945FF' }}>Phantom Wallet</strong> untuk mendaftarkan produk ke Solana.
-                        </div>
-                    )}
+                    <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(126,212,74,0.08)', border: '1px solid rgba(126,212,74,0.25)', fontSize: 13, color: 'rgba(232,245,224,0.6)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <IcoWallet />
+                        Registrasi Memo memakai server wallet Testnet. Pembayaran produk tetap masuk ke <strong style={{ color: '#7ED44A' }}>{shortenAddress(STORE_WALLET, 8)}</strong>.
+                    </div>
                     {loadingProd ? (
                         <div style={{ textAlign: 'center', padding: 48, color: 'rgba(232,245,224,0.3)' }}>Memuat produk...</div>
                     ) : (
@@ -804,24 +786,17 @@ export default function CoffeeRegisterContent() {
                                     <label style={S.lbl}>Sertifikasi (opsional)</label>
                                     <input style={S.inp} value={regForm.certification} onChange={e => setRegForm(f => ({ ...f, certification: e.target.value }))} placeholder="Organic, Fair Trade, dll." />
                                 </div>
-                                <div style={{ padding: '10px 13px', borderRadius: 8, background: 'rgba(153,69,255,0.07)', border: '1px solid rgba(153,69,255,0.2)', fontSize: 12, color: 'rgba(232,245,224,0.55)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <IcoPhantom />
-                                    Gas fee ~0.000005 SOL dari <strong style={{ color: '#9945FF' }}>wallet Phantom Anda</strong>
-                                    {walletPK && <span style={{ marginLeft: 'auto', color: '#7ED44A', fontWeight: 700 }}>{walletBal.toFixed(4)} SOL</span>}
+                                <div style={{ padding: '10px 13px', borderRadius: 8, background: 'rgba(126,212,74,0.07)', border: '1px solid rgba(126,212,74,0.2)', fontSize: 12, color: 'rgba(232,245,224,0.55)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <IcoWallet />
+                                    Gas fee Memo dibayar otomatis oleh <strong style={{ color: '#7ED44A' }}>server wallet Testnet</strong>
                                 </div>
                                 <button type="button" onClick={() => setPreviewOpen(true)}
                                     style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', fontWeight: 700, border: '1px solid rgba(126,212,74,0.25)', borderRadius: 9, cursor: 'pointer', padding: '10px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                                     <IcoEye /> Lihat Semua Data
                                 </button>
-                                {walletPK ? (
-                                    <button type="submit" disabled={submitting} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting ? 0.7 : 1 }}>
-                                        {submitting ? <><IcoSpin /> Menunggu Phantom...</> : <><IcoPhantom /> Sign & Kirim ke Solana</>}
-                                    </button>
-                                ) : (
-                                    <button type="button" onClick={handleConnect} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14 }}>
-                                        <IcoPhantom /> Hubungkan Phantom untuk Lanjutkan
-                                    </button>
-                                )}
+                                <button type="submit" disabled={submitting} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting ? 0.7 : 1 }}>
+                                    {submitting ? <><IcoSpin /> Menulis Memo...</> : <><IcoWallet /> Daftarkan via Server Wallet</>}
+                                </button>
                             </form>
                         )}
 
@@ -833,7 +808,7 @@ export default function CoffeeRegisterContent() {
                                             <div style={{ fontSize: 18, fontWeight: 800, color: '#E8F5E0', display: 'flex', alignItems: 'center', gap: 8 }}>
                                                 <IcoEye /> Preview Data Register
                                             </div>
-                                            <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 3 }}>Periksa data sebelum tanda tangan Phantom.</div>
+                                            <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 3 }}>Periksa data sebelum server wallet menulis Memo.</div>
                                         </div>
                                         <button type="button" onClick={() => setPreviewOpen(false)}
                                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: 'rgba(232,245,224,0.7)', cursor: 'pointer' }}>

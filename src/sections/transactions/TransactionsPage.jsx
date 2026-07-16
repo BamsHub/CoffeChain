@@ -44,6 +44,7 @@ function formatBlock(block) {
 
 function typeLabel(tx) {
     if (tx.source === 'order') return 'Pembelian';
+    if (tx.source === 'trace') return 'Sertifikat Inventory';
     const labels = {
         product_approval: 'Approval Produk',
         blockchain_verify: 'On-chain Trace',
@@ -71,7 +72,7 @@ export default function TransactionsPage() {
     const fetchData = useCallback(async ({ showLoading = false } = {}) => {
         if (showLoading) setLoading(true);
         try {
-            const res = await fetch('/api/transactions?includeOrders=true');
+            const res = await fetch('/api/transactions?includeOrders=true&includeTraces=true');
             const data = await res.json();
             setItems(data.data || []);
             setLastSyncedAt(new Date());
@@ -89,6 +90,7 @@ export default function TransactionsPage() {
             .channel('transactions-page-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, fetchData)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'coffee_traces' }, fetchData)
             .subscribe();
         realtimeRef.current = channel;
 
@@ -110,7 +112,8 @@ export default function TransactionsPage() {
         const matchSearch = tx.farmer?.toLowerCase().includes(q) ||
             tx.hash?.toLowerCase().includes(q) ||
             tx.variety?.toLowerCase().includes(q) ||
-            tx.location?.toLowerCase().includes(q);
+            tx.location?.toLowerCase().includes(q) ||
+            tx.coffeeId?.toLowerCase().includes(q);
         const matchFilter = filter === 'Semua' || tx.status === filter;
         return matchSearch && matchFilter;
     });
@@ -154,6 +157,7 @@ export default function TransactionsPage() {
         confirmed: visibleItems.filter(t => ['Confirmed', 'paid', 'confirmed'].includes(t.status)).length,
         pending: visibleItems.filter(t => ['Pending', 'pending'].includes(t.status)).length,
         failed: visibleItems.filter(t => ['Failed', 'failed', 'expired'].includes(t.status)).length,
+        inventory: visibleItems.filter(t => t.source === 'trace').length,
     };
 
     return (
@@ -199,6 +203,7 @@ export default function TransactionsPage() {
                     { label: 'Confirmed', val: counts.confirmed, color: '#4CAF50' },
                     { label: 'Pending', val: counts.pending, color: '#FF9800' },
                     { label: 'Failed', val: counts.failed, color: '#f44336' },
+                    { label: 'Sertifikat Inventory', val: counts.inventory, color: '#b388ff' },
                 ].map((s, i) => (
                     <div key={i} className={styles.summaryChip} style={{ borderColor: s.color + '44' }}>
                         <span className={styles.summaryVal} style={{ color: s.color }}>{s.val}</span>

@@ -49,7 +49,16 @@ async function findTrace(order) {
 
     let query = supabaseAdmin.from('coffee_traces').select('*').limit(1);
     if (order.coffeeId) query = query.eq('coffee_id', order.coffeeId);
-    else if (order.productId) query = query.eq('product_id', order.productId);
+    else if (order.productId) {
+        const { data: product } = await supabaseAdmin
+            .from('products')
+            .select('coffee_id')
+            .eq('id', order.productId)
+            .maybeSingle();
+        query = product?.coffee_id
+            ? query.or(`product_id.eq.${order.productId},coffee_id.eq.${product.coffee_id}`)
+            : query.eq('product_id', order.productId);
+    }
     else query = query.eq('tx_signature', order.txSignature);
 
     const { data } = await query;

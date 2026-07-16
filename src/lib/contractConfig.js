@@ -14,7 +14,7 @@ export const MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 // Memo Signer Public Key (server-side, untuk register kopi ke blockchain)
 export const MEMO_SIGNER_PUBLIC = process.env.NEXT_PUBLIC_MEMO_SIGNER_PUBLIC_KEY
     || process.env.MEMO_SIGNER_PUBLIC_KEY
-    || "5NgY9MPpHiUAZz8GmerbfzSdKeXf91FAXUGEm9t6S2h3";
+    || "8erURhHZgSvoFeXAJSDWzk2JDEiLsWeKq11zpiPs7AhJ";
 
 // Smart Contract (belum di-deploy, placeholder)
 export const IS_CONTRACT_DEPLOYED = false;

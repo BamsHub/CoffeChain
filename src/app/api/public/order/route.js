@@ -2,7 +2,7 @@ export const runtime = 'edge';
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, sbSelect, ordersToSnake } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -156,7 +156,7 @@ export async function POST(request) {
                     status: 'verified',
                     registeredBy: walletAddress || null,
                     productId: product.id,
-                    paymentWallet: walletAddress || null,
+                    paymentWallet: STORE_WALLET,
                     createdAt: new Date().toISOString(),
                 });
             } catch (traceErr) {
@@ -168,7 +168,7 @@ export async function POST(request) {
         try {
             await updateItem('products', product.id, {
                 stock: currentStock - quantity,
-                ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: walletAddress || null } : {}),
+                ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: STORE_WALLET } : {}),
             });
         } catch (stockErr) {
             // Log but don't fail the order

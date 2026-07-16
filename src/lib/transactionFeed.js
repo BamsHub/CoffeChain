@@ -95,6 +95,30 @@ export function orderToFeedItem(order) {
     };
 }
 
+export function traceToFeedItem(trace) {
+    return {
+        id: `trace-${trace.id}`,
+        hash: trace.txSignature || trace.id,
+        txSignature: trace.txSignature || null,
+        farmer: trace.farmerName || 'CoffeeChain',
+        location: trace.origin || trace.name || '—',
+        weight: trace.weightKg || 0,
+        weightUnit: 'kg',
+        variety: trace.name || trace.variety || 'Sertifikat Kopi',
+        grade: trace.grade,
+        amount: null,
+        status: trace.txSignature ? 'Confirmed' : (trace.status || 'Pending'),
+        timestamp: trace.createdAt,
+        block: '—',
+        source: 'trace',
+        type: 'inventory_certificate',
+        productId: trace.productId,
+        productName: trace.name,
+        coffeeId: trace.coffeeId,
+        explorerUrl: trace.explorerUrl,
+    };
+}
+
 /** Gabungkan transaksi blockchain + pembelian lunas, urut terbaru dulu */
 export function buildUnifiedFeed(transactions, orders) {
     const paidOrders = (orders || []).filter(o => o.status === 'paid');
@@ -117,10 +141,17 @@ export function buildUnifiedFeed(transactions, orders) {
     );
 }
 
-export async function getTransactionFeed({ includeOrders = false } = {}) {
+export async function getTransactionFeed({ includeOrders = false, includeTraces = false } = {}) {
     const transactions = await getBlockchainTransactions();
-    if (!includeOrders) return transactions;
+    if (!includeOrders && !includeTraces) return transactions;
 
-    const orders = await getOrders();
-    return buildUnifiedFeed(transactions, orders);
+    const orders = includeOrders ? await getOrders() : [];
+    const feed = buildUnifiedFeed(transactions, orders);
+    if (!includeTraces) return feed;
+
+    const tracesDb = await readDb('coffee_traces');
+    const traceItems = (tracesDb.items || []).map(traceToFeedItem);
+    return [...feed, ...traceItems].sort(
+        (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0),
+    );
 }
