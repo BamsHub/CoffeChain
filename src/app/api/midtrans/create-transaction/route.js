@@ -5,6 +5,7 @@ import { getMidtransAuthHeader, getMidtransSnapBaseUrl } from '@/lib/midtrans';
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
+import { canMakePayment } from '@/lib/paymentAccess';
 
 /**
  * POST /api/midtrans/create-transaction
@@ -18,13 +19,13 @@ export async function POST(request) {
         if (!session) {
             return Response.json({
                 success: false,
-                message: 'Silakan login dengan akun petani sebelum melakukan pembayaran',
+                message: 'Silakan login dengan akun petani atau admin sebelum melakukan pembayaran',
             }, { status: 401 });
         }
-        if (session.role !== 'farmer') {
+        if (!canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Pembayaran hanya dapat dilakukan oleh akun petani',
+                message: 'Pembayaran hanya dapat dilakukan oleh akun petani atau admin',
             }, { status: 403 });
         }
 

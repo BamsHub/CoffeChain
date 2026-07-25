@@ -3,6 +3,7 @@ import { readDb, updateItem } from '@/lib/db';
 import { getExplorerTxUrl, SOLANA_NETWORK, STORE_WALLET } from '@/lib/contractConfig';
 import { Connection } from '@solana/web3.js';
 import { verifyToken } from '@/lib/auth';
+import { canMakePayment } from '@/lib/paymentAccess';
 
 /**
  * PUBLIC API — Cek Status Pesanan
@@ -57,13 +58,13 @@ export async function PATCH(request, { params }) {
         if (!session) {
             return Response.json({
                 success: false,
-                message: 'Silakan login dengan akun petani sebelum mengonfirmasi pembayaran',
+                message: 'Silakan login dengan akun petani atau admin sebelum mengonfirmasi pembayaran',
             }, { status: 401 });
         }
-        if (session.role !== 'farmer') {
+        if (!canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Pembayaran hanya dapat dilakukan oleh akun petani',
+                message: 'Pembayaran hanya dapat dilakukan oleh akun petani atau admin',
             }, { status: 403 });
         }
 
@@ -87,7 +88,7 @@ export async function PATCH(request, { params }) {
         if (order.userId !== session.userId) {
             return Response.json({
                 success: false,
-                message: 'Order ini bukan milik akun petani yang sedang login',
+                message: 'Order ini bukan milik akun yang sedang login',
             }, { status: 403 });
         }
 

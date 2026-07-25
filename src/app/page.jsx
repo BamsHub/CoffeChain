@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { STORE_WALLET, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
+import { canMakePayment } from '@/lib/paymentAccess';
 import { useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
@@ -399,8 +400,8 @@ export default function LandingPage() {
             window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
             return;
         }
-        if (user.role !== 'farmer') {
-            alert('Pembayaran hanya dapat dilakukan oleh akun petani.');
+        if (!canMakePayment(user.role)) {
+            alert('Pembayaran hanya dapat dilakukan oleh akun petani atau admin.');
             return;
         }
         const sessionToken = getToken();
@@ -803,8 +804,8 @@ export default function LandingPage() {
             window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
             return;
         }
-        if (user.role !== 'farmer') {
-            alert('Pembayaran hanya dapat dilakukan oleh akun petani.');
+        if (!canMakePayment(user.role)) {
+            alert('Pembayaran hanya dapat dilakukan oleh akun petani atau admin.');
             return;
         }
         loadMidtransSnap(); // Lazy-load Midtrans SDK on first order
@@ -1281,7 +1282,7 @@ export default function LandingPage() {
                                             </div>
                                         ) : (
                                             <button onClick={e => { e.stopPropagation(); openOrder(p, 'midtrans'); }} className="cc-btn-green" style={{ width:'100%', padding:'10px', fontSize:13, justifyContent:'center', boxShadow:'0 0 12px rgba(132,224,104,0.15)' }}>
-                                                <IconCart /> {user?.role === 'farmer' ? 'Beli Sekarang' : user ? 'Khusus Akun Petani' : 'Login Petani untuk Beli'}
+                                                <IconCart /> {canMakePayment(user?.role) ? 'Beli Sekarang' : user ? 'Khusus Akun Petani/Admin' : 'Login untuk Beli'}
                                             </button>
                                         )}
                                     </div>
@@ -1995,11 +1996,11 @@ export default function LandingPage() {
                                 disabled={(selectedDetailProduct.stock ?? 0) <= 0} style={{ padding:'12px', justifyContent:'center', opacity:(selectedDetailProduct.stock ?? 0) <= 0 ? 0.5 : 1 }}>
                                 {(selectedDetailProduct.stock ?? 0) <= 0
                                     ? 'Stok Habis'
-                                    : user?.role === 'farmer'
+                                    : canMakePayment(user?.role)
                                         ? 'Beli Sekarang'
                                         : user
-                                            ? 'Khusus Akun Petani'
-                                            : 'Login Petani untuk Beli'}
+                                            ? 'Khusus Akun Petani/Admin'
+                                            : 'Login untuk Beli'}
                             </button>
                         </div>
                     </div>

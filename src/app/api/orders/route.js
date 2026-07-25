@@ -3,6 +3,7 @@ import { sbSelect, sbInsert, sbUpdate, ordersToCamel, ordersToSnake } from '@/li
 import { getOrders } from '@/lib/orders';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
+import { canMakePayment } from '@/lib/paymentAccess';
 
 export { getOrders };
 
@@ -24,10 +25,10 @@ export async function POST(request) {
     try {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
-        if (!session || session.role !== 'farmer') {
+        if (!session || !canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Order hanya dapat dibuat oleh akun petani',
+                message: 'Order hanya dapat dibuat oleh akun petani atau admin',
             }, { status: session ? 403 : 401 });
         }
 
@@ -76,10 +77,10 @@ export async function PATCH(request) {
     try {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
-        if (!session || session.role !== 'farmer') {
+        if (!session || !canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Pembayaran hanya dapat dikonfirmasi oleh akun petani',
+                message: 'Pembayaran hanya dapat dikonfirmasi oleh akun petani atau admin',
             }, { status: session ? 403 : 401 });
         }
 

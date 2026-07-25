@@ -6,6 +6,7 @@ import { Connection } from '@solana/web3.js';
 import { SOLANA_NETWORK, STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { verifyToken } from '@/lib/auth';
+import { canMakePayment } from '@/lib/paymentAccess';
 
 async function verifySolanaPayment({
     txSignature,
@@ -89,13 +90,13 @@ export async function POST(request) {
         if (!session) {
             return Response.json({
                 success: false,
-                message: 'Silakan login dengan akun petani sebelum melakukan pembayaran',
+                message: 'Silakan login dengan akun petani atau admin sebelum melakukan pembayaran',
             }, { status: 401 });
         }
-        if (session.role !== 'farmer') {
+        if (!canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Pembayaran hanya dapat dilakukan oleh akun petani',
+                message: 'Pembayaran hanya dapat dilakukan oleh akun petani atau admin',
             }, { status: 403 });
         }
 

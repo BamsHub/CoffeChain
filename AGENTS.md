@@ -23,7 +23,8 @@ Never replace this public key or create a new signer unless the repository owner
 
 - Registering a new product creates one product certificate.
 - A payment creates a receipt and one payment trace; it must never create or replace a product certificate.
-- Checkout and payment require an authenticated account with role `farmer`.
+- Checkout and payment require an authenticated account with role `farmer` or `admin`.
+- Role `koperasi` is not allowed to create or confirm payments.
 
 Current reference records after the July 25, 2026 repair:
 
