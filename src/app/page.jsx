@@ -104,7 +104,7 @@ const BEST_SELLERS = [
 ];
 
 export default function LandingPage() {
-    const { logout } = useAuth();
+    const { user, getToken, loading: authLoading, logout } = useAuth();
     const [products, setProducts] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
     const [activeCard, setActiveCard] = useState(0);
@@ -391,6 +391,23 @@ export default function LandingPage() {
     async function handleOrder(e) {
         e.preventDefault();
         if (!selectedProduct) return;
+        if (authLoading) {
+            alert('Sesi akun masih diperiksa. Coba lagi sebentar.');
+            return;
+        }
+        if (!user) {
+            window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
+            return;
+        }
+        if (user.role !== 'farmer') {
+            alert('Pembayaran hanya dapat dilakukan oleh akun petani.');
+            return;
+        }
+        const sessionToken = getToken();
+        if (!sessionToken) {
+            window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
+            return;
+        }
         const pm = orderForm.paymentMethod;
         const isSolMethod = pm === 'transfer' || pm === 'qr';
         if (isSolMethod && !walletPublicKey) {
@@ -424,7 +441,10 @@ export default function LandingPage() {
             try {
                 const res = await fetch('/api/midtrans/create-transaction', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${sessionToken}`,
+                    },
                     body: JSON.stringify({
                         productId: selectedProduct.id,
                         weight: orderForm.weight || selectedProduct.weight?.[0],
@@ -554,7 +574,10 @@ export default function LandingPage() {
             }
             const res = await fetch('/api/public/order', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sessionToken}`,
+                },
                 body: JSON.stringify({
                     productId: selectedProduct.id,
                     weight: orderForm.weight || selectedProduct.weight?.[0],
@@ -628,7 +651,10 @@ export default function LandingPage() {
                                     solanaIntervalRef.current = null;
                                     const confirmRes = await fetch(`/api/public/order/${encodeURIComponent(capturedOrderId)}`, {
                                         method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            Authorization: `Bearer ${sessionToken}`,
+                                        },
                                         body: JSON.stringify({ txSignature: newSig }),
                                     });
                                     const confirmData = await confirmRes.json().catch(() => null);
@@ -769,10 +795,22 @@ export default function LandingPage() {
     }
 
     function openOrder(product, defaultPayment = 'midtrans') {
+        if (authLoading) {
+            alert('Sesi akun masih diperiksa. Coba lagi sebentar.');
+            return;
+        }
+        if (!user) {
+            window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
+            return;
+        }
+        if (user.role !== 'farmer') {
+            alert('Pembayaran hanya dapat dilakukan oleh akun petani.');
+            return;
+        }
         loadMidtransSnap(); // Lazy-load Midtrans SDK on first order
         if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
         setSelectedProduct(product);
-        setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: '' });
+        setOrderForm({ buyerName: user.name || '', buyerEmail: user.email || '', buyerPhone: user.phone || '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: user.name || '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: user.phone || '' });
         setOrderResult(null);
         setQrDataUrl(null);
         setQrConfirm({ loading: false, done: false, error: null });
@@ -1243,7 +1281,7 @@ export default function LandingPage() {
                                             </div>
                                         ) : (
                                             <button onClick={e => { e.stopPropagation(); openOrder(p, 'midtrans'); }} className="cc-btn-green" style={{ width:'100%', padding:'10px', fontSize:13, justifyContent:'center', boxShadow:'0 0 12px rgba(132,224,104,0.15)' }}>
-                                                <IconCart /> Beli Sekarang
+                                                <IconCart /> {user?.role === 'farmer' ? 'Beli Sekarang' : user ? 'Khusus Akun Petani' : 'Login Petani untuk Beli'}
                                             </button>
                                         )}
                                     </div>
@@ -1955,7 +1993,13 @@ export default function LandingPage() {
                             <button className="cc-btn-outline" onClick={() => setDetailModal(false)} style={{ padding:'12px', justifyContent:'center' }}>Kembali</button>
                             <button className="cc-btn-green" onClick={() => { setDetailModal(false); if ((selectedDetailProduct.stock ?? 0) > 0) openOrder(selectedDetailProduct); }}
                                 disabled={(selectedDetailProduct.stock ?? 0) <= 0} style={{ padding:'12px', justifyContent:'center', opacity:(selectedDetailProduct.stock ?? 0) <= 0 ? 0.5 : 1 }}>
-                                {(selectedDetailProduct.stock ?? 0) <= 0 ? 'Stok Habis' : 'Beli Sekarang'}
+                                {(selectedDetailProduct.stock ?? 0) <= 0
+                                    ? 'Stok Habis'
+                                    : user?.role === 'farmer'
+                                        ? 'Beli Sekarang'
+                                        : user
+                                            ? 'Khusus Akun Petani'
+                                            : 'Login Petani untuk Beli'}
                             </button>
                         </div>
                     </div>

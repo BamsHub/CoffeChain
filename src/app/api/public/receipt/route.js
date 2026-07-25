@@ -32,7 +32,6 @@ function safeOrder(order) {
         coffeeId,
         explorerUrl: txSignature ? getExplorerTxUrl(txSignature) : null,
         receiptUrl: order.orderId ? `/receipt?orderId=${encodeURIComponent(order.orderId)}` : null,
-        traceUrl: coffeeId ? `/trace?id=${encodeURIComponent(coffeeId)}` : null,
         createdAt: order.createdAt,
         paidAt: order.paidAt,
         expiresAt: order.expiresAt,
@@ -52,60 +51,6 @@ async function findOrder(orderId) {
     return (db.items || []).find(item => item.orderId === orderId || item.id === orderId) || null;
 }
 
-async function findTrace(order) {
-    if (!order?.coffeeId && !order?.productId && !order?.txSignature) return null;
-
-    let query = supabaseAdmin.from('coffee_traces').select('*').limit(1);
-    if (order.coffeeId) query = query.eq('coffee_id', order.coffeeId);
-    else if (order.productId) {
-        const { data: product } = await supabaseAdmin
-            .from('products')
-            .select('coffee_id')
-            .eq('id', order.productId)
-            .maybeSingle();
-        query = product?.coffee_id
-            ? query.or(`product_id.eq.${order.productId},coffee_id.eq.${product.coffee_id}`)
-            : query.eq('product_id', order.productId);
-    }
-    else query = query.eq('tx_signature', order.txSignature);
-
-    const { data } = await query;
-    const row = data?.[0];
-    if (row) {
-        return {
-            coffeeId: row.coffee_id,
-            productName: row.name,
-            origin: row.origin,
-            variety: row.variety,
-            grade: row.grade,
-            certification: row.certification,
-            txSignature: row.tx_signature,
-            explorerUrl: row.tx_signature ? getExplorerTxUrl(row.tx_signature) : row.explorer_url || null,
-            traceUrl: row.coffee_id ? `/trace?id=${encodeURIComponent(row.coffee_id)}` : null,
-        };
-    }
-
-    const db = await readDb('coffee_traces');
-    const trace = (db.items || []).find(item =>
-        item.coffeeId === order.coffeeId ||
-        item.productId === order.productId ||
-        item.txSignature === order.txSignature
-    );
-
-    if (!trace) return null;
-    return {
-        coffeeId: trace.coffeeId,
-        productName: trace.name,
-        origin: trace.origin,
-        variety: trace.variety,
-        grade: trace.grade,
-        certification: trace.certification,
-        txSignature: trace.txSignature,
-        explorerUrl: trace.txSignature ? getExplorerTxUrl(trace.txSignature) : trace.explorerUrl || null,
-        traceUrl: trace.coffeeId ? `/trace?id=${encodeURIComponent(trace.coffeeId)}` : null,
-    };
-}
-
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
@@ -123,12 +68,10 @@ export async function GET(request) {
             return Response.json({ success: false, message: 'Belum dibayar. Receipt akan tersedia setelah pembayaran dikonfirmasi.' }, { status: 402 });
         }
 
-        const trace = await findTrace(order);
         return Response.json({
             success: true,
             data: {
                 order: safeOrder(order),
-                trace,
             },
         });
     } catch (error) {

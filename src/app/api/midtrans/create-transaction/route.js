@@ -4,6 +4,7 @@ import { ordersToSnake } from '@/lib/sdb';
 import { getMidtransAuthHeader, getMidtransSnapBaseUrl } from '@/lib/midtrans';
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyToken } from '@/lib/auth';
 
 /**
  * POST /api/midtrans/create-transaction
@@ -12,6 +13,21 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({
+                success: false,
+                message: 'Silakan login dengan akun petani sebelum melakukan pembayaran',
+            }, { status: 401 });
+        }
+        if (session.role !== 'farmer') {
+            return Response.json({
+                success: false,
+                message: 'Pembayaran hanya dapat dilakukan oleh akun petani',
+            }, { status: 403 });
+        }
+
         const body = await request.json();
         const {
             productId, weight, quantity = 1,
@@ -32,6 +48,12 @@ export async function POST(request) {
         const product = db.items.find(item => item.id === productId);
         if (!product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+        }
+        if (!product.coffeeId) {
+            return Response.json({
+                success: false,
+                message: 'Produk belum memiliki sertifikat Solana dan belum dapat dibayar',
+            }, { status: 409 });
         }
 
         const currentStock = product.stock ?? 0;
@@ -63,7 +85,7 @@ export async function POST(request) {
         const order = {
             id: uuidv4(),
             orderId,
-            userId: `buyer-${buyerEmail}`,
+            userId: session.userId,
             userName: buyerName,
             buyerEmail,
             buyerPhone: buyerPhone || null,

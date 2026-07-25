@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 import { readDb, updateItem } from '@/lib/db';
 import { getExplorerTxUrl, SOLANA_NETWORK, STORE_WALLET } from '@/lib/contractConfig';
 import { Connection } from '@solana/web3.js';
+import { verifyToken } from '@/lib/auth';
 
 /**
  * PUBLIC API — Cek Status Pesanan
@@ -51,6 +52,21 @@ export async function GET(request, { params }) {
 
 export async function PATCH(request, { params }) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({
+                success: false,
+                message: 'Silakan login dengan akun petani sebelum mengonfirmasi pembayaran',
+            }, { status: 401 });
+        }
+        if (session.role !== 'farmer') {
+            return Response.json({
+                success: false,
+                message: 'Pembayaran hanya dapat dilakukan oleh akun petani',
+            }, { status: 403 });
+        }
+
         const { orderId } = await params;
         const body = await request.json();
         const { txSignature } = body;
@@ -67,6 +83,12 @@ export async function PATCH(request, { params }) {
                 status: 404,
                 headers: { 'Access-Control-Allow-Origin': '*' }
             });
+        }
+        if (order.userId !== session.userId) {
+            return Response.json({
+                success: false,
+                message: 'Order ini bukan milik akun petani yang sedang login',
+            }, { status: 403 });
         }
 
         // ── Verify Solana Transaction Signature on-chain ──
@@ -197,6 +219,10 @@ export async function PATCH(request, { params }) {
 
 export async function OPTIONS() {
     return new Response(null, {
-        headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, PATCH, OPTIONS' }
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, PATCH, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
     });
 }

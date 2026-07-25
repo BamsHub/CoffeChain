@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '@/lib/supabase';
-import { STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
+import { getExplorerTxUrl } from '@/lib/contractConfig';
 import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
 import { buildMidtransPaymentProof } from '@/lib/midtrans';
 import { getStoredOrderPricing } from '@/lib/paymentPricing';
@@ -11,13 +11,6 @@ const TRACE_LOCK_STALE_MS = 90_000;
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-function generateCoffeeId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let id = 'CF-';
-    for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
-    return id;
-}
-
 function buildPaymentMemo(order, product, midtransData = {}) {
     const proof = buildMidtransPaymentProof(order.order_id, midtransData);
     const pricing = getStoredOrderPricing(order);
@@ -189,60 +182,6 @@ async function markTraceFailed(orderId, lockId, error) {
         .eq('solana_trace_lock_id', lockId);
 }
 
-async function attachCoffeeTraceIfNeeded({ order, product, txSignature, explorerUrl }) {
-    if (!product) return null;
-    if (product.coffee_id) return product.coffee_id;
-
-    let coffeeId = generateCoffeeId();
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-        const { error: traceErr } = await supabaseAdmin.from('coffee_traces').insert({
-            id: uuidv4(),
-            coffee_id: coffeeId,
-            name: product.name || order.product_name,
-            origin: product.origin || null,
-            variety: product.variety || null,
-            grade: product.grade || null,
-            weight_kg: order.weight || (Array.isArray(product.weight) ? product.weight[0] : null),
-            farmer_name: product.submitted_by_name || null,
-            farmer_id: product.submitted_by || null,
-            harvest_date: null,
-            process_method: 'Midtrans paid product certificate',
-            roast_level: product.roast || null,
-            certification: 'CoffeeChain Midtrans Paid On-Chain',
-            description: product.description || null,
-            tx_signature: txSignature,
-            explorer_url: explorerUrl,
-            status: 'verified',
-            registered_by: order.user_id || 'midtrans',
-            product_id: product.id,
-            payment_wallet: STORE_WALLET,
-            created_at: new Date().toISOString(),
-        });
-
-        if (!traceErr) break;
-        if (!/duplicate|unique/i.test(traceErr.message || '') || attempt === 2) {
-            console.warn('[midtrans-solana] coffee_traces insert failed:', traceErr.message);
-            return null;
-        }
-        coffeeId = generateCoffeeId();
-    }
-
-    const { error: productErr } = await supabaseAdmin
-        .from('products')
-        .update({
-            coffee_id: coffeeId,
-            status: 'published',
-            payment_wallet: STORE_WALLET,
-        })
-        .eq('id', product.id);
-
-    if (productErr) {
-        console.warn('[midtrans-solana] product coffee_id update failed:', productErr.message);
-    }
-
-    return coffeeId;
-}
-
 export async function ensureMidtransSolanaTrace(orderId, midtransData = {}) {
     const order = await loadOrder(orderId);
     if (!order) {
@@ -265,27 +204,10 @@ export async function ensureMidtransSolanaTrace(orderId, midtransData = {}) {
         const traceResult = await sendServerMemoTx(memoData);
         const persistedOrder = await persistConfirmedTrace(orderId, lockId, traceResult);
 
-        const coffeeId = await attachCoffeeTraceIfNeeded({
-            order: persistedOrder,
-            product,
-            txSignature: traceResult.txSignature,
-            explorerUrl: traceResult.explorerUrl,
-        });
-
-        if (coffeeId && persistedOrder.coffee_id !== coffeeId) {
-            const { error: coffeeUpdateError } = await supabaseAdmin
-                .from('orders')
-                .update({ coffee_id: coffeeId })
-                .eq('order_id', orderId);
-            if (coffeeUpdateError) {
-                console.warn('[midtrans-solana] order coffee_id update failed:', coffeeUpdateError.message);
-            }
-        }
-
         return {
             txSignature: traceResult.txSignature,
             explorerUrl: traceResult.explorerUrl,
-            coffeeId: coffeeId || persistedOrder.coffee_id || product?.coffee_id || null,
+            coffeeId: persistedOrder.coffee_id || product?.coffee_id || null,
             solanaNetworkFeeLamports: traceResult.networkFeeLamports,
             solanaNetworkFeeSol: traceResult.networkFeeSol,
             solanaTraceStatus: 'confirmed',

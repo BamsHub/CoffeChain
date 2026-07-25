@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 const IconCheck = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-const IconQr = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" /><rect x="14" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" /><rect x="3" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" /><path d="M14 14h3v3h-3zM19 19h2M14 21h3M21 14v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>;
 const IconArrow = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
 function ReceiptQR({ value }) {
@@ -166,16 +165,11 @@ function ReceiptContent() {
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const order = data?.order;
-    const trace = data?.trace;
     const receiptUrl = useMemo(() => order?.orderId ? `${origin}/receipt?orderId=${encodeURIComponent(order.orderId)}` : '', [origin, order?.orderId]);
-    const traceUrl = trace?.traceUrl ? `${origin}${trace.traceUrl}` : order?.traceUrl ? `${origin}${order.traceUrl}` : '';
-    const qrTarget = traceUrl || receiptUrl;
+    const qrTarget = receiptUrl;
     const txSignature = order?.txSignature || null;
     const explorerUrl = order?.explorerUrl || null;
-    const certificateTxSignature = trace?.txSignature && trace.txSignature !== txSignature
-        ? trace.txSignature
-        : null;
-    const coffeeId = trace?.coffeeId || order?.coffeeId;
+    const coffeeId = order?.coffeeId;
 
     return (
         <main style={{ minHeight: '100vh', background: 'var(--color-bg, #030d06)', color: 'var(--color-text, #E8F5E0)', padding: '48px 18px', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -224,10 +218,10 @@ function ReceiptContent() {
                             </div>
 
                             <div style={{ padding: '28px clamp(18px, 4vw, 36px)' }}>
-                                <h2 style={{ fontSize: 18, marginBottom: 16 }}>Trace & QR</h2>
+                                <h2 style={{ fontSize: 18, marginBottom: 16 }}>Trace Pembayaran & QR Receipt</h2>
                                 <div style={{ display: 'grid', gap: 12, fontSize: 13 }}>
                                     <div style={{ padding: 14, borderRadius: 12, background: 'rgba(126,212,74,0.08)', border: '1px solid rgba(126,212,74,0.22)' }}>
-                                        <div style={{ color: '#7ED44A', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Coffee ID</div>
+                                        <div style={{ color: '#7ED44A', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Referensi Coffee ID Produk</div>
                                         <div style={{ fontFamily: 'monospace', fontWeight: 800 }}>{coffeeId || 'Belum tersedia'}</div>
                                     </div>
                                     <div style={{ padding: 14, borderRadius: 12, background: 'rgba(153,69,255,0.08)', border: '1px solid rgba(153,69,255,0.24)' }}>
@@ -245,20 +239,9 @@ function ReceiptContent() {
                                             </div>
                                         )}
                                     </div>
-                                    {certificateTxSignature && (
-                                        <div style={{ padding: 14, borderRadius: 12, background: 'rgba(126,212,74,0.06)', border: '1px solid rgba(126,212,74,0.2)' }}>
-                                            <div style={{ color: '#7ED44A', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Signature Sertifikat Produk</div>
-                                            <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.45 }}>{certificateTxSignature}</div>
-                                        </div>
-                                    )}
                                 </div>
 
                                 <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
-                                    {traceUrl && (
-                                        <a href={traceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', color: '#fff', fontWeight: 900, textDecoration: 'none' }}>
-                                            <IconQr /> Buka Trace Sertifikasi <IconArrow />
-                                        </a>
-                                    )}
                                     {explorerUrl && (
                                         <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(153,69,255,0.35)', color: '#b388ff', fontWeight: 900, textDecoration: 'none' }}>
                                             Solana Explorer <IconArrow />

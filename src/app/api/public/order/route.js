@@ -5,13 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Connection } from '@solana/web3.js';
 import { SOLANA_NETWORK, STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
-
-function generateCoffeeId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let id = 'CF-';
-    for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
-    return id;
-}
+import { verifyToken } from '@/lib/auth';
 
 async function verifySolanaPayment({
     txSignature,
@@ -90,6 +84,21 @@ async function verifySolanaPayment({
  */
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({
+                success: false,
+                message: 'Silakan login dengan akun petani sebelum melakukan pembayaran',
+            }, { status: 401 });
+        }
+        if (session.role !== 'farmer') {
+            return Response.json({
+                success: false,
+                message: 'Pembayaran hanya dapat dilakukan oleh akun petani',
+            }, { status: 403 });
+        }
+
         const body = await request.json();
         const {
             productId, weight, quantity = 1,
@@ -121,6 +130,12 @@ export async function POST(request) {
         const product = db.items.find(p => p.id === productId);
         if (!product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
+        }
+        if (!product.coffeeId) {
+            return Response.json({
+                success: false,
+                message: 'Produk belum memiliki sertifikat Solana dan belum dapat dibayar',
+            }, { status: 409 });
         }
 
         // Cek stok tersedia
@@ -178,7 +193,7 @@ export async function POST(request) {
         const order = {
             id: uuidv4(),
             orderId,
-            userId: walletAddress ? `wallet-${walletAddress}` : `buyer-${buyerEmail}`,
+            userId: session.userId,
             userName: buyerName,
             buyerEmail,
             buyerPhone: buyerPhone || null,
@@ -224,44 +239,10 @@ export async function POST(request) {
             await addItem('orders', order);
         }
 
-        let certifiedCoffeeId = product.coffeeId || null;
-        let certifiedExplorerUrl = order.txSignature ? getExplorerTxUrl(order.txSignature) : null;
-
-        if (isPaid && txSignature && !product.coffeeId) {
-            certifiedCoffeeId = generateCoffeeId();
-            try {
-                await addItem('coffee_traces', {
-                    id: uuidv4(),
-                    coffeeId: certifiedCoffeeId,
-                    name: product.name,
-                    origin: product.origin || null,
-                    variety: product.variety || null,
-                    grade: product.grade || null,
-                    weightKg: weight || product.weight?.[0] || null,
-                    farmerName: product.submittedByName || null,
-                    harvestDate: null,
-                    processMethod: 'Paid on-chain product certificate',
-                    roastLevel: product.roast || null,
-                    certification: 'CoffeeChain Paid On-Chain',
-                    description: product.description || null,
-                    txSignature,
-                    explorerUrl: certifiedExplorerUrl,
-                    status: 'verified',
-                    registeredBy: walletAddress || null,
-                    productId: product.id,
-                    paymentWallet: STORE_WALLET,
-                    createdAt: new Date().toISOString(),
-                });
-            } catch (traceErr) {
-                console.warn('[order] Certificate trace insert failed:', traceErr?.message);
-            }
-        }
-
         // Kurangi stok setelah order berhasil dibuat
         try {
             await updateItem('products', product.id, {
                 stock: currentStock - normalizedQuantity,
-                ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: STORE_WALLET } : {}),
             });
         } catch (stockErr) {
             // Log but don't fail the order
@@ -292,8 +273,8 @@ export async function POST(request) {
                 txSignature: order.txSignature,
                 solanaNetworkFeeLamports: order.solanaNetworkFeeLamports,
                 solanaTraceStatus: order.solanaTraceStatus,
-                coffeeId: certifiedCoffeeId,
-                explorerUrl: certifiedExplorerUrl,
+                coffeeId: product.coffeeId || null,
+                explorerUrl: order.txSignature ? getExplorerTxUrl(order.txSignature) : null,
                 virtualAccount: order.virtualAccount,
                 status: order.status,
                 expiresAt: order.expiresAt,
@@ -314,7 +295,7 @@ export async function OPTIONS() {
         headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }
     });
 }

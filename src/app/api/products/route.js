@@ -104,7 +104,6 @@ export async function POST(request) {
             }
         }
 
-        const isFarmer = targetSubmittedByRole === 'farmer';
         const now = new Date().toISOString();
         const prodId = `prod-${uuidv4().slice(0, 8)}`;
 
@@ -128,7 +127,7 @@ export async function POST(request) {
 
         // Add optional columns (only if they exist in schema — try full then fallback)
         const optionalFields = {
-            status: isFarmer ? 'pending' : 'published',
+            status: 'pending_certification',
             coffee_id: coffeeId || null,
             submitted_by: targetSubmittedBy || null,
             submitted_by_name: targetSubmittedByName || null,
