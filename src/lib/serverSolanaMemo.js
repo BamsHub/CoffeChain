@@ -153,6 +153,18 @@ async function waitForConfirmation(connection, signature, lastValidBlockHeight) 
     );
 }
 
+async function getConfirmedTransaction(connection, signature) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+        const transaction = await connection.getTransaction(signature, {
+            commitment: 'confirmed',
+            maxSupportedTransactionVersion: 0,
+        }).catch(() => null);
+        if (transaction) return transaction;
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    return null;
+}
+
 export async function verifySolanaTransaction(signature, expectedSigner, expectedMemo) {
     if (!signature || typeof signature !== 'string') {
         throw new Error('Signature Solana wajib diisi');
@@ -232,6 +244,9 @@ export async function sendServerMemoTx(memoData) {
     );
     tx.sign(signer);
 
+    const estimatedFee = await connection
+        .getFeeForMessage(tx.compileMessage(), 'confirmed')
+        .catch(() => ({ value: null }));
     const txSignature = await connection.sendRawTransaction(tx.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
@@ -239,6 +254,8 @@ export async function sendServerMemoTx(memoData) {
     });
 
     const confirmation = await waitForConfirmation(connection, txSignature, lastValidBlockHeight);
+    const confirmedTransaction = await getConfirmedTransaction(connection, txSignature);
+    const networkFeeLamports = confirmedTransaction?.meta?.fee ?? estimatedFee.value ?? null;
 
     return {
         txSignature,
@@ -246,5 +263,7 @@ export async function sendServerMemoTx(memoData) {
         signer: signer.publicKey.toBase58(),
         slot: confirmation.slot,
         confirmationStatus: confirmation.confirmationStatus,
+        networkFeeLamports,
+        networkFeeSol: networkFeeLamports == null ? null : networkFeeLamports / LAMPORTS_PER_SOL,
     };
 }

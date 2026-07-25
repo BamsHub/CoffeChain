@@ -1,14 +1,81 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, sbSelect, ordersToSnake } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
-import { STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
+import { Connection } from '@solana/web3.js';
+import { SOLANA_NETWORK, STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
+import { calculatePaymentPricing } from '@/lib/paymentPricing';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let id = 'CF-';
     for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
     return id;
+}
+
+async function verifySolanaPayment({
+    txSignature,
+    expectedSol,
+    receiverWallet,
+    expectedSigner,
+}) {
+    const [ordersDb, supabaseOrders] = await Promise.all([
+        readDb('orders'),
+        sbSelect('orders'),
+    ]);
+    const reused = [
+        ...(ordersDb.items || []),
+        ...((supabaseOrders || []).map(row => ({ txSignature: row.tx_signature, status: row.status }))),
+    ].find(order => order.txSignature === txSignature && order.status === 'paid');
+    if (reused) {
+        return { ok: false, message: 'Tx signature sudah pernah digunakan untuk order lain' };
+    }
+
+    const connection = new Connection(process.env.SOLANA_RPC_URL || SOLANA_NETWORK, 'confirmed');
+    const tx = await connection.getParsedTransaction(txSignature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+    });
+
+    if (!tx) return { ok: false, message: 'Transaksi tidak ditemukan di Solana atau belum confirmed' };
+    if (tx.meta?.err) return { ok: false, message: 'Transaksi Solana gagal / dibatalkan' };
+
+    const parsedKeys = tx.transaction.message.accountKeys || [];
+    const accountKeys = parsedKeys.map(key => {
+        if (typeof key === 'string') return key;
+        if (key?.pubkey) return typeof key.pubkey === 'string' ? key.pubkey : key.pubkey.toBase58();
+        return '';
+    });
+    const signerAddresses = parsedKeys
+        .filter(key => key?.signer)
+        .map(key => (typeof key.pubkey === 'string' ? key.pubkey : key.pubkey.toBase58()));
+    if (expectedSigner && !signerAddresses.includes(expectedSigner)) {
+        return { ok: false, message: 'Wallet pembeli bukan signer transaksi Solana tersebut' };
+    }
+
+    const validReceivers = [receiverWallet, STORE_WALLET].filter(Boolean);
+    const receiverIndex = accountKeys.findIndex(key => validReceivers.includes(key));
+    if (receiverIndex === -1) {
+        return { ok: false, message: 'Transaksi tidak mengirim SOL ke dompet CoffeeChain' };
+    }
+
+    const balanceChange = (
+        (tx.meta.postBalances[receiverIndex] || 0) - (tx.meta.preBalances[receiverIndex] || 0)
+    ) / 1e9;
+    const tolerance = Math.max(0.001, expectedSol * 0.01);
+    if (balanceChange <= 0 || Math.abs(balanceChange - expectedSol) > tolerance) {
+        return {
+            ok: false,
+            message: `Jumlah SOL diterima (${balanceChange.toFixed(6)} SOL) tidak sesuai tagihan `
+                + `(${expectedSol.toFixed(6)} SOL)`,
+        };
+    }
+
+    return {
+        ok: true,
+        balanceChange,
+        networkFeeLamports: tx.meta.fee ?? null,
+    };
 }
 
 /**
@@ -61,7 +128,8 @@ export async function POST(request) {
         if (currentStock <= 0) {
             return Response.json({ success: false, message: 'Stok produk habis' }, { status: 400 });
         }
-        if (currentStock < quantity) {
+        const normalizedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
+        if (currentStock < normalizedQuantity) {
             return Response.json({
                 success: false,
                 message: `Stok tidak cukup. Tersedia: ${currentStock} unit`,
@@ -71,7 +139,11 @@ export async function POST(request) {
         // Tentukan harga berdasarkan berat yang dipilih
         const weightIdx = product.weight ? product.weight.indexOf(weight) : -1;
         const pricePerUnit = weightIdx >= 0 ? product.pricePerUnit[weightIdx] : product.pricePerUnit?.[0] ?? 0;
-        const totalPrice = pricePerUnit * quantity;
+        const pricing = calculatePaymentPricing({
+            unitPrice: pricePerUnit,
+            quantity: normalizedQuantity,
+        });
+        const totalPrice = pricing.totalPrice;
 
         // Hitung SOL equivalent (1 SOL = Rp 2.000.000 testnet demo)
         const solAmount = parseFloat((totalPrice / 2_000_000).toFixed(9));
@@ -87,7 +159,20 @@ export async function POST(request) {
         // Tentukan status order
         // transfer SOL + txSignature → paid
         // semua lainnya → pending
-        const isPaid = paymentMethod === 'transfer' && !!txSignature;
+        let verifiedSolPayment = null;
+        if (paymentMethod === 'transfer' && txSignature) {
+            verifiedSolPayment = await verifySolanaPayment({
+                txSignature,
+                expectedSol: solAmount,
+                receiverWallet: product.paymentWallet || STORE_WALLET,
+                expectedSigner: walletAddress,
+            });
+            if (!verifiedSolPayment.ok) {
+                return Response.json({ success: false, message: verifiedSolPayment.message }, { status: 400 });
+            }
+        }
+
+        const isPaid = paymentMethod === 'transfer' && Boolean(verifiedSolPayment?.ok);
         const orderStatus = isPaid ? 'paid' : 'pending';
 
         const order = {
@@ -100,13 +185,21 @@ export async function POST(request) {
             productId,
             productName: product.name,
             weight: weight || product.weight?.[0],
-            quantity,
+            quantity: normalizedQuantity,
             totalPrice,
+            subtotalPrice: pricing.subtotalPrice,
+            ppnRate: pricing.ppnRate,
+            ppnAmount: pricing.ppnAmount,
+            solanaTraceFee: pricing.solanaTraceFee,
             solAmount: isIdrPayment ? null : solAmount,
             paymentMethod,
             paymentCurrency: isIdrPayment ? 'IDR' : 'SOL',
             walletAddress: walletAddress || null,
-            txSignature: txSignature || null,
+            txSignature: isPaid ? txSignature : null,
+            solanaNetworkFeeLamports: verifiedSolPayment?.networkFeeLamports ?? null,
+            solanaTraceStatus: isPaid ? 'confirmed' : 'pending',
+            solanaTraceError: null,
+            solanaTracedAt: isPaid ? new Date().toISOString() : null,
             virtualAccount,
             status: orderStatus,
             source: isIdrPayment ? 'rupiah_payment' : 'phantom_wallet',
@@ -132,7 +225,7 @@ export async function POST(request) {
         }
 
         let certifiedCoffeeId = product.coffeeId || null;
-        let certifiedExplorerUrl = txSignature ? getExplorerTxUrl(txSignature) : null;
+        let certifiedExplorerUrl = order.txSignature ? getExplorerTxUrl(order.txSignature) : null;
 
         if (isPaid && txSignature && !product.coffeeId) {
             certifiedCoffeeId = generateCoffeeId();
@@ -167,7 +260,7 @@ export async function POST(request) {
         // Kurangi stok setelah order berhasil dibuat
         try {
             await updateItem('products', product.id, {
-                stock: currentStock - quantity,
+                stock: currentStock - normalizedQuantity,
                 ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: STORE_WALLET } : {}),
             });
         } catch (stockErr) {
@@ -187,18 +280,24 @@ export async function POST(request) {
                 productName: order.productName,
                 weight: order.weight,
                 quantity: order.quantity,
+                subtotalPrice: order.subtotalPrice,
+                ppnRate: order.ppnRate,
+                ppnAmount: order.ppnAmount,
+                solanaTraceFee: order.solanaTraceFee,
                 totalPrice: order.totalPrice,
                 solAmount: order.solAmount,
                 paymentMethod: order.paymentMethod,
                 paymentCurrency: order.paymentCurrency,
                 walletAddress: order.walletAddress,
                 txSignature: order.txSignature,
+                solanaNetworkFeeLamports: order.solanaNetworkFeeLamports,
+                solanaTraceStatus: order.solanaTraceStatus,
                 coffeeId: certifiedCoffeeId,
                 explorerUrl: certifiedExplorerUrl,
                 virtualAccount: order.virtualAccount,
                 status: order.status,
                 expiresAt: order.expiresAt,
-                stockLeft: currentStock - quantity,
+                stockLeft: currentStock - normalizedQuantity,
             },
         }, {
             status: 201,

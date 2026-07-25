@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { supabaseAdmin } from '@/lib/supabase';
 import {
+    assertMidtransGrossAmount,
     describeMidtransStatus,
     getMidtransApiBaseUrl,
     getMidtransAuthHeader,
@@ -72,15 +73,21 @@ async function handleStatus(request) {
         const paidAt = getPaidAtForStatus(normalizedStatus, midtransData);
         const statusDetails = describeMidtransStatus(midtransData, localOrder);
 
+        if (!localOrder) {
+            throw new Error(`Order ${orderId} tidak ditemukan di Supabase`);
+        }
+        assertMidtransGrossAmount(localOrder.total_price, midtransData);
+
         const updatePayload = {
             status: normalizedStatus,
         };
         if (paidAt) updatePayload.paid_at = paidAt;
 
-        await supabaseAdmin
+        const { error: orderUpdateError } = await supabaseAdmin
             .from('orders')
             .update(updatePayload)
             .eq('order_id', orderId);
+        if (orderUpdateError) throw orderUpdateError;
 
         const solanaTrace = normalizedStatus === 'paid'
             ? await ensureMidtransSolanaTrace(orderId, midtransData)
@@ -94,7 +101,19 @@ async function handleStatus(request) {
                 txSignature: solanaTrace?.txSignature || localOrder?.tx_signature || null,
                 explorerUrl: solanaTrace?.explorerUrl || null,
                 coffeeId: solanaTrace?.coffeeId || localOrder?.coffee_id || null,
+                subtotalPrice: localOrder?.subtotal_price ?? localOrder?.total_price ?? null,
+                ppnRate: localOrder?.ppn_rate ?? 0,
+                ppnAmount: localOrder?.ppn_amount ?? 0,
+                solanaTraceFee: localOrder?.solana_trace_fee ?? 0,
+                totalPrice: localOrder?.total_price ?? null,
+                solanaNetworkFeeLamports: solanaTrace?.solanaNetworkFeeLamports
+                    ?? localOrder?.solana_network_fee_lamports
+                    ?? null,
+                solanaTraceStatus: solanaTrace?.solanaTraceStatus
+                    || localOrder?.solana_trace_status
+                    || null,
                 solanaTraceError: solanaTrace?.solanaTraceError || null,
+                solanaTracePending: Boolean(solanaTrace?.solanaTracePending),
                 midtransStatus: transactionStatus || 'unknown',
                 fraudStatus: fraudStatus || null,
                 displayStatus: statusDetails.displayStatus,

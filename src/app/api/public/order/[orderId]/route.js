@@ -26,6 +26,10 @@ export async function GET(request, { params }) {
                 orderId: order.orderId,
                 productName: order.productName,
                 status: order.status,
+                subtotalPrice: order.subtotalPrice,
+                ppnRate: order.ppnRate,
+                ppnAmount: order.ppnAmount,
+                solanaTraceFee: order.solanaTraceFee,
                 totalPrice: order.totalPrice,
                 paymentMethod: order.paymentMethod,
                 walletAddress: order.walletAddress,
@@ -36,6 +40,8 @@ export async function GET(request, { params }) {
                 createdAt: order.createdAt,
                 expiresAt: order.expiresAt,
                 paidAt: order.paidAt,
+                solanaNetworkFeeLamports: order.solanaNetworkFeeLamports,
+                solanaTraceStatus: order.solanaTraceStatus,
             }
         }, { headers: { 'Access-Control-Allow-Origin': '*' } });
     } catch {
@@ -148,11 +154,18 @@ export async function PATCH(request, { params }) {
         order.txSignature = txSignature;
         order.status = 'paid';
         order.paidAt = new Date().toISOString();
+        order.solanaNetworkFeeLamports = tx.meta.fee ?? null;
+        order.solanaTraceStatus = 'confirmed';
+        order.solanaTracedAt = new Date().toISOString();
 
         await updateItem('orders', order.id, {
             txSignature,
             status: 'paid',
             paidAt: order.paidAt,
+            solanaNetworkFeeLamports: order.solanaNetworkFeeLamports,
+            solanaTraceStatus: order.solanaTraceStatus,
+            solanaTraceError: null,
+            solanaTracedAt: order.solanaTracedAt,
         });
 
         let coffeeId = order.coffeeId || null;
@@ -170,6 +183,8 @@ export async function PATCH(request, { params }) {
                 status: order.status,
                 txSignature: order.txSignature,
                 explorerUrl: getExplorerTxUrl(order.txSignature),
+                solanaNetworkFeeLamports: order.solanaNetworkFeeLamports,
+                solanaTraceStatus: order.solanaTraceStatus,
                 coffeeId,
             }
         }, { headers: { 'Access-Control-Allow-Origin': '*' } });

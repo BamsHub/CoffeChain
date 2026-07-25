@@ -137,17 +137,22 @@ function ReceiptContent() {
     useEffect(() => {
         let alive = true;
         const order = data?.order;
-        const hasTrace = Boolean(data?.trace?.txSignature || order?.txSignature || data?.trace?.coffeeId || order?.coffeeId);
-        if (!order?.orderId || order.paymentMethod !== 'midtrans' || hasTrace || syncingTrace || traceSyncAttempted) return;
+        const hasPaymentTrace = Boolean(order?.txSignature);
+        if (!order?.orderId || order.paymentMethod !== 'midtrans' || hasPaymentTrace || syncingTrace || traceSyncAttempted) return;
 
         async function syncMidtransTrace() {
             setTraceSyncAttempted(true);
             setSyncingTrace(true);
             try {
-                await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(order.orderId)}`, { cache: 'no-store' });
-                const res = await fetch(`/api/public/receipt?orderId=${encodeURIComponent(order.orderId)}`, { cache: 'no-store' });
-                const json = await res.json();
-                if (alive && json.success) setData(json.data);
+                const retryDelays = [0, 800, 1400, 2400, 4000];
+                for (const delay of retryDelays) {
+                    if (delay) await wait(delay);
+                    await syncMidtransReceipt(order.orderId);
+                    const receipt = await fetchReceiptData(order.orderId);
+                    if (!alive) return;
+                    setData(receipt);
+                    if (receipt?.order?.txSignature) return;
+                }
             } catch {
                 // Receipt still renders the payment data even if trace sync is delayed.
             } finally {
@@ -165,8 +170,11 @@ function ReceiptContent() {
     const receiptUrl = useMemo(() => order?.orderId ? `${origin}/receipt?orderId=${encodeURIComponent(order.orderId)}` : '', [origin, order?.orderId]);
     const traceUrl = trace?.traceUrl ? `${origin}${trace.traceUrl}` : order?.traceUrl ? `${origin}${order.traceUrl}` : '';
     const qrTarget = traceUrl || receiptUrl;
-    const txSignature = trace?.txSignature || order?.txSignature;
-    const explorerUrl = trace?.explorerUrl || order?.explorerUrl;
+    const txSignature = order?.txSignature || null;
+    const explorerUrl = order?.explorerUrl || null;
+    const certificateTxSignature = trace?.txSignature && trace.txSignature !== txSignature
+        ? trace.txSignature
+        : null;
     const coffeeId = trace?.coffeeId || order?.coffeeId;
 
     return (
@@ -201,7 +209,10 @@ function ReceiptContent() {
                                     ['Produk', order.productName],
                                     ['Metode', paymentLabel(order.paymentMethod)],
                                     ['Jumlah', `${order.quantity || 1} x ${order.weight || '-'}g`],
-                                    ['Total', formatMoney(order.totalPrice)],
+                                    ['Subtotal', formatMoney(order.subtotalPrice ?? order.totalPrice)],
+                                    ['Biaya trace Solana', formatMoney(order.solanaTraceFee)],
+                                    [`PPN Indonesia ${Number(order.ppnRate || 0) * 100}%`, formatMoney(order.ppnAmount)],
+                                    ['Total dibayar', formatMoney(order.totalPrice)],
                                     ['Dibuat', formatDate(order.createdAt)],
                                     ['Dibayar', formatDate(order.paidAt)],
                                 ].map(([label, value]) => (
@@ -220,9 +231,26 @@ function ReceiptContent() {
                                         <div style={{ fontFamily: 'monospace', fontWeight: 800 }}>{coffeeId || 'Belum tersedia'}</div>
                                     </div>
                                     <div style={{ padding: 14, borderRadius: 12, background: 'rgba(153,69,255,0.08)', border: '1px solid rgba(153,69,255,0.24)' }}>
-                                        <div style={{ color: '#b388ff', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Solana Signature</div>
-                                        <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.45 }}>{txSignature || (syncingTrace ? 'Sinkronisasi trace on-chain...' : 'Menunggu trace on-chain')}</div>
+                                        <div style={{ color: '#b388ff', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Payment Trace Solana</div>
+                                        <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.45 }}>
+                                            {txSignature
+                                                || (syncingTrace
+                                                    ? 'Sinkronisasi trace on-chain...'
+                                                    : order.solanaTraceError || 'Menunggu trace on-chain')}
+                                        </div>
+                                        {order.solanaNetworkFeeLamports != null && (
+                                            <div style={{ marginTop: 7, color: 'rgba(232,245,224,0.58)', fontSize: 11 }}>
+                                                Network fee: {Number(order.solanaNetworkFeeLamports).toLocaleString('id-ID')} lamports
+                                                {' '}({(Number(order.solanaNetworkFeeLamports) / 1e9).toFixed(9)} SOL)
+                                            </div>
+                                        )}
                                     </div>
+                                    {certificateTxSignature && (
+                                        <div style={{ padding: 14, borderRadius: 12, background: 'rgba(126,212,74,0.06)', border: '1px solid rgba(126,212,74,0.2)' }}>
+                                            <div style={{ color: '#7ED44A', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Signature Sertifikat Produk</div>
+                                            <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.45 }}>{certificateTxSignature}</div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>

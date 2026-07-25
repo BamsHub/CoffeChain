@@ -41,6 +41,10 @@ CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS buyer_email       TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS buyer_phone       TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS sol_amount        NUMERIC;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal_price    BIGINT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ppn_rate          NUMERIC(6,5) DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ppn_amount        BIGINT DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_fee  BIGINT DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_currency  TEXT DEFAULT 'IDR';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS wallet_address    TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS coffee_id         TEXT;
@@ -51,6 +55,20 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_city     TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_province TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_postal   TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_phone    TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_network_fee_lamports BIGINT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_status TEXT DEFAULT 'pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_error TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_lock_id TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_started_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_traced_at TIMESTAMPTZ;
+UPDATE orders
+SET
+  subtotal_price = COALESCE(subtotal_price, total_price),
+  solana_trace_status = CASE
+    WHEN tx_signature IS NOT NULL THEN 'confirmed'
+    ELSE COALESCE(solana_trace_status, 'pending')
+  END
+WHERE subtotal_price IS NULL OR solana_trace_status IS NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status   ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_coffee_id ON orders(coffee_id);

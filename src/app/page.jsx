@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { STORE_WALLET, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
@@ -782,7 +783,8 @@ export default function LandingPage() {
 
     const weightIdx = selectedProduct && orderForm.weight ? (selectedProduct.weight?.indexOf(orderForm.weight) ?? 0) : 0;
     const unitPrice = selectedProduct?.pricePerUnit?.[weightIdx] ?? 0;
-    const totalPrice = unitPrice * orderForm.quantity;
+    const pricing = calculatePaymentPricing({ unitPrice, quantity: orderForm.quantity });
+    const totalPrice = pricing.totalPrice;
     const solAmount = rupiahToSol(totalPrice);
 
     return (
@@ -1491,6 +1493,9 @@ export default function LandingPage() {
                                         ['ID Pesanan', orderResult.orderId],
                                         ['Produk', orderResult.productName],
                                         ['Berat × Qty', `${orderResult.weight}g × ${orderResult.quantity}`],
+                                        ['Subtotal', `Rp ${(orderResult.subtotalPrice ?? orderResult.totalPrice)?.toLocaleString('id-ID')}`],
+                                        ['Biaya trace Solana', `Rp ${(orderResult.solanaTraceFee || 0).toLocaleString('id-ID')}`],
+                                        [`PPN Indonesia ${Number(orderResult.ppnRate || 0) * 100}%`, `Rp ${(orderResult.ppnAmount || 0).toLocaleString('id-ID')}`],
                                         ['Total (IDR)', `Rp ${orderResult.totalPrice?.toLocaleString('id-ID')}`],
                                         ...(orderResult.solAmount != null ? [['Total (SOL)', `${orderResult.solAmount?.toFixed(6)} SOL`]] : []),
                                         ['Metode', orderResult.paymentMethod === 'qr' ? 'Solana Pay QR'
@@ -1796,7 +1801,19 @@ export default function LandingPage() {
                                     {/* Price Summary */}
                                     <div style={{ background:'var(--cc-img-bg)', borderRadius:12, padding:'14px 16px', border:'1px solid var(--cc-divider)' }}>
                                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Total Pembayaran</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Subtotal</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text)' }}>Rp {pricing.subtotalPrice.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Biaya trace Solana</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text)' }}>Rp {pricing.solanaTraceFee.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>PPN Indonesia {pricing.ppnPercent}%</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text)' }}>Rp {pricing.ppnAmount.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, paddingTop:8, borderTop:'1px solid var(--cc-divider)' }}>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)', fontWeight:700 }}>Total Pembayaran</span>
                                             <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:18, fontWeight:700, color:'var(--cc-text-highlight)' }}>Rp {totalPrice.toLocaleString('id-ID')}</span>
                                         </div>
                                         {orderForm.paymentMethod === 'transfer' && (
