@@ -58,13 +58,13 @@ export async function PATCH(request, { params }) {
         if (!session) {
             return Response.json({
                 success: false,
-                message: 'Silakan login dengan akun petani atau admin sebelum mengonfirmasi pembayaran',
+                message: 'Silakan login sebelum mengonfirmasi pembayaran',
             }, { status: 401 });
         }
         if (!canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Pembayaran hanya dapat dilakukan oleh akun petani atau admin',
+                message: 'Akun ini tidak memiliki izin pembayaran',
             }, { status: 403 });
         }
 

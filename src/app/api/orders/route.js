@@ -28,7 +28,7 @@ export async function POST(request) {
         if (!session || !canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Order hanya dapat dibuat oleh akun petani atau admin',
+                message: session ? 'Akun ini tidak memiliki izin pembayaran' : 'Silakan login sebelum membuat order',
             }, { status: session ? 403 : 401 });
         }
 
@@ -80,7 +80,7 @@ export async function PATCH(request) {
         if (!session || !canMakePayment(session.role)) {
             return Response.json({
                 success: false,
-                message: 'Pembayaran hanya dapat dikonfirmasi oleh akun petani atau admin',
+                message: session ? 'Akun ini tidak memiliki izin pembayaran' : 'Silakan login sebelum mengonfirmasi pembayaran',
             }, { status: session ? 403 : 401 });
         }
 

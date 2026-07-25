@@ -193,10 +193,18 @@ export async function ensureMidtransSolanaTrace(orderId, midtransData = {}) {
         throw new Error(`Order ${orderId} belum berstatus paid`);
     }
 
+    console.log('[midtrans-solana] trace requested', {
+        orderId,
+        currentStatus: order.solana_trace_status || 'pending',
+    });
+
     let lockId = null;
     try {
         const claim = await claimTraceJob(order);
-        if (!claim.claimed) return waitForExistingTrace(orderId);
+        if (!claim.claimed) {
+            console.log('[midtrans-solana] waiting for active trace', { orderId });
+            return waitForExistingTrace(orderId);
+        }
 
         lockId = claim.lockId;
         const lockedOrder = claim.order;
@@ -204,6 +212,11 @@ export async function ensureMidtransSolanaTrace(orderId, midtransData = {}) {
         const memoData = buildPaymentMemo(lockedOrder, product, midtransData);
         const traceResult = await sendServerMemoTx(memoData);
         const persistedOrder = await persistConfirmedTrace(orderId, lockId, traceResult);
+        console.log('[midtrans-solana] trace confirmed', {
+            orderId,
+            txSignature: traceResult.txSignature,
+            slot: traceResult.slot,
+        });
 
         return {
             txSignature: traceResult.txSignature,
@@ -217,7 +230,10 @@ export async function ensureMidtransSolanaTrace(orderId, midtransData = {}) {
         };
     } catch (error) {
         await markTraceFailed(orderId, lockId, error).catch(() => null);
-        console.error('[midtrans-solana] memo tx failed:', error.message || error);
+        console.error('[midtrans-solana] trace failed', {
+            orderId,
+            error: error.message || String(error),
+        });
         return {
             txSignature: null,
             explorerUrl: null,

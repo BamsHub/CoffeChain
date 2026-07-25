@@ -23,8 +23,10 @@ Never replace this public key or create a new signer unless the repository owner
 
 - Registering a new product creates one product certificate.
 - A payment creates a receipt and one payment trace; it must never create or replace a product certificate.
-- Checkout and payment require an authenticated account with role `farmer` or `admin`.
-- Role `koperasi` is not allowed to create or confirm payments.
+- Checkout and payment require a valid authenticated account.
+- All current account roles may pay: `farmer`, `koperasi`, `developer`, and `admin`.
+- Roles `developer` and `admin` are equivalent administrator roles for payment access.
+- Never make a payment endpoint public: signed JWT verification and order ownership checks remain mandatory.
 
 Current reference records after the July 25, 2026 repair:
 

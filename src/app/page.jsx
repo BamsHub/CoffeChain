@@ -178,7 +178,7 @@ export default function LandingPage() {
     function getSupportReply(message) {
         const text = message.toLowerCase();
         if (/(bayar|pembayaran|midtrans|phantom|qris|transfer)/.test(text)) {
-            return { text: 'Pembayaran tersedia melalui Midtrans untuk Rupiah atau Phantom untuk SOL. Pilih produk lalu tekan Beli Sekarang untuk melihat metode yang tersedia.' };
+            return { text: 'Pembayaran tersedia melalui Midtrans untuk Rupiah atau Phantom untuk SOL. Pilih produk lalu tekan Beli untuk melihat metode yang tersedia.' };
         }
         if (/(qr|sertifikat|sertifikasi|trace|solana)/.test(text)) {
             return { text: 'Tekan tombol QR pada produk berstatus On-Chain untuk membuka sertifikasi. Anda juga dapat memakai halaman Trace Kopi untuk memeriksa Coffee ID.' };
@@ -401,7 +401,7 @@ export default function LandingPage() {
             return;
         }
         if (!canMakePayment(user.role)) {
-            alert('Pembayaran hanya dapat dilakukan oleh akun petani atau admin.');
+            alert('Sesi akun ini tidak memiliki izin pembayaran.');
             return;
         }
         const sessionToken = getToken();
@@ -703,7 +703,12 @@ export default function LandingPage() {
         if (!orderId) return;
         if (!silent) setCheckingMidtrans(true);
         try {
-            const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
+            const sessionToken = getToken();
+            if (!sessionToken) throw new Error('Silakan login kembali untuk mengecek status pembayaran');
+            const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, {
+                cache: 'no-store',
+                headers: { Authorization: `Bearer ${sessionToken}` },
+            });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Gagal mengecek status Midtrans');
 
@@ -805,7 +810,7 @@ export default function LandingPage() {
             return;
         }
         if (!canMakePayment(user.role)) {
-            alert('Pembayaran hanya dapat dilakukan oleh akun petani atau admin.');
+            alert('Sesi akun ini tidak memiliki izin pembayaran.');
             return;
         }
         loadMidtransSnap(); // Lazy-load Midtrans SDK on first order
@@ -1282,7 +1287,7 @@ export default function LandingPage() {
                                             </div>
                                         ) : (
                                             <button onClick={e => { e.stopPropagation(); openOrder(p, 'midtrans'); }} className="cc-btn-green" style={{ width:'100%', padding:'10px', fontSize:13, justifyContent:'center', boxShadow:'0 0 12px rgba(132,224,104,0.15)' }}>
-                                                <IconCart /> {canMakePayment(user?.role) ? 'Beli Sekarang' : user ? 'Khusus Akun Petani/Admin' : 'Login untuk Beli'}
+                                                <IconCart /> Beli
                                             </button>
                                         )}
                                     </div>
@@ -1882,9 +1887,7 @@ export default function LandingPage() {
                                                 style={{ width:'100%', justifyContent:'center', padding:'14px', fontSize:14, opacity:disabled?0.6:1, cursor:disabled?'not-allowed':'pointer' }}>
                                                 {ordering ? <><span className="cc-spinner" /> Memproses...</>
                                                     : needsWallet ? <><IconPhantomLogo size={16} /> Connect Phantom dulu</>
-                                                    : pm === 'midtrans' ? <><IconMidtrans size={18} /> Bayar dengan Midtrans</>
-                                                    : <><IconPhantomLogo size={16} /> Transfer {solAmount.toFixed(4)} SOL via Phantom</>
-                                                }
+                                                    : <><IconCart /> Beli</>}
                                             </button>
                                         );
                                     })()}
@@ -1994,13 +1997,7 @@ export default function LandingPage() {
                             <button className="cc-btn-outline" onClick={() => setDetailModal(false)} style={{ padding:'12px', justifyContent:'center' }}>Kembali</button>
                             <button className="cc-btn-green" onClick={() => { setDetailModal(false); if ((selectedDetailProduct.stock ?? 0) > 0) openOrder(selectedDetailProduct); }}
                                 disabled={(selectedDetailProduct.stock ?? 0) <= 0} style={{ padding:'12px', justifyContent:'center', opacity:(selectedDetailProduct.stock ?? 0) <= 0 ? 0.5 : 1 }}>
-                                {(selectedDetailProduct.stock ?? 0) <= 0
-                                    ? 'Stok Habis'
-                                    : canMakePayment(user?.role)
-                                        ? 'Beli Sekarang'
-                                        : user
-                                            ? 'Khusus Akun Petani/Admin'
-                                            : 'Login untuk Beli'}
+                                {(selectedDetailProduct.stock ?? 0) <= 0 ? 'Stok Habis' : 'Beli'}
                             </button>
                         </div>
                     </div>
