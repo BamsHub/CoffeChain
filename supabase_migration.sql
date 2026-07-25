@@ -243,5 +243,33 @@ GRANT ALL ON TABLE production_stage_logs TO service_role;
 GRANT ALL ON TABLE contact_messages TO service_role;
 GRANT ALL ON TABLE ipfs_assets TO service_role;
 
+-- SOLANA SIGNATURE IMMUTABILITY
+-- Once a certificate/payment signature exists, it is permanent. Applications,
+-- batch jobs, and future AI sessions may only fill a currently NULL signature.
+CREATE OR REPLACE FUNCTION prevent_solana_signature_replacement()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF OLD.tx_signature IS NOT NULL
+     AND NEW.tx_signature IS DISTINCT FROM OLD.tx_signature THEN
+    RAISE EXCEPTION 'Solana signature is immutable and cannot be replaced';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS coffee_traces_signature_immutable ON coffee_traces;
+CREATE TRIGGER coffee_traces_signature_immutable
+BEFORE UPDATE OF tx_signature ON coffee_traces
+FOR EACH ROW
+EXECUTE FUNCTION prevent_solana_signature_replacement();
+
+DROP TRIGGER IF EXISTS orders_signature_immutable ON orders;
+CREATE TRIGGER orders_signature_immutable
+BEFORE UPDATE OF tx_signature ON orders
+FOR EACH ROW
+EXECUTE FUNCTION prevent_solana_signature_replacement();
+
 -- Refresh Supabase schema cache
 NOTIFY pgrst, 'reload schema';

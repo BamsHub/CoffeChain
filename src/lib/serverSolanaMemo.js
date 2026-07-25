@@ -7,7 +7,12 @@ import {
     Transaction,
     TransactionInstruction,
 } from '@solana/web3.js';
-import { MEMO_PROGRAM_ID, SOLANA_NETWORK, getExplorerTxUrl } from '@/lib/contractConfig';
+import {
+    MEMO_PROGRAM_ID,
+    PINNED_MEMO_SIGNER_PUBLIC,
+    SOLANA_NETWORK,
+    getExplorerTxUrl,
+} from '@/lib/contractConfig';
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
@@ -69,6 +74,11 @@ function getSigner() {
 
     const expectedPublicKey = process.env.MEMO_SIGNER_PUBLIC_KEY;
     const actualPublicKey = signer.publicKey.toBase58();
+    if (actualPublicKey !== PINNED_MEMO_SIGNER_PUBLIC) {
+        throw new Error(
+            `Wallet server terkunci ke ${PINNED_MEMO_SIGNER_PUBLIC}; secret key saat ini menghasilkan ${actualPublicKey}`,
+        );
+    }
     if (expectedPublicKey && expectedPublicKey !== actualPublicKey) {
         throw new Error(`MEMO_SIGNER_PUBLIC_KEY tidak cocok dengan secret key (seharusnya ${actualPublicKey})`);
     }

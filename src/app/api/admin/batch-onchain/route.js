@@ -66,18 +66,24 @@ async function loadAuditState() {
 
     const candidates = [
         ...traces
-            .filter(row => !confirmedSignatures.has(row.tx_signature))
+            .filter(row => !row.tx_signature)
             .map(row => ({ source: 'coffee_traces', row })),
         ...products
             .filter(row => !traceProductIds.has(row.id) && (!row.coffee_id || !traceCoffeeIds.has(row.coffee_id)))
             .map(row => ({ source: 'products', row })),
         ...transactions
-            .filter(row => !confirmedSignatures.has(row.hash))
+            .filter(row => !row.hash)
             .map(row => ({ source: 'transactions', row })),
         ...orders
-            .filter(row => !confirmedSignatures.has(row.tx_signature))
+            .filter(row => !row.tx_signature)
             .map(row => ({ source: 'orders', row })),
     ];
+
+    const immutableUnconfirmed = {
+        coffee_traces: traces.filter(row => row.tx_signature && !confirmedSignatures.has(row.tx_signature)).length,
+        transactions: transactions.filter(row => row.hash && !confirmedSignatures.has(row.hash)).length,
+        orders: orders.filter(row => row.tx_signature && !confirmedSignatures.has(row.tx_signature)).length,
+    };
 
     const counts = candidates.reduce((summary, candidate) => {
         summary[candidate.source] = (summary[candidate.source] || 0) + 1;
@@ -87,6 +93,7 @@ async function loadAuditState() {
     return {
         candidates,
         counts,
+        immutableUnconfirmed,
         totals: {
             coffee_traces: traces.length,
             products: products.length,
@@ -99,12 +106,13 @@ async function loadAuditState() {
 async function persistBackfill(candidate, chainTx) {
     const { source, row } = candidate;
     if (source === 'coffee_traces') {
-        const { error } = await supabaseAdmin.from('coffee_traces').update({
+        const { data, error } = await supabaseAdmin.from('coffee_traces').update({
             tx_signature: chainTx.txSignature,
             explorer_url: chainTx.explorerUrl,
             status: 'verified',
-        }).eq('id', row.id);
+        }).eq('id', row.id).is('tx_signature', null).select('id').maybeSingle();
         if (error) throw error;
+        if (!data) throw new Error('Signature sertifikat sudah terisi dan tidak boleh diganti');
         return { coffeeId: row.coffee_id };
     }
 
@@ -144,19 +152,21 @@ async function persistBackfill(candidate, chainTx) {
     }
 
     if (source === 'transactions') {
-        const { error } = await supabaseAdmin.from('transactions').update({
+        const { data, error } = await supabaseAdmin.from('transactions').update({
             hash: chainTx.txSignature,
             block: String(chainTx.slot),
             wallet_from: chainTx.signer,
-        }).eq('id', row.id);
+        }).eq('id', row.id).is('hash', null).select('id').maybeSingle();
         if (error) throw error;
+        if (!data) throw new Error('Hash transaksi sudah terisi dan tidak boleh diganti');
         return {};
     }
 
-    const { error } = await supabaseAdmin.from('orders').update({
+    const { data, error } = await supabaseAdmin.from('orders').update({
         tx_signature: chainTx.txSignature,
-    }).eq('id', row.id);
+    }).eq('id', row.id).is('tx_signature', null).select('id').maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error('Signature order sudah terisi dan tidak boleh diganti');
     return { coffeeId: row.coffee_id || null };
 }
 
@@ -197,6 +207,7 @@ export async function GET(request) {
             success: true,
             remaining: audit.candidates.length,
             counts: audit.counts,
+            immutableUnconfirmed: audit.immutableUnconfirmed,
             totals: audit.totals,
             wallet,
             cluster: 'testnet',

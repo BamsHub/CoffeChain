@@ -11,10 +11,10 @@ export const STORE_WALLET = FARMER_WALLET;
 // Solana Memo Program ID (built-in, tidak perlu deploy)
 export const MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
-// Memo Signer Public Key (server-side, untuk register kopi ke blockchain)
-export const MEMO_SIGNER_PUBLIC = process.env.NEXT_PUBLIC_MEMO_SIGNER_PUBLIC_KEY
-    || process.env.MEMO_SIGNER_PUBLIC_KEY
-    || "8erURhHZgSvoFeXAJSDWzk2JDEiLsWeKq11zpiPs7AhJ";
+// CAUTION: Identitas server wallet dipatok agar tidak berubah antar deployment/chat.
+// Lihat AGENTS.md sebelum menyentuh konfigurasi Solana atau signature tersimpan.
+export const PINNED_MEMO_SIGNER_PUBLIC = "8erURhHZgSvoFeXAJSDWzk2JDEiLsWeKq11zpiPs7AhJ";
+export const MEMO_SIGNER_PUBLIC = PINNED_MEMO_SIGNER_PUBLIC;
 
 // Smart Contract (belum di-deploy, placeholder)
 export const IS_CONTRACT_DEPLOYED = false;

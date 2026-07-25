@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getExplorerTxUrl } from '@/lib/contractConfig';
-import { getConfirmedSolanaSignatures, sendServerMemoTx } from '@/lib/serverSolanaMemo';
+import { sendServerMemoTx } from '@/lib/serverSolanaMemo';
 import { buildMidtransPaymentProof } from '@/lib/midtrans';
 import { getStoredOrderPricing } from '@/lib/paymentPricing';
 
@@ -183,31 +183,12 @@ async function markTraceFailed(orderId, lockId, error) {
 }
 
 export async function ensureMidtransSolanaTrace(orderId, midtransData = {}) {
-    let order = await loadOrder(orderId);
+    const order = await loadOrder(orderId);
     if (!order) {
         throw new Error(`Order ${orderId} tidak ada di Supabase; payment trace tidak boleh memakai fallback lokal`);
     }
-    if (order.tx_signature) {
-        const confirmed = await getConfirmedSolanaSignatures([order.tx_signature]);
-        if (confirmed.has(order.tx_signature)) return resultFromOrder(order);
-
-        const invalidSignature = order.tx_signature;
-        const { data: resetOrder, error: resetError } = await supabaseAdmin
-            .from('orders')
-            .update({
-                tx_signature: null,
-                solana_trace_status: 'failed',
-                solana_trace_error: 'Signature tersimpan tidak terkonfirmasi di Solana Testnet; trace akan dibuat ulang',
-                solana_trace_lock_id: null,
-            })
-            .eq('order_id', orderId)
-            .eq('tx_signature', invalidSignature)
-            .select('*')
-            .maybeSingle();
-        if (resetError) throw new Error(`Gagal mereset trace Solana tidak valid: ${resetError.message}`);
-        order = resetOrder || await loadOrder(orderId);
-        if (order?.tx_signature) return resultFromOrder(order);
-    }
+    // Signature yang sudah tersimpan bersifat permanen. Jangan pernah menggantinya.
+    if (order.tx_signature) return resultFromOrder(order);
     if (order.status !== 'paid') {
         throw new Error(`Order ${orderId} belum berstatus paid`);
     }

@@ -1,7 +1,8 @@
 import { readDb, addItem } from '@/lib/db';
-import { sbSelect, sbInsert, sbUpdate, ordersToSnake } from '@/lib/sdb';
+import { sbSelect, sbInsert, sbUpdate, ordersToCamel, ordersToSnake } from '@/lib/sdb';
 import { getOrders } from '@/lib/orders';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyToken } from '@/lib/auth';
 
 export { getOrders };
 
@@ -21,6 +22,15 @@ export async function GET(request) {
 // POST — buat order baru
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session || session.role !== 'farmer') {
+            return Response.json({
+                success: false,
+                message: 'Order hanya dapat dibuat oleh akun petani',
+            }, { status: session ? 403 : 401 });
+        }
+
         const body = await request.json();
         const { userId, userName, productId, productName, weight, quantity, totalPrice, paymentMethod } = body;
 
@@ -34,7 +44,7 @@ export async function POST(request) {
         const order = {
             id: uuidv4(),
             orderId,
-            userId: userId || 'guest',
+            userId: session.userId,
             userName: userName || 'Guest',
             productId,
             productName,
@@ -64,6 +74,15 @@ export async function POST(request) {
 // PATCH — update status order (paid/expired)
 export async function PATCH(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session || session.role !== 'farmer') {
+            return Response.json({
+                success: false,
+                message: 'Pembayaran hanya dapat dikonfirmasi oleh akun petani',
+            }, { status: session ? 403 : 401 });
+        }
+
         const { orderId, status, txSignature } = await request.json();
         const updates = { status };
         if (status === 'paid') updates.paidAt = new Date().toISOString();
@@ -75,6 +94,15 @@ export async function PATCH(request) {
         if (sbOrders !== null) {
             const target = sbOrders.find(o => o.order_id === orderId || o.id === orderId);
             if (target) {
+                if (target.user_id !== session.userId) {
+                    return Response.json({ success: false, message: 'Order bukan milik akun ini' }, { status: 403 });
+                }
+                if (target.tx_signature && txSignature && target.tx_signature !== txSignature) {
+                    return Response.json({
+                        success: false,
+                        message: 'Signature pembayaran sudah permanen dan tidak boleh diganti',
+                    }, { status: 409 });
+                }
                 const sbUpdates = { status };
                 if (status === 'paid') sbUpdates.paid_at = new Date().toISOString();
                 if (txSignature) sbUpdates.tx_signature = txSignature;
@@ -86,6 +114,15 @@ export async function PATCH(request) {
         const db = await readDb('orders');
         const idx = db.items.findIndex(o => o.orderId === orderId || o.id === orderId);
         if (idx >= 0) {
+            if (db.items[idx].userId !== session.userId) {
+                return Response.json({ success: false, message: 'Order bukan milik akun ini' }, { status: 403 });
+            }
+            if (db.items[idx].txSignature && txSignature && db.items[idx].txSignature !== txSignature) {
+                return Response.json({
+                    success: false,
+                    message: 'Signature pembayaran sudah permanen dan tidak boleh diganti',
+                }, { status: 409 });
+            }
             Object.assign(db.items[idx], updates);
             const { writeDb } = await import('@/lib/db');
             await writeDb('orders', db);
