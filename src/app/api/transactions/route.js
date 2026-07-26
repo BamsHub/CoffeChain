@@ -9,12 +9,26 @@ import { verifyToken } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    const includeOrders = searchParams.get('includeOrders') === 'true';
-    const includeTraces = searchParams.get('includeTraces') === 'true';
+    try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
-    const data = await getTransactionFeed({ includeOrders, includeTraces });
-    return Response.json({ success: true, data });
+        const { searchParams } = new URL(request.url);
+        const includeOrders = searchParams.get('includeOrders') === 'true';
+        const includeTraces = searchParams.get('includeTraces') === 'true';
+        const data = await getTransactionFeed({
+            includeOrders,
+            includeTraces,
+            userId: session.userId,
+        });
+        return Response.json({ success: true, data });
+    } catch (error) {
+        console.error('[transactions GET]', error);
+        return Response.json({ success: false, message: 'Gagal memuat transaksi akun' }, { status: 500 });
+    }
 }
 
 export async function POST(request) {
@@ -68,6 +82,8 @@ export async function POST(request) {
             walletTo: body.walletTo || '—',
             note: body.note || '',
             type: body.type || 'transfer',
+            farmerId: session.userId,
+            createdBy: session.userId,
             productId: body.productId,
             productName: body.productName,
             txSignature: chainTx.txSignature,
@@ -87,6 +103,13 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    const session = await verifyToken(token);
+    if (!session) return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    if (!['developer', 'admin'].includes(session.role)) {
+        return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return Response.json({ success: false, message: 'ID required' }, { status: 400 });

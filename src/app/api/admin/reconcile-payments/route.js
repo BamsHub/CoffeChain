@@ -16,7 +16,7 @@ const RECONCILE_LIMIT = 25;
 async function requireAdmin(request) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
     const session = await verifyToken(token);
-    if (!session || !['koperasi', 'developer'].includes(session.role)) return null;
+    if (!session || !['koperasi', 'developer', 'admin'].includes(session.role)) return null;
     return session;
 }
 

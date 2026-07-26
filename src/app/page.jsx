@@ -287,18 +287,18 @@ export default function LandingPage() {
         const controller = new AbortController();
         async function load() {
             try {
-                const [prodRes, farmerRes, txRes] = await Promise.all([
+                const [prodRes, farmerRes] = await Promise.all([
                     fetch('/api/public/products', { signal: controller.signal }),
                     fetch('/api/farmers', { signal: controller.signal }),
-                    fetch('/api/transactions', { signal: controller.signal }),
                 ]);
                 const prodData = await prodRes.json();
                 const farmerData = await farmerRes.json();
-                const txData = await txRes.json();
                 if (prodData.success) setProducts(prodData.data);
                 setStats({
                     farmers: farmerData.success ? farmerData.data?.length : 0,
-                    transactions: txData.success ? txData.data?.length : 0,
+                    transactions: prodData.success
+                        ? prodData.data.reduce((total, product) => total + Number(product.sold || 0), 0)
+                        : 0,
                     products: prodData.success ? prodData.total : 0,
                 });
             } catch { }

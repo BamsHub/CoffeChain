@@ -2,6 +2,10 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { Analytics } from '@vercel/analytics/react';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata = {
     title: 'CoffeeChain — Blockchain Industri Kopi',
@@ -10,7 +14,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
     return (
-        <html lang="id">
+        <html lang="id" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
             <head>
                 {/* Anti-flash script: apply theme before React hydration */}
                 <script dangerouslySetInnerHTML={{

@@ -132,7 +132,7 @@ export async function POST(request) {
         if (!product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
         }
-        if (!product.coffeeId) {
+        if (product.status !== 'published' || !product.coffeeId) {
             return Response.json({
                 success: false,
                 message: 'Produk belum memiliki sertifikat Solana dan belum dapat dibayar',
@@ -144,7 +144,10 @@ export async function POST(request) {
         if (currentStock <= 0) {
             return Response.json({ success: false, message: 'Stok produk habis' }, { status: 400 });
         }
-        const normalizedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
+        const normalizedQuantity = Math.floor(Number(quantity));
+        if (!Number.isInteger(normalizedQuantity) || normalizedQuantity < 1 || normalizedQuantity > 1_000) {
+            return Response.json({ success: false, message: 'Jumlah pembelian tidak valid' }, { status: 400 });
+        }
         if (currentStock < normalizedQuantity) {
             return Response.json({
                 success: false,
@@ -153,8 +156,16 @@ export async function POST(request) {
         }
 
         // Tentukan harga berdasarkan berat yang dipilih
-        const weightIdx = product.weight ? product.weight.indexOf(weight) : -1;
-        const pricePerUnit = weightIdx >= 0 ? product.pricePerUnit[weightIdx] : product.pricePerUnit?.[0] ?? 0;
+        const weightOptions = Array.isArray(product.weight) ? product.weight.map(Number) : [];
+        const selectedWeight = Number(weight);
+        const weightIdx = weightOptions.indexOf(selectedWeight);
+        if (weightIdx < 0) {
+            return Response.json({ success: false, message: 'Pilihan berat produk tidak valid' }, { status: 400 });
+        }
+        const pricePerUnit = Number(product.pricePerUnit?.[weightIdx]);
+        if (!Number.isInteger(pricePerUnit) || pricePerUnit < 1_000) {
+            return Response.json({ success: false, message: 'Harga produk tidak valid' }, { status: 409 });
+        }
         const pricing = calculatePaymentPricing({
             unitPrice: pricePerUnit,
             quantity: normalizedQuantity,
@@ -200,7 +211,7 @@ export async function POST(request) {
             buyerPhone: buyerPhone || null,
             productId,
             productName: product.name,
-            weight: weight || product.weight?.[0],
+            weight: selectedWeight,
             quantity: normalizedQuantity,
             totalPrice,
             subtotalPrice: pricing.subtotalPrice,

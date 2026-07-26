@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import AddTransactionModal from '@/sections/dashboard/AddTransactionModal';
 import DashboardCalendar from '@/sections/dashboard/DashboardCalendar';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import styles from './DashboardPage.module.css';
 
@@ -18,6 +19,7 @@ const topFarmers = [
 ];
 
 export default function DashboardPage({ walletPublicKey }) {
+    const { getToken } = useAuth();
     const [mounted, setMounted] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [transactions, setTransactions] = useState([]);
@@ -37,10 +39,12 @@ export default function DashboardPage({ walletPublicKey }) {
     const refreshData = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setLoadingTx(true);
         try {
+            const token = await getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const [txRes, orderRes, settingsRes] = await Promise.all([
-                fetch('/api/transactions?includeOrders=true'),
-                fetch('/api/orders'),
-                fetch('/api/dashboard-settings'),
+                fetch('/api/transactions?includeOrders=true', { headers, cache: 'no-store' }),
+                fetch('/api/orders', { headers, cache: 'no-store' }),
+                fetch('/api/dashboard-settings', { headers, cache: 'no-store' }),
             ]);
             const txData = await txRes.json();
             const orderData = await orderRes.json();
@@ -57,7 +61,7 @@ export default function DashboardPage({ walletPublicKey }) {
             }
         } catch { /* offline mode */ }
         finally { if (!silent) setLoadingTx(false); }
-    }, []);
+    }, [getToken]);
 
     useEffect(() => {
         refreshData();

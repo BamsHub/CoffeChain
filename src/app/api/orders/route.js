@@ -1,140 +1,53 @@
-import { readDb, addItem } from '@/lib/db';
-import { sbSelect, sbInsert, sbUpdate, ordersToCamel, ordersToSnake } from '@/lib/sdb';
-import { getOrders } from '@/lib/orders';
-import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
+import { getOrders } from '@/lib/orders';
 import { canMakePayment } from '@/lib/paymentAccess';
 
 export { getOrders };
 
-// GET — riwayat order
+async function requirePaymentSession(request) {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    const session = await verifyToken(token);
+    return session && canMakePayment(session.role) ? session : null;
+}
+
 export async function GET(request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
-        const orders = await getOrders(userId);
+        const session = await requirePaymentSession(request);
+        if (!session) {
+            return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Pemilik riwayat selalu berasal dari JWT, bukan parameter browser.
+        const orders = await getOrders(session.userId);
         return Response.json({ success: true, data: orders });
-    } catch (e) {
-        console.error('/api/orders GET:', e);
-        return Response.json({ success: false, message: e.message }, { status: 500 });
+    } catch (error) {
+        console.error('/api/orders GET:', error);
+        return Response.json({ success: false, message: 'Gagal memuat order' }, { status: 500 });
     }
 }
 
-// POST — buat order baru
+// Pembuatan order harus memakai route authoritative yang menghitung harga,
+// PPN, trace fee, stok, dan kepemilikan produk di server.
 export async function POST(request) {
-    try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-        const session = await verifyToken(token);
-        if (!session || !canMakePayment(session.role)) {
-            return Response.json({
-                success: false,
-                message: session ? 'Akun ini tidak memiliki izin pembayaran' : 'Silakan login sebelum membuat order',
-            }, { status: session ? 403 : 401 });
-        }
-
-        const body = await request.json();
-        const { userId, userName, productId, productName, weight, quantity, totalPrice, paymentMethod } = body;
-
-        if (!productId || !totalPrice || !paymentMethod) {
-            return Response.json({ success: false, message: 'Data order tidak lengkap' }, { status: 400 });
-        }
-
-        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-        const virtualAccount = `88800${Math.floor(Math.random() * 9000000000 + 1000000000)}`;
-
-        const order = {
-            id: uuidv4(),
-            orderId,
-            userId: session.userId,
-            userName: userName || 'Guest',
-            productId,
-            productName,
-            weight,
-            quantity: quantity || 1,
-            totalPrice,
-            paymentMethod,
-            virtualAccount: paymentMethod === 'transfer' ? virtualAccount : null,
-            txSignature: null,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-            paidAt: null,
-        };
-
-        const sbResult = await sbInsert('orders', ordersToSnake(order));
-        if (!sbResult) {
-            await addItem('orders', order);
-        }
-        return Response.json({ success: true, data: order }, { status: 201 });
-    } catch (err) {
-        console.error('/api/orders POST:', err);
-        return Response.json({ success: false, message: 'Server error' }, { status: 500 });
+    const session = await requirePaymentSession(request);
+    if (!session) {
+        return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+    return Response.json({
+        success: false,
+        message: 'Gunakan checkout CoffeeChain untuk membuat order.',
+    }, { status: 409 });
 }
 
-// PATCH — update status order (paid/expired)
+// Status paid hanya dapat ditulis oleh verifikasi Solana, webhook Midtrans,
+// atau pengecekan status Midtrans yang telah memverifikasi pemilik order.
 export async function PATCH(request) {
-    try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-        const session = await verifyToken(token);
-        if (!session || !canMakePayment(session.role)) {
-            return Response.json({
-                success: false,
-                message: session ? 'Akun ini tidak memiliki izin pembayaran' : 'Silakan login sebelum mengonfirmasi pembayaran',
-            }, { status: session ? 403 : 401 });
-        }
-
-        const { orderId, status, txSignature } = await request.json();
-        const updates = { status };
-        if (status === 'paid') updates.paidAt = new Date().toISOString();
-        if (txSignature) updates.txSignature = txSignature;
-
-        let updated = null;
-
-        const sbOrders = await sbSelect('orders', {});
-        if (sbOrders !== null) {
-            const target = sbOrders.find(o => o.order_id === orderId || o.id === orderId);
-            if (target) {
-                if (target.user_id !== session.userId) {
-                    return Response.json({ success: false, message: 'Order bukan milik akun ini' }, { status: 403 });
-                }
-                if (target.tx_signature && txSignature && target.tx_signature !== txSignature) {
-                    return Response.json({
-                        success: false,
-                        message: 'Signature pembayaran sudah permanen dan tidak boleh diganti',
-                    }, { status: 409 });
-                }
-                const sbUpdates = { status };
-                if (status === 'paid') sbUpdates.paid_at = new Date().toISOString();
-                if (txSignature) sbUpdates.tx_signature = txSignature;
-                const sbRow = await sbUpdate('orders', target.id, sbUpdates);
-                if (sbRow) updated = { ...ordersToCamel(target), ...updates };
-            }
-        }
-
-        const db = await readDb('orders');
-        const idx = db.items.findIndex(o => o.orderId === orderId || o.id === orderId);
-        if (idx >= 0) {
-            if (db.items[idx].userId !== session.userId) {
-                return Response.json({ success: false, message: 'Order bukan milik akun ini' }, { status: 403 });
-            }
-            if (db.items[idx].txSignature && txSignature && db.items[idx].txSignature !== txSignature) {
-                return Response.json({
-                    success: false,
-                    message: 'Signature pembayaran sudah permanen dan tidak boleh diganti',
-                }, { status: 409 });
-            }
-            Object.assign(db.items[idx], updates);
-            const { writeDb } = await import('@/lib/db');
-            await writeDb('orders', db);
-            updated = db.items[idx];
-        } else if (!updated) {
-            return Response.json({ success: false, message: 'Order tidak ditemukan' }, { status: 404 });
-        }
-
-        return Response.json({ success: true, data: updated });
-    } catch (e) {
-        console.error('/api/orders PATCH:', e);
-        return Response.json({ success: false, message: e.message }, { status: 500 });
+    const session = await requirePaymentSession(request);
+    if (!session) {
+        return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+    return Response.json({
+        success: false,
+        message: 'Status pembayaran tidak dapat diubah secara manual.',
+    }, { status: 409 });
 }

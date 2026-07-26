@@ -10,7 +10,7 @@ import { Key, Shield, Wallet, MonitorSmartphone, User, Lock, Bell, Settings, Sho
 const LANGUAGES = ['Indonesia', 'English', 'Bahasa Melayu', '日本語', '中文'];
 
 // ── Password Change Modal ────────────────────────────────────────────────────
-function PasswordModal({ onClose, userId }) {
+function PasswordModal({ onClose, userId, getToken }) {
     const [oldPw, setOldPw] = useState('');
     const [newPw, setNewPw] = useState('');
     const [confPw, setConfPw] = useState('');
@@ -24,9 +24,13 @@ function PasswordModal({ onClose, userId }) {
         if (newPw.length < 6) { setErr('Password minimal 6 karakter'); return; }
         setLoading(true); setErr('');
         try {
+            const token = await getToken();
             const res = await fetch('/api/profile/password', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ userId, oldPassword: oldPw, newPassword: newPw }),
             });
             const data = await res.json();
@@ -69,7 +73,7 @@ function PasswordModal({ onClose, userId }) {
 }
 
 // ── Phantom Wallet Modal ─────────────────────────────────────────────────────
-function PhantomModal({ onClose, user, onUpdate }) {
+function PhantomModal({ onClose, user, onUpdate, getToken }) {
     const [connecting, setConnecting] = useState(false);
     const [msg, setMsg] = useState('');
 
@@ -83,9 +87,13 @@ function PhantomModal({ onClose, user, onUpdate }) {
             const resp = await window.solana.connect();
             const address = resp.publicKey.toString();
             // Simpan ke profil
+            const token = await getToken();
             await fetch('/api/profile', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ userId: user.id, wallet: address }),
             });
             onUpdate(address);
@@ -100,9 +108,13 @@ function PhantomModal({ onClose, user, onUpdate }) {
     async function disconnectPhantom() {
         try {
             if (window.solana?.isPhantom) await window.solana.disconnect();
+            const token = await getToken();
             await fetch('/api/profile', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ userId: user.id, wallet: '' }),
             });
             onUpdate('');
@@ -151,7 +163,7 @@ function PhantomModal({ onClose, user, onUpdate }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
-    const { user, setUser, logout } = useAuth();
+    const { user, setUser, logout, getToken } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const router = useRouter();
 
@@ -197,37 +209,20 @@ export default function ProfilePage() {
     async function fetchStats() {
         if (!user) return;
         try {
+            const token = await getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const [ordersRes, productsRes] = await Promise.all([
-                fetch('/api/orders'),
-                fetch('/api/products'),
+                fetch('/api/orders', { headers, cache: 'no-store' }),
+                fetch('/api/products?scope=mine', { headers, cache: 'no-store' }),
             ]);
             const ordersData = await ordersRes.json();
             const productsData = await productsRes.json();
-            const allOrders = ordersData.data || [];
-
-            let relevantOrders;
-            if (user.role === 'developer' || user.role === 'koperasi') {
-                // Admin/koperasi: lihat semua paid orders
-                relevantOrders = allOrders.filter(o => o.status === 'paid');
-            } else {
-                // Farmer/user: coba cari berdasarkan userId atau email, fallback ke paid guest orders sesi
-                const myOrders = allOrders.filter(o =>
-                    (o.userId === user.id || o.userId === user.email) && o.status === 'paid'
-                );
-                // Jika tidak ada orders personal, tampilkan semua guest orders paid sebagai demo
-                relevantOrders = myOrders.length > 0 ? myOrders :
-                    allOrders.filter(o => o.userId === 'guest' && o.status === 'paid');
-            }
-
-            // Hitung produk unik yang pernah dibeli
-            const uniqueProducts = new Set(relevantOrders.map(o => o.productId).filter(Boolean));
+            const relevantOrders = (ordersData.data || []).filter(order => order.status === 'paid');
 
             setStats({
                 orders: relevantOrders.length,
                 spent: relevantOrders.reduce((s, o) => s + (o.totalPrice || 0), 0),
-                products: (user.role === 'developer' || user.role === 'koperasi')
-                    ? (productsData.data || []).length
-                    : uniqueProducts.size,
+                products: (productsData.data || []).length,
             });
         } catch (e) { console.error('fetchStats:', e); }
     }
@@ -246,9 +241,13 @@ export default function ProfilePage() {
         if (!form.name.trim()) { setError('Nama tidak boleh kosong'); return; }
         setSaving(true); setError(''); setSaved(false);
         try {
+            const token = await getToken();
             const res = await fetch('/api/profile', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ userId: user.id, ...form, photoBase64: photoPreview }),
             });
             const data = await res.json();
@@ -283,12 +282,13 @@ export default function ProfilePage() {
     return (
         <div className={styles.page}>
             {/* Modals */}
-            {showPwModal && <PasswordModal onClose={() => setShowPwModal(false)} userId={user?.id} />}
+            {showPwModal && <PasswordModal onClose={() => setShowPwModal(false)} userId={user?.id} getToken={getToken} />}
             {showPhantomModal && (
                 <PhantomModal
                     onClose={() => setShowPhantomModal(false)}
                     user={{ ...user, wallet: walletAddr }}
                     onUpdate={handleWalletUpdate}
+                    getToken={getToken}
                 />
             )}
 

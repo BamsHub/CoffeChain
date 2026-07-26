@@ -67,12 +67,9 @@ export default function StockManagement() {
         try {
             const token = await getToken();
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            const batchUrl = isFarmer && user?.id
-                ? `/api/production-batches?farmerId=${encodeURIComponent(user.id)}`
-                : '/api/production-batches';
             const [batchRes, logRes] = await Promise.all([
-                fetch(batchUrl, { headers }),
-                fetch('/api/production-stages', { headers }),
+                fetch('/api/production-batches', { headers, cache: 'no-store' }),
+                fetch('/api/production-stages', { headers, cache: 'no-store' }),
             ]);
             const [batchData, logData] = await Promise.all([batchRes.json(), logRes.json()]);
             if (!batchRes.ok || !batchData.success) throw new Error(batchData.message || 'Gagal memuat batch');
@@ -83,7 +80,7 @@ export default function StockManagement() {
             setMsg({ type: 'err', text: `Gagal memuat data: ${err.message}` });
         }
         setLoading(false);
-    }, [isFarmer, user?.id]);
+    }, [getToken]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -136,8 +133,6 @@ export default function StockManagement() {
                 body: JSON.stringify({
                     ...batchForm,
                     weightKg: Number(batchForm.weightKg) || null,
-                    farmerId: user?.id || null,
-                    farmerName: user?.name || user?.email || null,
                 }),
             });
             const data = await res.json();

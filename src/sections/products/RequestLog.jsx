@@ -32,8 +32,8 @@ const STATUS_CONFIG = {
 };
 
 export default function RequestLog() {
-    const { user } = useAuth();
-    const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
+    const { user, getToken } = useAuth();
+    const canApprove = ['developer', 'admin', 'koperasi'].includes(user?.role);
 
     const [pending, setPending] = useState([]);
     const [history, setHistory] = useState([]);
@@ -46,10 +46,12 @@ export default function RequestLog() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
+            const token = await getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const [pendRes, allRes, txRes] = await Promise.all([
-                fetch('/api/products?status=pending'),
-                fetch('/api/products'),
-                fetch('/api/transactions'),
+                fetch('/api/products?status=pending_certification', { headers, cache: 'no-store' }),
+                fetch('/api/products', { headers, cache: 'no-store' }),
+                fetch('/api/transactions', { headers, cache: 'no-store' }),
             ]);
             const pendData = await pendRes.json();
             const allData = await allRes.json();
@@ -95,7 +97,7 @@ export default function RequestLog() {
             setHistory(merged.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)));
         } catch { }
         setLoading(false);
-    }, []);
+    }, [getToken]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -103,9 +105,13 @@ export default function RequestLog() {
         setApproving(`approve-${product.id}`);
         setMsg(null);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id: product.id,
                     status: 'published',
@@ -129,9 +135,13 @@ export default function RequestLog() {
         setApproving(`reject-${product.id}`);
         setMsg(null);
         try {
+            const token = await getToken();
             const res = await fetch('/api/products', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     id: product.id,
                     status: 'rejected',

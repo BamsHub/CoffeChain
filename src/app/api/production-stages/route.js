@@ -9,6 +9,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const STAGE_NAMES = Object.fromEntries(PRODUCTION_STAGES.map(stage => [stage.id, stage.name]));
+const ACCOUNT_ROLES = new Set(['farmer', 'koperasi', 'developer', 'admin']);
+const REVIEW_ROLES = new Set(['koperasi', 'developer', 'admin']);
 
 function isValidCid(cid) {
     return typeof cid === 'string' && (
@@ -51,7 +53,7 @@ function getEvidencePhotos(stageData, primary) {
         uri: photo.uri,
         gatewayUrl: photo.gatewayUrl,
     }));
-    if (!photos.length || photos.some(photo => (
+    if (!photos.length || photos.length > 6 || photos.some(photo => (
         !isValidCid(photo.cid)
         || photo.uri !== `ipfs://${photo.cid}`
         || !photo.gatewayUrl
@@ -59,6 +61,33 @@ function getEvidencePhotos(stageData, primary) {
     const first = photos[0];
     if (first.cid !== primary.cid || first.uri !== primary.uri || first.gatewayUrl !== primary.gatewayUrl) return null;
     return photos;
+}
+
+function validateStageData(stage, stageData) {
+    const description = String(stageData?.description || stageData?.notes || '').trim();
+    if (!description) return 'Deskripsi tahap wajib diisi';
+    if (description.length > 2000) return 'Deskripsi tahap maksimal 2.000 karakter';
+    if (Number(stage) !== 6) return null;
+
+    const productName = String(stageData?.productName || '').trim();
+    const weights = stageData?.weights;
+    const prices = stageData?.pricePerUnit;
+    const stock = Number(stageData?.stock);
+
+    if (!productName || productName.length > 120) return 'Nama produk wajib diisi dan maksimal 120 karakter';
+    if (!Array.isArray(weights) || !Array.isArray(prices) || weights.length !== prices.length) {
+        return 'Ukuran berat dan harga harus memiliki jumlah yang sama';
+    }
+    if (weights.length < 1 || weights.length > 6) return 'Produk harus memiliki 1 sampai 6 pilihan ukuran';
+    if (weights.some(value => !Number.isInteger(Number(value)) || Number(value) < 50 || Number(value) > 5000)) {
+        return 'Berat produk harus berupa bilangan bulat antara 50 dan 5.000 gram';
+    }
+    if (new Set(weights.map(Number)).size !== weights.length) return 'Pilihan berat produk tidak boleh duplikat';
+    if (prices.some(value => !Number.isInteger(Number(value)) || Number(value) < 1000 || Number(value) > 10_000_000)) {
+        return 'Harga produk harus berupa bilangan bulat antara Rp1.000 dan Rp10.000.000';
+    }
+    if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) return 'Stok produk tidak valid';
+    return null;
 }
 
 async function verifyStageAssets(supabase, context, photos) {
@@ -76,15 +105,16 @@ export async function GET(req) {
     try {
         const token = getToken(req);
         const session = await verifyToken(token);
-        if (!session) {
+        if (!session || !ACCOUNT_ROLES.has(session.role)) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
         const { searchParams } = new URL(req.url);
         const batchId = searchParams.get('batchId');
+        const reviewScope = searchParams.get('scope') === 'review' && REVIEW_ROLES.has(session.role);
 
         const supabase = getSupabaseAdmin();
         let query = supabase.from('production_stage_logs').select('*').order('created_at', { ascending: false });
-        if (session.role === 'farmer') {
+        if (!reviewScope) {
             const { data: ownedBatches, error: ownedError } = await supabase
                 .from('production_batches')
                 .select('id')
@@ -128,12 +158,12 @@ export async function POST(req) {
     try {
         const token = getToken(req);
         const session = await verifyToken(token);
-        if (!session) {
+        if (!session || !ACCOUNT_ROLES.has(session.role)) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await req.json();
-        const { batchId, stage, stageData, photoUrl, photoCid, ipfsUri, loggedBy, loggedByName } = body;
+        const { batchId, stage, stageData, photoUrl, photoCid, ipfsUri } = body;
 
         if (!batchId || !stage) {
             return NextResponse.json({ success: false, message: 'batchId dan stage wajib' }, { status: 400 });
@@ -151,9 +181,9 @@ export async function POST(req) {
         if (!evidencePhotos) {
             return NextResponse.json({ success: false, message: 'Metadata bukti foto IPFS tidak valid' }, { status: 400 });
         }
-        const description = String(stageData?.description || stageData?.notes || '').trim();
-        if (!description) {
-            return NextResponse.json({ success: false, message: 'Deskripsi tahap wajib diisi' }, { status: 400 });
+        const validationError = validateStageData(stage, stageData);
+        if (validationError) {
+            return NextResponse.json({ success: false, message: validationError }, { status: 400 });
         }
 
         const supabase = getSupabaseAdmin();
@@ -163,8 +193,7 @@ export async function POST(req) {
             .from('production_batches').select('*').eq('id', batchId).single();
         if (batchErr || !batch) throw new Error('Batch tidak ditemukan');
 
-        // Security check: if role is farmer, verify ownership of the batch
-        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+        if (batch.farmer_id !== session.userId) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
@@ -224,31 +253,29 @@ export async function POST(req) {
 
         if (Number(stage) === 6 && !productId) {
             productId = uuidv4();
-            const weights = Array.isArray(stageData?.weights) && stageData.weights.length ? stageData.weights : [250];
-            const prices = Array.isArray(stageData?.pricePerUnit) && stageData.pricePerUnit.length === weights.length
-                ? stageData.pricePerUnit
-                : weights.map(() => 0);
+            const weights = stageData.weights.map(Number);
+            const prices = stageData.pricePerUnit.map(Number);
 
             const baseProduct = {
                 id: productId,
-                name: stageData?.productName || batch.name,
+                name: String(stageData.productName).trim(),
                 origin: batch.origin || stageData?.origin || 'Tidak diketahui',
                 grade: batch.grade || stageData?.grade || 'A',
                 variety: batch.variety || stageData?.variety || 'Arabika',
                 roast: stageData?.roast || stageData?.levelRoast || 'Medium Roast',
                 weight: weights,
                 price_per_unit: prices,
-                description: stageData?.description || `Produk jadi dari batch ${batch.name}`,
+                description: String(stageData.description || stageData.notes).trim(),
                 image: photoUrl || stageData?.image || null,
                 tags: [batch.variety, batch.grade, 'Produk Jadi', ...evidencePhotos.map(photo => `ipfs-image:${photo.cid}`)].filter(Boolean),
-                stock: Number(stageData?.stock) || 0,
+                stock: Number(stageData.stock),
                 rating: 4.5,
                 sold: 0,
                 status: 'pending_certification',
                 coffee_id: null,
-                submitted_by: targetLoggedBy || batch.farmer_id || null,
-                submitted_by_name: targetLoggedByName || batch.farmer_name || null,
-                submitted_by_role: session.role || 'farmer',
+                submitted_by: batch.farmer_id,
+                submitted_by_name: batch.farmer_name || targetLoggedByName,
+                submitted_by_role: session.role,
                 submitted_at: new Date().toISOString(),
             };
 
@@ -313,10 +340,12 @@ export async function PATCH(req) {
     try {
         const token = getToken(req);
         const session = await verifyToken(token);
-        if (!session) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        if (!session || !ACCOUNT_ROLES.has(session.role)) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
 
         const body = await req.json();
-        const { batchId, stage, stageData, photoUrl, photoCid, ipfsUri, loggedBy, loggedByName } = body;
+        const { batchId, stage, stageData, photoUrl, photoCid, ipfsUri } = body;
         const stageNumber = Number(stage);
         if (!batchId || !Number.isInteger(stageNumber) || stageNumber < 1 || stageNumber > 6) {
             return NextResponse.json({ success: false, message: 'batchId dan stage tidak valid' }, { status: 400 });
@@ -328,8 +357,11 @@ export async function PATCH(req) {
         if (!evidencePhotos) {
             return NextResponse.json({ success: false, message: 'Metadata bukti foto IPFS tidak valid' }, { status: 400 });
         }
-        const description = String(stageData?.description || stageData?.notes || '').trim();
-        if (!description) return NextResponse.json({ success: false, message: 'Deskripsi tahap wajib diisi' }, { status: 400 });
+        const validationError = validateStageData(stageNumber, stageData);
+        if (validationError) {
+            return NextResponse.json({ success: false, message: validationError }, { status: 400 });
+        }
+        const description = String(stageData.description || stageData.notes).trim();
 
         const supabase = getSupabaseAdmin();
         const { data: batch, error: batchError } = await supabase
@@ -338,7 +370,7 @@ export async function PATCH(req) {
             .eq('id', batchId)
             .maybeSingle();
         if (batchError || !batch) return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
-        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+        if (batch.farmer_id !== session.userId) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
         let product = null;
@@ -404,12 +436,12 @@ export async function PATCH(req) {
             const productUpdates = {
                 name: stageData.productName || batch.name,
                 roast: stageData.roast || stageData.levelRoast || 'Medium Roast',
-                weight: Array.isArray(stageData.weights) ? stageData.weights : [250],
-                price_per_unit: Array.isArray(stageData.pricePerUnit) ? stageData.pricePerUnit : [0],
+                weight: stageData.weights.map(Number),
+                price_per_unit: stageData.pricePerUnit.map(Number),
                 description,
                 image: photoUrl,
                 tags,
-                stock: Number(stageData.stock) || 0,
+                stock: Number(stageData.stock),
             };
             const { error: productUpdateError } = await supabase.from('products').update(productUpdates).eq('id', product.id);
             if (productUpdateError) throw new Error(productUpdateError.message);

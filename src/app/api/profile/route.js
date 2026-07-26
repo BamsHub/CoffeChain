@@ -14,7 +14,7 @@ async function findUser(userId) {
 
 export async function GET(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -24,7 +24,7 @@ export async function GET(request) {
         const userId = searchParams.get('userId') || session.userId;
 
         // Security check: users can only fetch their own profile unless they are cooperative or developer
-        if (userId !== session.userId && !['koperasi', 'developer'].includes(session.role)) {
+        if (userId !== session.userId && !['koperasi', 'developer', 'admin'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
@@ -39,7 +39,7 @@ export async function GET(request) {
 
 export async function PATCH(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('token');
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -50,7 +50,7 @@ export async function PATCH(request) {
         const targetUserId = userId || session.userId;
 
         // Security check: users can only update their own profile unless they are a developer
-        if (targetUserId !== session.userId && session.role !== 'developer') {
+        if (targetUserId !== session.userId && !['developer', 'admin'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 

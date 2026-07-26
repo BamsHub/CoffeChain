@@ -5,7 +5,7 @@ import { readDb, addItem, updateItem } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
+import { getExplorerTxUrl, PINNED_MEMO_SIGNER_PUBLIC } from '@/lib/contractConfig';
 import { sendServerMemoTx, verifySolanaTransaction } from '@/lib/serverSolanaMemo';
 import {
     createProductOffchainProof,
@@ -22,7 +22,17 @@ function generateCoffeeId() {
     return id;
 }
 
-async function recordOffchainTransaction({ product, proof, txSignature }) {
+async function getActorName(session) {
+    try {
+        const users = await readDb('users');
+        const actor = users.items.find(item => item.id === session.userId);
+        return actor?.name || actor?.email || session.userId;
+    } catch {
+        return session.userId;
+    }
+}
+
+async function recordOffchainTransaction({ product, proof, txSignature, session, actorName }) {
     const base = {
         id: `off-${Date.now().toString(36)}-${String(product.id).slice(-5)}`,
         hash: txSignature,
@@ -36,6 +46,9 @@ async function recordOffchainTransaction({ product, proof, txSignature }) {
         type: 'offchain_proof',
         product_id: product.id,
         product_name: product.name,
+        farmer_id: product.submitted_by || null,
+        approved_by: session.userId,
+        approved_by_name: actorName,
         timestamp: new Date().toISOString(),
     };
     const { error } = await supabaseAdmin.from('transactions').insert(extended);
@@ -56,7 +69,7 @@ export async function POST(request) {
             productId, name, origin, variety, grade, weightKg,
             farmerName, farmerId, harvestDate, processMethod, roastLevel,
             certification, description, registeredBy, paymentWallet,
-            phantomTxSignature, phantomWalletAddress, offchainProof,
+            phantomTxSignature, offchainProof,
         } = body;
 
         if (!productId) {
@@ -64,6 +77,12 @@ export async function POST(request) {
         }
         if (!name || !origin) {
             return Response.json({ success: false, message: 'Nama dan asal kopi wajib diisi' }, { status: 400 });
+        }
+        if (phantomTxSignature) {
+            return Response.json({
+                success: false,
+                message: 'Sertifikasi produk wajib ditandatangani oleh wallet server CoffeeChain.',
+            }, { status: 409 });
         }
 
         const { data: product, error: productError } = await supabaseAdmin
@@ -114,11 +133,15 @@ export async function POST(request) {
         let explorerUrl = null;
         let txError = null;
 
-        if (phantomTxSignature) {
-            await verifySolanaTransaction(phantomTxSignature, phantomWalletAddress, proof.memo);
-            txSignature = phantomTxSignature;
-            explorerUrl = getExplorerTxUrl(phantomTxSignature);
-            console.log('[coffee-trace] Using Phantom hash-proof TX:', phantomTxSignature);
+        const immutableSignature = (Array.isArray(product.tags) ? product.tags : [])
+            .map(String)
+            .find(tag => tag.startsWith('offchain-proof:'))
+            ?.slice('offchain-proof:'.length);
+
+        if (immutableSignature) {
+            await verifySolanaTransaction(immutableSignature, PINNED_MEMO_SIGNER_PUBLIC, proof.memo);
+            txSignature = immutableSignature;
+            explorerUrl = getExplorerTxUrl(immutableSignature);
         } else {
             try {
                 const result = await sendServerMemoTx(proof.memo);
@@ -151,7 +174,7 @@ export async function POST(request) {
             status: isVerified ? 'verified' : 'registered',
             registeredBy: session.userId,
             productId: product.id,
-            paymentWallet: paymentWallet || phantomWalletAddress || null,
+            paymentWallet: paymentWallet || null,
             createdAt: new Date().toISOString(),
         };
 
@@ -167,15 +190,19 @@ export async function POST(request) {
         }
 
         if (isVerified) {
+            const actorName = await getActorName(session);
             const tags = mergeOffchainTags(product.tags, proof, txSignature);
             await updateItem('products', product.id, {
                 coffeeId,
                 status: 'published',
                 image: proof.image.gatewayUrl,
                 tags,
+                approvedBy: session.userId,
+                approvedByName: actorName,
+                approvedAt: new Date().toISOString(),
                 ...(paymentWallet ? { paymentWallet } : {}),
             });
-            await recordOffchainTransaction({ product, proof, txSignature }).catch(error => {
+            await recordOffchainTransaction({ product, proof, txSignature, session, actorName }).catch(error => {
                 console.warn('[coffee-trace] Failed to record off-chain transaction:', error.message);
             });
         }

@@ -1,34 +1,60 @@
 import { NextResponse } from 'next/server';
-import { readDb, addItem, updateItem } from '@/lib/db';
-import { getSupabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
+import { readDb } from '@/lib/db';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
-// GET — list all batches (or filter by stage / farmerId)
+const ACCOUNT_ROLES = new Set(['farmer', 'koperasi', 'developer', 'admin']);
+const REVIEW_ROLES = new Set(['koperasi', 'developer', 'admin']);
+
+function getToken(req) {
+    return req.headers.get('Authorization')?.replace('Bearer ', '');
+}
+
+async function requireSession(req) {
+    const session = await verifyToken(getToken(req));
+    return session && ACCOUNT_ROLES.has(session.role) ? session : null;
+}
+
+async function getActorName(session) {
+    try {
+        const users = await readDb('users');
+        const actor = users.items.find(item => item.id === session.userId);
+        return actor?.name || actor?.email || session.userId;
+    } catch {
+        return session.userId;
+    }
+}
+
+function cleanText(value, maxLength) {
+    return String(value || '').trim().slice(0, maxLength);
+}
+
 export async function GET(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
-        const session = await verifyToken(token);
+        const session = await requireSession(req);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const { searchParams } = new URL(req.url);
         const stage = searchParams.get('stage');
-        const farmerId = searchParams.get('farmerId');
-
-        let targetFarmerId = farmerId;
-        if (session.role === 'farmer') {
-            targetFarmerId = session.userId;
-        }
+        const reviewScope = searchParams.get('scope') === 'review' && REVIEW_ROLES.has(session.role);
+        const requestedOwner = searchParams.get('ownerId');
+        const ownerId = reviewScope ? requestedOwner : session.userId;
 
         const supabase = getSupabaseAdmin();
         let query = supabase.from('production_batches').select('*').order('created_at', { ascending: false });
-
-        if (stage) query = query.eq('current_stage', Number(stage));
-        if (targetFarmerId) query = query.eq('farmer_id', targetFarmerId);
+        if (stage) {
+            const stageNumber = Number(stage);
+            if (!Number.isInteger(stageNumber) || stageNumber < 1 || stageNumber > 6) {
+                return NextResponse.json({ success: false, message: 'Stage tidak valid' }, { status: 400 });
+            }
+            query = query.eq('current_stage', stageNumber);
+        }
+        if (ownerId) query = query.eq('farmer_id', ownerId);
 
         const { data, error } = await query;
         if (error) throw new Error(error.message);
@@ -37,18 +63,15 @@ export async function GET(req) {
         const productIds = rows.map(row => row.product_id).filter(Boolean);
         const productById = new Map();
         if (productIds.length) {
-            const { data: existingProducts, error: productErr } = await supabase
+            const { data: products, error: productError } = await supabase
                 .from('products')
                 .select('id, status, rejected_reason, coffee_id')
                 .in('id', productIds);
-            if (!productErr) {
-                for (const product of existingProducts || []) productById.set(product.id, product);
-                const existingProductIds = new Set((existingProducts || []).map(product => product.id));
-                rows = rows.filter(row => !row.product_id || existingProductIds.has(row.product_id));
-            }
+            if (productError) throw new Error(productError.message);
+            for (const product of products || []) productById.set(product.id, product);
+            rows = rows.filter(row => !row.product_id || productById.has(row.product_id));
         }
 
-        // camelCase keys
         const items = rows.map(row => ({
             id: row.id,
             name: row.name,
@@ -69,131 +92,93 @@ export async function GET(req) {
         }));
 
         return NextResponse.json({ success: true, data: items });
-    } catch (err) {
-        return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    } catch (error) {
+        console.error('[production-batches GET]', error.message);
+        return NextResponse.json({ success: false, message: 'Gagal memuat pipeline stok' }, { status: 500 });
     }
 }
 
-// POST — create new batch (starts at stage 1)
 export async function POST(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
-        const session = await verifyToken(token);
+        const session = await requireSession(req);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await req.json();
-        const { name, origin, variety, grade, weightKg, farmerId, farmerName, notes } = body;
+        const name = cleanText(body.name, 120);
+        const origin = cleanText(body.origin, 160);
+        const variety = cleanText(body.variety, 80);
+        const grade = cleanText(body.grade, 40);
+        const notes = cleanText(body.notes, 1000);
+        const weightKg = Number(body.weightKg);
 
-        if (!name) return NextResponse.json({ success: false, message: 'Nama batch wajib diisi' }, { status: 400 });
-
-        let targetFarmerId = farmerId;
-        let targetFarmerName = farmerName;
-        if (session.role === 'farmer') {
-            targetFarmerId = session.userId;
-            const dbUsers = await readDb('users');
-            const user = dbUsers.items.find(u => u.id === session.userId);
-            if (user) {
-                targetFarmerName = user.name;
-            }
+        if (!name || !origin) {
+            return NextResponse.json({ success: false, message: 'Nama dan asal batch wajib diisi' }, { status: 400 });
+        }
+        if (!Number.isFinite(weightKg) || weightKg <= 0 || weightKg > 100_000) {
+            return NextResponse.json({ success: false, message: 'Berat batch tidak valid' }, { status: 400 });
         }
 
         const supabase = getSupabaseAdmin();
         const { data, error } = await supabase.from('production_batches').insert({
             id: uuidv4(),
             name,
-            origin: origin || null,
+            origin,
             variety: variety || null,
             grade: grade || null,
-            weight_kg: weightKg || null,
-            farmer_id: targetFarmerId || null,
-            farmer_name: targetFarmerName || null,
+            weight_kg: weightKg,
+            farmer_id: session.userId,
+            farmer_name: await getActorName(session),
             current_stage: 1,
             notes: notes || null,
         }).select().single();
-
         if (error) throw new Error(error.message);
 
-        return NextResponse.json({ success: true, data });
-    } catch (err) {
-        return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+        return NextResponse.json({ success: true, data }, { status: 201 });
+    } catch (error) {
+        console.error('[production-batches POST]', error.message);
+        return NextResponse.json({ success: false, message: 'Gagal membuat batch' }, { status: 500 });
     }
 }
 
-// PATCH — update batch (advance stage, attach coffeeId, etc.)
+// Tahap, product ID, dan Coffee ID hanya diubah secara internal oleh route tahap
+// produksi dan route registrasi Solana; klien tidak boleh melompati pipeline.
 export async function PATCH(req) {
-    try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
-        const session = await verifyToken(token);
-        if (!session) {
-            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
-
-        const body = await req.json();
-        const { id, currentStage, coffeeId, productId, ...rest } = body;
-
-        if (!id) return NextResponse.json({ success: false, message: 'id wajib' }, { status: 400 });
-
-        const supabase = getSupabaseAdmin();
-
-        // Security check: if role is farmer, verify ownership
-        if (session.role === 'farmer') {
-            const { data: batch, error: checkErr } = await supabase.from('production_batches').select('farmer_id').eq('id', id).single();
-            if (checkErr || !batch) {
-                return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
-            }
-            if (batch.farmer_id !== session.userId) {
-                return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
-            }
-        }
-
-        const updates = { updated_at: new Date().toISOString() };
-        if (currentStage !== undefined) updates.current_stage = currentStage;
-        if (coffeeId !== undefined) updates.coffee_id = coffeeId;
-        if (productId !== undefined) updates.product_id = productId;
-
-        const { data, error } = await supabase.from('production_batches')
-            .update(updates)
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) throw new Error(error.message);
-        return NextResponse.json({ success: true, data });
-    } catch (err) {
-        return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    const session = await requireSession(req);
+    if (!session) {
+        return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+    return NextResponse.json({
+        success: false,
+        message: 'Pipeline hanya dapat dilanjutkan melalui penyelesaian Tahap 1-6.',
+    }, { status: 409 });
 }
 
-// DELETE
 export async function DELETE(req) {
     try {
-        const token = req.headers.get('Authorization')?.replace('Bearer ', '') || new URL(req.url).searchParams.get('token');
-        const session = await verifyToken(token);
+        const session = await requireSession(req);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await req.json();
-        const { id } = body;
-        if (!id) return NextResponse.json({ success: false, message: 'id wajib' }, { status: 400 });
+        const { id } = await req.json();
+        if (!id) {
+            return NextResponse.json({ success: false, message: 'id wajib' }, { status: 400 });
+        }
 
         const supabase = getSupabaseAdmin();
-
-        const { data: batch, error: checkErr } = await supabase
+        const { data: batch, error: findError } = await supabase
             .from('production_batches')
-            .select('id, name, farmer_id, product_id, coffee_id')
+            .select('id, farmer_id, product_id, coffee_id')
             .eq('id', id)
-            .single();
-        if (checkErr || !batch) {
+            .maybeSingle();
+        if (findError || !batch) {
             return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
         }
-
-        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+        if (batch.farmer_id !== session.userId) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
-
         if (batch.product_id || batch.coffee_id) {
             return NextResponse.json({
                 success: false,
@@ -203,9 +188,9 @@ export async function DELETE(req) {
 
         const { error } = await supabase.from('production_batches').delete().eq('id', id);
         if (error) throw new Error(error.message);
-
         return NextResponse.json({ success: true });
-    } catch (err) {
-        return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    } catch (error) {
+        console.error('[production-batches DELETE]', error.message);
+        return NextResponse.json({ success: false, message: 'Gagal menghapus batch' }, { status: 500 });
     }
 }

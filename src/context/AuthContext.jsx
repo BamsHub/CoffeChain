@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { disconnectPhantom } from '@/lib/phantom';
 
@@ -66,9 +66,9 @@ export function AuthProvider({ children }) {
         router.push('/');
     }
 
-    function getToken() {
+    const getToken = useCallback(() => {
         return typeof window !== 'undefined' ? localStorage.getItem('cc_token') : null;
-    }
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, setUser, loading, login, logout, getToken }}>

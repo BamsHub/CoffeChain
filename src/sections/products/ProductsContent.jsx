@@ -19,7 +19,7 @@ const initialForm = {
 export default function ProductsContent() {
     const { user, getToken } = useAuth();
     const isFarmer = user?.role === 'farmer';
-    const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
+    const canApprove = ['developer', 'admin', 'koperasi'].includes(user?.role);
 
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -37,16 +37,16 @@ export default function ProductsContent() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            // Farmers only see their own products; developer/koperasi/admin see all
-            const myProductsUrl = isFarmer && user?.id
-                ? `/api/products?submittedBy=${encodeURIComponent(user.id)}`
-                : '/api/products';
-            const allRes = await fetch(myProductsUrl);
+            const token = await getToken();
+            const allRes = await fetch('/api/products?scope=mine', {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                cache: 'no-store',
+            });
             const allData = await allRes.json();
             if (allData.success) setProducts(allData.data);
         } catch { }
         setLoading(false);
-    }, [isFarmer, user?.id]);
+    }, [getToken]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -147,6 +147,36 @@ export default function ProductsContent() {
             setMsg({ type: 'err', text: error.message || 'Gagal menampilkan produk' });
         }
         setDeleting(null);
+    }
+
+    async function handleStock(product) {
+        const value = prompt(`Stok terbaru untuk "${product.name}"`, String(product.stock ?? 0));
+        if (value === null) return;
+        const stock = Number(value);
+        if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) {
+            setMsg({ type: 'err', text: 'Stok harus berupa bilangan bulat antara 0 dan 1.000.000.' });
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const token = await getToken();
+            const res = await fetch('/api/products', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ id: product.id, stock }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Gagal memperbarui stok');
+            setMsg({ type: 'ok', text: `Stok "${product.name}" diperbarui menjadi ${stock} unit.` });
+            load();
+        } catch (error) {
+            setMsg({ type: 'err', text: error.message || 'Gagal memperbarui stok' });
+        }
+        setSaving(false);
     }
 
     async function handleApprove(product) {
@@ -291,7 +321,7 @@ export default function ProductsContent() {
         setVerifying(product.id);
         setMsg({ type: 'ok', text: ` Mengirim "${product.name}" ke Solana Testnet... (maks 30 detik)` });
         try {
-            const token = getToken();
+            const token = await getToken();
             const payload = {
                 productId: product.id,
                 name: product.name,
@@ -348,8 +378,6 @@ export default function ProductsContent() {
     }
 
     const filtered = products.filter(p => {
-        // Farmer only sees their own products
-        if (isFarmer && p.submittedBy && p.submittedBy !== (user?.id || '')) return false;
         const q = search.toLowerCase();
         return !search || p.name?.toLowerCase().includes(q) || p.origin?.toLowerCase().includes(q);
     });
@@ -368,7 +396,7 @@ export default function ProductsContent() {
             {/* Sub Nav Tabs */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
                 <span style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', cursor: 'default' }}>
-                    {isFarmer ? 'Produk Saya' : 'Kelola Produk'}
+                    Produk Saya
                 </span>
                 <Link href="/products/stock" style={{ padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
                     Kelola Stok
@@ -385,12 +413,10 @@ export default function ProductsContent() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
                 <div>
                     <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
-                        {isFarmer ? 'Produk Saya' : 'Kelola Produk'}
+                        Produk Saya
                     </h1>
                     <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                        {loading ? 'Memuat...' : isFarmer
-                            ? `${products.length} produk yang kamu ajukan`
-                            : `${products.length} produk terdaftar di database`}
+                        {loading ? 'Memuat...' : `${products.length} produk milik akun ini`}
                     </p>
                 </div>
                 <Link href="/products/stock" style={{ ...btnPrimary, textDecoration: 'none' }}>
@@ -612,10 +638,9 @@ export default function ProductsContent() {
                                     {p.status === 'archived' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(179,136,255,0.12)', color: '#b388ff', border: '1px solid rgba(179,136,255,0.3)', fontWeight: 700 }}>Diarsipkan dari Landing</span>}
                                 </div>
                                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                                    {/* Non-farmer: Edit + Delete */}
-                                    {!isFarmer && p.status !== 'archived' && <button onClick={() => openEditModal(p)} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Edit</button>}
-                                    {!isFarmer && p.status !== 'archived' && <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting === p.id} style={btnDanger}>{deleting === p.id ? '...' : 'Arsipkan'}</button>}
-                                    {!isFarmer && p.status === 'archived' && <button onClick={() => handleRestore(p)} disabled={deleting === p.id} style={{ ...btnDanger, color: '#7ED44A', borderColor: 'rgba(126,212,74,0.3)', background: 'rgba(126,212,74,0.1)' }}>{deleting === p.id ? '...' : 'Tampilkan Lagi'}</button>}
+                                    {p.submittedBy === (user?.id || '') && p.status !== 'archived' && <button onClick={() => handleStock(p)} disabled={saving} style={{ background: 'rgba(74,124,40,0.12)', color: 'var(--color-primary-light)', border: '1px solid rgba(74,124,40,0.3)', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontSize: 12, fontWeight: 600 }}>Atur Stok</button>}
+                                    {p.submittedBy === (user?.id || '') && p.status !== 'archived' && <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting === p.id} style={btnDanger}>{deleting === p.id ? '...' : 'Arsipkan'}</button>}
+                                    {p.submittedBy === (user?.id || '') && p.status === 'archived' && <button onClick={() => handleRestore(p)} disabled={deleting === p.id} style={{ ...btnDanger, color: '#7ED44A', borderColor: 'rgba(126,212,74,0.3)', background: 'rgba(126,212,74,0.1)' }}>{deleting === p.id ? '...' : 'Tampilkan Lagi'}</button>}
                                     {isFarmer && p.submittedBy === (user?.id || '') && !p.coffeeId && (
                                         <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: 'rgba(245,166,35,0.1)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.25)', fontWeight: 600 }}>Menunggu review</span>
                                     )}
@@ -651,7 +676,7 @@ export default function ProductsContent() {
                                 ) : p.status === 'pending' ? (
                                     <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}> Menunggu Persetujuan</span>
                                 ) : (
-                                    <Link href="/coffee-register"
+                                    canApprove ? <Link href="/coffee-register"
                                         style={{
                                             fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 7,
                                             background: 'rgba(153,69,255,0.1)', color: '#9945FF',
@@ -660,7 +685,11 @@ export default function ProductsContent() {
                                             textDecoration: 'none', transition: 'all 0.2s',
                                         }}>
                                          Daftarkan ke Blockchain
-                                    </Link>
+                                    </Link> : (
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: '#F5A623' }}>
+                                            Menunggu registrasi Solana
+                                        </span>
+                                    )
                                 )}
                             </div>
                             </div>{/* end padding div */}

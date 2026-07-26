@@ -21,7 +21,7 @@ export default function DocumentationPage() {
     const [editGuides, setEditGuides] = useState([]); // Array being edited
 
     const role = user?.role || 'farmer';
-    const isDeveloper = role === 'developer' || role === 'koperasi';
+    const isDeveloper = role === 'developer' || role === 'admin' || role === 'koperasi';
     const roleLabel = isDeveloper ? 'Developer / Koperasi' : 'Petani';
 
     // Fetch guides on mount

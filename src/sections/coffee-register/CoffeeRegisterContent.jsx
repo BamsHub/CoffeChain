@@ -110,12 +110,16 @@ export default function CoffeeRegisterContent() {
     const loadProducts = useCallback(async () => {
         setLoadingProd(true);
         try {
-            const res = await fetch('/api/products');
+            const token = await getToken();
+            const res = await fetch('/api/products', {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                cache: 'no-store',
+            });
             const d = await res.json();
             if (d.success) setProducts(d.data || []);
         } catch { }
         setLoadingProd(false);
-    }, []);
+    }, [getToken]);
 
     const loadTraces = useCallback(async () => {
         setLoadingTrace(true);
@@ -132,18 +136,18 @@ export default function CoffeeRegisterContent() {
             const token = await getToken();
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const [batchRes, logRes] = await Promise.all([
-                fetch('/api/production-batches', { headers }),
-                fetch('/api/production-stages', { headers }),
+                fetch('/api/production-batches?scope=review', { headers, cache: 'no-store' }),
+                fetch('/api/production-stages?scope=review', { headers, cache: 'no-store' }),
             ]);
             const [batchData, logData] = await Promise.all([batchRes.json(), logRes.json()]);
             if (batchData.success) setProductionBatches(batchData.data || []);
             if (logData.success) setProductionLogs(logData.data || []);
         } catch { }
-    }, []);
+    }, [getToken]);
 
     const loadOnchainAudit = useCallback(async () => {
         try {
-            const token = getToken();
+            const token = await getToken();
             if (!token || !['koperasi', 'developer', 'admin'].includes(user?.role)) return;
             const res = await fetch('/api/admin/batch-onchain', {
                 headers: { Authorization: `Bearer ${token}` },
@@ -309,7 +313,7 @@ export default function CoffeeRegisterContent() {
         if (!window.confirm(`Tulis ulang ${expectedTotal} data yang belum valid ke Solana Testnet menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
         setBatchLoading(true); setBatchResult(null);
         try {
-            const token = getToken();
+            const token = await getToken();
             if (!token) throw new Error('Sesi login tidak ditemukan');
 
             let remaining = expectedTotal;

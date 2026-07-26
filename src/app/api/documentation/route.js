@@ -125,7 +125,7 @@ export async function POST(request) {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
 
-        if (!session || (session.role !== 'developer' && session.role !== 'koperasi')) {
+        if (!session || !['developer', 'admin', 'koperasi'].includes(session.role)) {
             return Response.json({ success: false, message: 'Unauthorized: Hanya admin/koperasi yang dapat merubah dokumentasi' }, { status: 403 });
         }
 

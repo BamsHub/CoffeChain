@@ -61,22 +61,13 @@ async function loadAuditState() {
     ];
     const confirmedSignatures = await getConfirmedSolanaSignatures(allSignatures);
 
-    const traceProductIds = new Set(traces.map(row => row.product_id).filter(Boolean));
-    const traceCoffeeIds = new Set(traces.map(row => row.coffee_id).filter(Boolean));
-
     const candidates = [
         ...traces
             .filter(row => !row.tx_signature)
             .map(row => ({ source: 'coffee_traces', row })),
-        ...products
-            .filter(row => !traceProductIds.has(row.id) && (!row.coffee_id || !traceCoffeeIds.has(row.coffee_id)))
-            .map(row => ({ source: 'products', row })),
         ...transactions
             .filter(row => !row.hash)
             .map(row => ({ source: 'transactions', row })),
-        ...orders
-            .filter(row => !row.tx_signature)
-            .map(row => ({ source: 'orders', row })),
     ];
 
     const immutableUnconfirmed = {
@@ -172,6 +163,11 @@ async function persistBackfill(candidate, chainTx) {
 
 async function backfillCandidate(candidate) {
     const { source, row } = candidate;
+    if (source === 'products' || source === 'orders') {
+        throw new Error(source === 'products'
+            ? 'Produk wajib disertifikasi melalui Register Coffee dengan audit Pipeline Tahap 1-6'
+            : 'Pembayaran Midtrans wajib ditrace melalui Reconcile Payment');
+    }
     const reference = String(referenceFor(source, row));
     const memo = {
         v: 2,

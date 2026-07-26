@@ -55,7 +55,7 @@ export async function GET(request) {
         const includeInactive = searchParams.get('includeInactive') === 'true';
         const token = request.headers.get('Authorization')?.replace('Bearer ', '') || searchParams.get('token');
         const session = await verifyToken(token);
-        const canViewAll = session && ['koperasi', 'developer'].includes(session.role);
+        const canViewAll = session && ['koperasi', 'developer', 'admin'].includes(session.role);
 
         const [farmersRows, userRows] = await Promise.all([
             sbSelect('farmers', {}),
