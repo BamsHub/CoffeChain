@@ -2,7 +2,7 @@
 export const runtime = 'nodejs';
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { getExplorerTxUrl, normalizeExplorerUrl, STORE_WALLET } from '@/lib/contractConfig';
 import { getTaggedVariantStocks } from '@/lib/productVariants';
 
 /**
@@ -109,7 +109,7 @@ export async function GET(request) {
                 txSignature:    trace.tx_signature || null,
                 explorerUrl:    trace.tx_signature ? getExplorerTxUrl(trace.tx_signature) : (normalizeExplorerUrl(trace.explorer_url) || null),
                 traceStatus:    trace.status || null,
-                paymentWallet:  p.payment_wallet,
+                paymentWallet:  STORE_WALLET,
                 submittedByName: p.submitted_by_name,
                 createdAt:      p.created_at,
             };

@@ -2,81 +2,17 @@ export const runtime = 'nodejs';
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, sbSelect, ordersToSnake } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
-import { Connection } from '@solana/web3.js';
-import { SOLANA_NETWORK, STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { verifyToken } from '@/lib/auth';
 import { canMakePayment } from '@/lib/paymentAccess';
+import { verifySolanaPaymentTransaction } from '@/lib/solanaPayment';
 import {
     createVariantStockDeduction,
     getAvailableVariantStock,
     setTaggedVariantStocks,
 } from '@/lib/productVariants';
-
-async function verifySolanaPayment({
-    txSignature,
-    expectedSol,
-    receiverWallet,
-    expectedSigner,
-}) {
-    const [ordersDb, supabaseOrders] = await Promise.all([
-        readDb('orders'),
-        sbSelect('orders'),
-    ]);
-    const reused = [
-        ...(ordersDb.items || []),
-        ...((supabaseOrders || []).map(row => ({ txSignature: row.tx_signature, status: row.status }))),
-    ].find(order => order.txSignature === txSignature && order.status === 'paid');
-    if (reused) {
-        return { ok: false, message: 'Tx signature sudah pernah digunakan untuk order lain' };
-    }
-
-    const connection = new Connection(process.env.SOLANA_RPC_URL || SOLANA_NETWORK, 'confirmed');
-    const tx = await connection.getParsedTransaction(txSignature, {
-        commitment: 'confirmed',
-        maxSupportedTransactionVersion: 0,
-    });
-
-    if (!tx) return { ok: false, message: 'Transaksi tidak ditemukan di Solana atau belum confirmed' };
-    if (tx.meta?.err) return { ok: false, message: 'Transaksi Solana gagal / dibatalkan' };
-
-    const parsedKeys = tx.transaction.message.accountKeys || [];
-    const accountKeys = parsedKeys.map(key => {
-        if (typeof key === 'string') return key;
-        if (key?.pubkey) return typeof key.pubkey === 'string' ? key.pubkey : key.pubkey.toBase58();
-        return '';
-    });
-    const signerAddresses = parsedKeys
-        .filter(key => key?.signer)
-        .map(key => (typeof key.pubkey === 'string' ? key.pubkey : key.pubkey.toBase58()));
-    if (expectedSigner && !signerAddresses.includes(expectedSigner)) {
-        return { ok: false, message: 'Wallet pembeli bukan signer transaksi Solana tersebut' };
-    }
-
-    const validReceivers = [receiverWallet, STORE_WALLET].filter(Boolean);
-    const receiverIndex = accountKeys.findIndex(key => validReceivers.includes(key));
-    if (receiverIndex === -1) {
-        return { ok: false, message: 'Transaksi tidak mengirim SOL ke dompet CoffeeChain' };
-    }
-
-    const balanceChange = (
-        (tx.meta.postBalances[receiverIndex] || 0) - (tx.meta.preBalances[receiverIndex] || 0)
-    ) / 1e9;
-    const tolerance = Math.max(0.001, expectedSol * 0.01);
-    if (balanceChange <= 0 || Math.abs(balanceChange - expectedSol) > tolerance) {
-        return {
-            ok: false,
-            message: `Jumlah SOL diterima (${balanceChange.toFixed(6)} SOL) tidak sesuai tagihan `
-                + `(${expectedSol.toFixed(6)} SOL)`,
-        };
-    }
-
-    return {
-        ok: true,
-        balanceChange,
-        networkFeeLamports: tx.meta.fee ?? null,
-    };
-}
 
 /**
  * PUBLIC API — Buat Pesanan Kopi (Rupiah & Solana)
@@ -129,6 +65,12 @@ export async function POST(request) {
                 success: false,
                 message: 'Phantom Wallet harus terhubung untuk pembayaran Solana',
             }, { status: 400 });
+        }
+        if (isSolPayment && walletAddress === STORE_WALLET) {
+            return Response.json({
+                success: false,
+                message: 'Wallet pembeli sama dengan wallet penerima CoffeeChain. Gunakan wallet pembeli lain agar SOL benar-benar berpindah.',
+            }, { status: 409 });
         }
 
         // Cari produk
@@ -190,10 +132,28 @@ export async function POST(request) {
         // semua lainnya → pending
         let verifiedSolPayment = null;
         if (paymentMethod === 'transfer' && txSignature) {
-            verifiedSolPayment = await verifySolanaPayment({
+            const [ordersDb, supabaseOrders] = await Promise.all([
+                readDb('orders'),
+                sbSelect('orders'),
+            ]);
+            const reused = [
+                ...(ordersDb.items || []),
+                ...((supabaseOrders || []).map(row => ({
+                    txSignature: row.tx_signature,
+                    status: row.status,
+                }))),
+            ].find(order => order.txSignature === txSignature && order.status === 'paid');
+            if (reused) {
+                return Response.json({
+                    success: false,
+                    message: 'Tx signature sudah pernah digunakan untuk order lain',
+                }, { status: 409 });
+            }
+
+            verifiedSolPayment = await verifySolanaPaymentTransaction({
                 txSignature,
-                expectedSol: solAmount,
-                receiverWallet: product.paymentWallet || STORE_WALLET,
+                expectedLamports: Math.round(solAmount * LAMPORTS_PER_SOL),
+                receiverWallet: STORE_WALLET,
                 expectedSigner: walletAddress,
             });
             if (!verifiedSolPayment.ok) {

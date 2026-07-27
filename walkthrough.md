@@ -82,7 +82,7 @@ Semua tugas telah diselesaikan dan seluruh perubahan terkompilasi dengan sukses 
   - **coffee-trace (`/api/coffee-trace`)**: Pendaftaran trace kopi terikat pada token otentik milik petani pemilik produk.
 - **Verifikasi Transaksi Solana On-Chain**:
   - Di endpoint check order `/api/public/order/[orderId]` method `PATCH` (proses verifikasi SOL transfer), server-side sekarang melakukan verifikasi on-chain langsung ke Solana Network RPC (`https://api.testnet.solana.com`).
-  - Server memeriksa bahwa transaksi sukses (`tx.meta?.err` null), tujuan dana ke dompet resmi `STORE_WALLET` (`E5NKiUEJGX8qh9PMxPpA9XWzuiGR9MvEErMtCr5KjiUs`), dan jumlah SOL yang dikirim sesuai dengan pesanan (`order.solAmount`). Hal ini mencegah manipulasi respon/signature palsu yang dikirim oleh penyerang.
+  - Server memeriksa bahwa transaksi sukses (`tx.meta?.err` null), instruksi transfer berasal dari wallet pembeli menuju dompet resmi `STORE_WALLET` (`8erURhHZgSvoFeXAJSDWzk2JDEiLsWeKq11zpiPs7AhJ`), dan jumlah lamports sesuai dengan pesanan (`order.solAmount`). Hal ini mencegah manipulasi respons/signature palsu dan salah hitung akibat network fee.
 
 ---
 

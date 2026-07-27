@@ -5,7 +5,7 @@ import { readDb, addItem, updateItem } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
-import { getExplorerTxUrl, PINNED_MEMO_SIGNER_PUBLIC } from '@/lib/contractConfig';
+import { getExplorerTxUrl, PINNED_MEMO_SIGNER_PUBLIC, STORE_WALLET } from '@/lib/contractConfig';
 import { sendServerMemoTx, verifySolanaTransaction } from '@/lib/serverSolanaMemo';
 import {
     createProductOffchainProof,
@@ -72,7 +72,7 @@ export async function POST(request) {
         const {
             productId, name, origin, variety, grade, weightKg,
             farmerName, farmerId, harvestDate, processMethod, roastLevel,
-            certification, description, registeredBy, paymentWallet,
+            certification, description, registeredBy,
             phantomTxSignature, offchainProof,
         } = body;
 
@@ -112,6 +112,7 @@ export async function POST(request) {
             farmerId: product.submitted_by || audit.batch.farmer_id || null,
             description: product.description || null,
             registeredBy: session.userId,
+            paymentWallet: STORE_WALLET,
         };
 
         let proof = offchainProof;
@@ -178,7 +179,7 @@ export async function POST(request) {
             status: isVerified ? 'verified' : 'registered',
             registeredBy: session.userId,
             productId: product.id,
-            paymentWallet: paymentWallet || null,
+            paymentWallet: STORE_WALLET,
             createdAt: new Date().toISOString(),
         };
 
@@ -204,7 +205,7 @@ export async function POST(request) {
                 approvedBy: session.userId,
                 approvedByName: actorName,
                 approvedAt: new Date().toISOString(),
-                ...(paymentWallet ? { paymentWallet } : {}),
+                paymentWallet: STORE_WALLET,
             });
             await recordOffchainTransaction({ product, proof, txSignature, session, actorName }).catch(error => {
                 console.warn('[coffee-trace] Failed to record off-chain transaction:', error.message);

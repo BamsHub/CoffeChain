@@ -399,6 +399,13 @@ export default function LandingPage() {
             alert('Hubungkan Phantom Wallet terlebih dahulu untuk pembayaran Solana!');
             return;
         }
+        if (isSolMethod && walletPublicKey === STORE_WALLET) {
+            alert(
+                'Wallet Phantom yang terhubung sama dengan wallet penerima CoffeeChain. '
+                + 'Gunakan wallet pembeli lain agar pembayaran SOL benar-benar masuk ke merchant wallet.',
+            );
+            return;
+        }
         // Bank/E-wallet validation
         if (pm === 'transfer-idr') {
             const acc = orderForm.accountNumber.replace(/\D/g, '');
@@ -546,7 +553,7 @@ export default function LandingPage() {
 
         setOrdering(true);
         let txSignature = null;
-        const targetWallet = selectedProduct.paymentWallet || STORE_WALLET;
+        const targetWallet = STORE_WALLET;
 
         try {
             if (pm === 'transfer') {

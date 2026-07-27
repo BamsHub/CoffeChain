@@ -1,9 +1,10 @@
 export const runtime = 'nodejs';
 import { readDb, updateItem } from '@/lib/db';
-import { getExplorerTxUrl, SOLANA_NETWORK, STORE_WALLET } from '@/lib/contractConfig';
-import { Connection } from '@solana/web3.js';
+import { getExplorerTxUrl, STORE_WALLET } from '@/lib/contractConfig';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { verifyToken } from '@/lib/auth';
 import { canMakePayment } from '@/lib/paymentAccess';
+import { verifySolanaPaymentTransaction } from '@/lib/solanaPayment';
 
 /**
  * PUBLIC API — Cek Status Pesanan
@@ -91,93 +92,59 @@ export async function PATCH(request, { params }) {
                 message: 'Order ini bukan milik akun yang sedang login',
             }, { status: 403 });
         }
-
-        // ── Verify Solana Transaction Signature on-chain ──
-        const connection = new Connection(SOLANA_NETWORK, 'confirmed');
-        let tx = null;
-        try {
-            tx = await connection.getParsedTransaction(txSignature, {
-                commitment: 'confirmed',
-                maxSupportedTransactionVersion: 0
+        if (order.txSignature) {
+            if (order.txSignature !== txSignature) {
+                return Response.json({
+                    success: false,
+                    message: 'Signature pembayaran sudah tersimpan permanen dan tidak boleh diganti',
+                }, { status: 409 });
+            }
+            return Response.json({
+                success: true,
+                message: 'Pembayaran sebelumnya sudah dikonfirmasi',
+                data: {
+                    orderId: order.orderId,
+                    status: order.status,
+                    txSignature: order.txSignature,
+                    explorerUrl: getExplorerTxUrl(order.txSignature),
+                    solanaNetworkFeeLamports: order.solanaNetworkFeeLamports,
+                    solanaTraceStatus: order.solanaTraceStatus,
+                    coffeeId: order.coffeeId || null,
+                },
             });
-        } catch (txErr) {
-            console.error('[SOLANA-VERIFY] Error fetching transaction:', txErr.message);
         }
 
-        if (!tx) {
+        const reused = db.items.find(item => (
+            item.id !== order.id
+            && item.txSignature === txSignature
+            && item.status === 'paid'
+        ));
+        if (reused) {
             return Response.json({
                 success: false,
-                message: 'Transaksi tidak ditemukan di Solana Network atau statusnya belum confirmed'
-            }, {
-                status: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' }
-            });
+                message: 'Tx signature sudah pernah digunakan untuk order lain',
+            }, { status: 409 });
         }
 
-        if (tx.meta?.err) {
-            return Response.json({
-                success: false,
-                message: 'Transaksi Solana gagal / dibatalkan'
-            }, {
-                status: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' }
-            });
-        }
-
-        // Extract account public keys from transaction
-        const accountKeys = tx.transaction.message.accountKeys.map(k => {
-            if (typeof k === 'string') return k;
-            if (k && k.pubkey) return typeof k.pubkey === 'string' ? k.pubkey : k.pubkey.toBase58();
-            return '';
+        const expectedSol = Number(order.solAmount)
+            || parseFloat((Number(order.totalPrice || 0) / 2_000_000).toFixed(9));
+        const verifiedPayment = await verifySolanaPaymentTransaction({
+            txSignature,
+            expectedLamports: Math.round(expectedSol * LAMPORTS_PER_SOL),
+            expectedSigner: order.walletAddress,
+            receiverWallet: STORE_WALLET,
         });
-
-        // Verify receiver address is STORE_WALLET
-        const storeWalletIndex = accountKeys.indexOf(STORE_WALLET);
-        if (storeWalletIndex === -1) {
+        if (!verifiedPayment.ok) {
             return Response.json({
                 success: false,
-                message: 'Transaksi tidak mengirim SOL ke dompet CoffeeChain'
-            }, {
-                status: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' }
-            });
-        }
-
-        // Verify amount
-        const preBalance = tx.meta.preBalances[storeWalletIndex];
-        const postBalance = tx.meta.postBalances[storeWalletIndex];
-        const balanceChange = (postBalance - preBalance) / 1e9; // convert to SOL
-
-        let expectedSol = order.solAmount;
-        if (!expectedSol && order.totalPrice) {
-            expectedSol = parseFloat((order.totalPrice / 2_000_000).toFixed(9));
-        }
-
-        if (balanceChange <= 0) {
-            return Response.json({
-                success: false,
-                message: 'Transaksi tidak mentransfer SOL ke dompet CoffeeChain'
-            }, {
-                status: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' }
-            });
-        }
-
-        const tolerance = Math.max(0.001, (expectedSol || 0) * 0.01);
-        if (expectedSol && Math.abs(balanceChange - expectedSol) > tolerance) {
-            return Response.json({
-                success: false,
-                message: `Jumlah SOL yang ditransfer (${balanceChange.toFixed(4)} SOL) tidak sesuai dengan jumlah tagihan (${expectedSol.toFixed(4)} SOL)`
-            }, {
-                status: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' }
-            });
+                message: verifiedPayment.message,
+            }, { status: 400 });
         }
 
         order.txSignature = txSignature;
         order.status = 'paid';
         order.paidAt = new Date().toISOString();
-        order.solanaNetworkFeeLamports = tx.meta.fee ?? null;
+        order.solanaNetworkFeeLamports = verifiedPayment.networkFeeLamports;
         order.solanaTraceStatus = 'confirmed';
         order.solanaTracedAt = new Date().toISOString();
 

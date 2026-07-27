@@ -136,7 +136,7 @@ async function persistBackfill(candidate, chainTx) {
         const { error: productError } = await supabaseAdmin.from('products').update({
             coffee_id: coffeeId,
             status: 'published',
-            payment_wallet: row.payment_wallet || chainTx.signer,
+            payment_wallet: chainTx.signer,
         }).eq('id', row.id);
         if (productError) throw productError;
         return { coffeeId };
