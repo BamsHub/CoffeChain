@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { STORE_WALLET, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { canMakePayment } from '@/lib/paymentAccess';
-import { useAuth } from '@/context/AuthContext';
+import { ROLE_LABELS, useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
     ssr: false,
@@ -142,7 +142,6 @@ export default function LandingPage() {
     const [catalogSort, setCatalogSort] = useState('newest');
 
     /* ── Admin Session State (untuk floating admin bar) ── */
-    const [adminUser, setAdminUser] = useState(null);
 
     /* ── Phantom Wallet State ── */
     const [walletPublicKey, setWalletPublicKey] = useState(null);
@@ -222,23 +221,7 @@ export default function LandingPage() {
 
     /* ── Check admin/developer session from localStorage ── */
     useEffect(() => {
-        // Load Midtrans Snap immediately on mount to prevent race conditions
         loadMidtransSnap();
-        const idleId = onIdle(() => {
-            const token = localStorage.getItem('cc_token');
-            if (!token) return;
-            fetch('/api/auth/me', {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
-                        setAdminUser(data.user);
-                    }
-                })
-                .catch(() => { /* ignore */ });
-        });
-        return () => cancelIdle(idleId);
     }, []);
 
     /* ── Load Midtrans Snap.js ── */
@@ -356,7 +339,6 @@ export default function LandingPage() {
     async function handleLandingLogout() {
         if (!window.confirm('Anda yakin ingin keluar?')) return;
         await logout();
-        setAdminUser(null);
         setProfileMenuOpen(false);
     }
 
@@ -839,6 +821,9 @@ export default function LandingPage() {
     const selectedVariantStock = hasSelectedVariantStock
         ? (Number(selectedProduct.stockPerUnit[weightIdx]) || 0)
         : (Number(selectedProduct?.stock) || 0);
+    const landingRoleInfo = user ? (ROLE_LABELS[user.role] || ROLE_LABELS.farmer) : null;
+    const landingProfileName = user?.name?.split(' ')[0] || 'Guest';
+    const isReviewerAccount = ['admin', 'developer', 'koperasi'].includes(user?.role);
     const pricing = calculatePaymentPricing({ unitPrice, quantity: orderForm.quantity });
     const totalPrice = pricing.totalPrice;
     const solAmount = rupiahToSol(totalPrice);
@@ -994,12 +979,14 @@ export default function LandingPage() {
                                 onClick={() => setProfileMenuOpen(open => !open)}
                                 style={{ padding:'7px 10px', fontSize:13, borderRadius:12, background:'rgba(132,224,104,0.1)', border:'1px solid rgba(132,224,104,0.28)', color:'var(--cc-text)', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:9, maxWidth:210 }}
                             >
-                                <span style={{ width:30, height:30, borderRadius:9, display:'grid', placeItems:'center', flexShrink:0, background:'linear-gradient(135deg,#84e068,#4ab830)', color:'#102d1f', fontWeight:900 }}>
-                                    {String(user.name || user.email || 'A').trim().charAt(0).toUpperCase()}
+                                <span style={{ width:30, height:30, borderRadius:'50%', display:'grid', placeItems:'center', flexShrink:0, overflow:'hidden', background:landingRoleInfo?.bg, border:`1px solid ${landingRoleInfo?.color || '#84e068'}44`, color:landingRoleInfo?.color || '#84e068', fontWeight:900 }}>
+                                    {user.photoBase64
+                                        ? <img src={user.photoBase64} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                        : (user.avatar || 'BK')}
                                 </span>
                                 <span style={{ minWidth:0, textAlign:'left' }}>
-                                    <span style={{ display:'block', maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight:800 }}>{user.name || user.email}</span>
-                                    <span style={{ display:'block', color:'var(--cc-text-muted)', fontSize:10, textTransform:'capitalize', marginTop:1 }}>{user.role || 'akun'}</span>
+                                    <span style={{ display:'block', maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight:800 }}>{landingProfileName}</span>
+                                    <span style={{ display:'block', color:landingRoleInfo?.color || 'var(--cc-text-muted)', fontSize:10, marginTop:1 }}>{landingRoleInfo?.label || 'Guest'}</span>
                                 </span>
                                 <span aria-hidden="true" style={{ color:'var(--cc-text-muted)', transform: profileMenuOpen ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>⌄</span>
                             </button>
@@ -1008,6 +995,9 @@ export default function LandingPage() {
                                     <div style={{ padding:'8px 10px 10px', borderBottom:'1px solid var(--cc-divider)', marginBottom:7 }}>
                                         <div style={{ color:'var(--cc-text)', fontSize:13, fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name || 'Profil CoffeeChain'}</div>
                                         <div style={{ color:'var(--cc-text-muted)', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:2 }}>{user.email}</div>
+                                        <span style={{ display:'inline-flex', marginTop:7, padding:'3px 8px', borderRadius:999, background:landingRoleInfo?.bg, color:landingRoleInfo?.color, fontSize:10, fontWeight:800 }}>
+                                            {landingRoleInfo?.label}
+                                        </span>
                                     </div>
                                     <Link role="menuitem" href="/dashboard" onClick={() => { setProfileMenuOpen(false); setMobileMenu(false); }} style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:9, color:'var(--cc-text)', textDecoration:'none', fontSize:13, fontWeight:700, background:'rgba(132,224,104,.08)' }}>
                                         <IconPackage /> Masuk ke Dashboard
@@ -1030,7 +1020,7 @@ export default function LandingPage() {
             </nav>
 
             {/* ── ADMIN BAR ── */}
-            {adminUser && (
+            {isReviewerAccount && (
                 <div style={{ position:'relative', zIndex:30, background:'rgba(17,17,19,0.98)', backdropFilter:'blur(16px)', borderBottom:'1px solid rgba(132,224,104,0.2)', padding:'0 clamp(16px,3vw,32px)' }}>
                     <div style={{ maxWidth:1200, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'flex-end', height:44, gap:8, flexWrap:'wrap' }}>
                         <Link href="/dashboard" style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background:'rgba(132,224,104,0.12)', border:'1px solid rgba(132,224,104,0.25)', color:'var(--cc-text-highlight)', fontSize:12, fontWeight:600, textDecoration:'none' }}>
