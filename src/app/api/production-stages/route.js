@@ -4,14 +4,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { readDb } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { PRODUCTION_STAGES } from '@/lib/productionAudit';
+import {
+    PIPELINE_REVIEW_ROLES,
+    canReviewAllPipelines,
+    isPipelineAccountRole,
+    ownsPipelineBatch,
+} from '@/lib/productionAccess';
+import {
+    setTaggedVariantStocks,
+    validateProductVariants,
+} from '@/lib/productVariants';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const STAGE_NAMES = Object.fromEntries(PRODUCTION_STAGES.map(stage => [stage.id, stage.name]));
-const ACCOUNT_ROLES = new Set(['farmer', 'koperasi', 'developer', 'admin']);
-const REVIEW_ROLES = new Set(['koperasi', 'developer', 'admin']);
-
 function isValidCid(cid) {
     return typeof cid === 'string' && (
         /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(cid)
@@ -72,22 +79,10 @@ function validateStageData(stage, stageData) {
     const productName = String(stageData?.productName || '').trim();
     const weights = stageData?.weights;
     const prices = stageData?.pricePerUnit;
-    const stock = Number(stageData?.stock);
+    const stocks = stageData?.stockPerUnit;
 
     if (!productName || productName.length > 120) return 'Nama produk wajib diisi dan maksimal 120 karakter';
-    if (!Array.isArray(weights) || !Array.isArray(prices) || weights.length !== prices.length) {
-        return 'Ukuran berat dan harga harus memiliki jumlah yang sama';
-    }
-    if (weights.length < 1 || weights.length > 6) return 'Produk harus memiliki 1 sampai 6 pilihan ukuran';
-    if (weights.some(value => !Number.isInteger(Number(value)) || Number(value) < 50 || Number(value) > 5000)) {
-        return 'Berat produk harus berupa bilangan bulat antara 50 dan 5.000 gram';
-    }
-    if (new Set(weights.map(Number)).size !== weights.length) return 'Pilihan berat produk tidak boleh duplikat';
-    if (prices.some(value => !Number.isInteger(Number(value)) || Number(value) < 1000 || Number(value) > 10_000_000)) {
-        return 'Harga produk harus berupa bilangan bulat antara Rp1.000 dan Rp10.000.000';
-    }
-    if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) return 'Stok produk tidak valid';
-    return null;
+    return validateProductVariants({ weights, prices, stocks });
 }
 
 async function verifyStageAssets(supabase, context, photos) {
@@ -105,12 +100,12 @@ export async function GET(req) {
     try {
         const token = getToken(req);
         const session = await verifyToken(token);
-        if (!session || !ACCOUNT_ROLES.has(session.role)) {
+        if (!session || !isPipelineAccountRole(session.role)) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
         const { searchParams } = new URL(req.url);
         const batchId = searchParams.get('batchId');
-        const reviewScope = searchParams.get('scope') === 'review' && REVIEW_ROLES.has(session.role);
+        const reviewScope = searchParams.get('scope') === 'review' && canReviewAllPipelines(session.role);
 
         const supabase = getSupabaseAdmin();
         let query = supabase.from('production_stage_logs').select('*').order('created_at', { ascending: false });
@@ -158,7 +153,7 @@ export async function POST(req) {
     try {
         const token = getToken(req);
         const session = await verifyToken(token);
-        if (!session || !ACCOUNT_ROLES.has(session.role)) {
+        if (!session || !isPipelineAccountRole(session.role)) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
@@ -193,7 +188,7 @@ export async function POST(req) {
             .from('production_batches').select('*').eq('id', batchId).single();
         if (batchErr || !batch) throw new Error('Batch tidak ditemukan');
 
-        if (batch.farmer_id !== session.userId) {
+        if (!ownsPipelineBatch(session, batch)) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
@@ -255,6 +250,7 @@ export async function POST(req) {
             productId = uuidv4();
             const weights = stageData.weights.map(Number);
             const prices = stageData.pricePerUnit.map(Number);
+            const stockPerUnit = stageData.stockPerUnit.map(Number);
 
             const baseProduct = {
                 id: productId,
@@ -265,28 +261,50 @@ export async function POST(req) {
                 roast: stageData?.roast || stageData?.levelRoast || 'Medium Roast',
                 weight: weights,
                 price_per_unit: prices,
+                stock_per_unit: stockPerUnit,
                 description: String(stageData.description || stageData.notes).trim(),
                 image: photoUrl || stageData?.image || null,
-                tags: [batch.variety, batch.grade, 'Produk Jadi', ...evidencePhotos.map(photo => `ipfs-image:${photo.cid}`)].filter(Boolean),
-                stock: Number(stageData.stock),
+                tags: setTaggedVariantStocks(
+                    [batch.variety, batch.grade, 'Produk Jadi', ...evidencePhotos.map(photo => `ipfs-image:${photo.cid}`)].filter(Boolean),
+                    stockPerUnit,
+                ),
+                stock: stockPerUnit.reduce((total, stock) => total + stock, 0),
                 rating: 4.5,
                 sold: 0,
                 status: 'pending_certification',
                 coffee_id: null,
+                approved_by: null,
+                approved_by_name: null,
+                approved_at: null,
+                rejected_reason: null,
                 submitted_by: batch.farmer_id,
                 submitted_by_name: batch.farmer_name || targetLoggedByName,
                 submitted_by_role: session.role,
                 submitted_at: new Date().toISOString(),
             };
 
-            let { error: productErr } = await supabase.from('products').insert(baseProduct);
-            if (productErr && productErr.message?.includes('column')) {
-                const { status, coffee_id, submitted_by, submitted_by_name, submitted_by_role, submitted_at, ...fallbackProduct } = baseProduct;
-                ({ error: productErr } = await supabase.from('products').insert(fallbackProduct));
+            let { data: createdProduct, error: productErr } = await supabase
+                .from('products')
+                .insert(baseProduct)
+                .select('id, status, coffee_id')
+                .single();
+            if (productErr && /stock_per_unit/i.test(productErr.message || '')) {
+                const compatibilityProduct = { ...baseProduct };
+                delete compatibilityProduct.stock_per_unit;
+                ({ data: createdProduct, error: productErr } = await supabase
+                    .from('products')
+                    .insert(compatibilityProduct)
+                    .select('id, status, coffee_id')
+                    .single());
             }
             if (productErr) {
                 await supabase.from('production_stage_logs').delete().eq('id', logId);
-                throw new Error(`Gagal membuat produk jadi: ${productErr.message}`);
+                throw new Error(`Gagal membuat request produk: ${productErr.message}. Jalankan migrasi Supabase terbaru.`);
+            }
+            if (createdProduct.status !== 'pending_certification' || createdProduct.coffee_id) {
+                await supabase.from('products').delete().eq('id', productId);
+                await supabase.from('production_stage_logs').delete().eq('id', logId);
+                throw new Error('Produk akhir wajib berstatus menunggu persetujuan dan belum boleh memiliki Coffee ID');
             }
         }
 
@@ -312,6 +330,9 @@ export async function POST(req) {
             txSignature: null,
             explorerUrl: null,
             txError: null,
+            approvalRequired: Number(stage) === 6,
+            approvalStatus: Number(stage) === 6 ? 'pending' : null,
+            requiredReviewerRoles: Number(stage) === 6 ? PIPELINE_REVIEW_ROLES : [],
             data: {
                 id: log.id,
                 batchId,
@@ -340,7 +361,7 @@ export async function PATCH(req) {
     try {
         const token = getToken(req);
         const session = await verifyToken(token);
-        if (!session || !ACCOUNT_ROLES.has(session.role)) {
+        if (!session || !isPipelineAccountRole(session.role)) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
@@ -370,7 +391,7 @@ export async function PATCH(req) {
             .eq('id', batchId)
             .maybeSingle();
         if (batchError || !batch) return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
-        if (batch.farmer_id !== session.userId) {
+        if (!ownsPipelineBatch(session, batch)) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
         let product = null;
@@ -433,17 +454,24 @@ export async function PATCH(req) {
             const tags = (Array.isArray(product.tags) ? product.tags : [])
                 .filter(tag => !String(tag).startsWith('ipfs-image:'));
             tags.push(...evidencePhotos.map(photo => `ipfs-image:${photo.cid}`));
+            const stockPerUnit = stageData.stockPerUnit.map(Number);
             const productUpdates = {
                 name: stageData.productName || batch.name,
                 roast: stageData.roast || stageData.levelRoast || 'Medium Roast',
                 weight: stageData.weights.map(Number),
                 price_per_unit: stageData.pricePerUnit.map(Number),
+                stock_per_unit: stockPerUnit,
                 description,
                 image: photoUrl,
-                tags,
-                stock: Number(stageData.stock),
+                tags: setTaggedVariantStocks(tags, stockPerUnit),
+                stock: stockPerUnit.reduce((total, stock) => total + stock, 0),
             };
-            const { error: productUpdateError } = await supabase.from('products').update(productUpdates).eq('id', product.id);
+            let { error: productUpdateError } = await supabase.from('products').update(productUpdates).eq('id', product.id);
+            if (productUpdateError && /stock_per_unit/i.test(productUpdateError.message || '')) {
+                const compatibilityUpdates = { ...productUpdates };
+                delete compatibilityUpdates.stock_per_unit;
+                ({ error: productUpdateError } = await supabase.from('products').update(compatibilityUpdates).eq('id', product.id));
+            }
             if (productUpdateError) throw new Error(productUpdateError.message);
         }
 

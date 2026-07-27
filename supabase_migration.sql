@@ -18,6 +18,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS approved_at       TIMESTAMPTZ;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS rejected_reason   TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS coffee_id         TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS payment_wallet    TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_per_unit    JSONB;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_at        TIMESTAMPTZ DEFAULT NOW();
 
 -- USERS: email verification columns used by custom register flow

@@ -13,6 +13,7 @@ import {
 import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
 import { verifyToken } from '@/lib/auth';
 import { canMakePayment } from '@/lib/paymentAccess';
+import { deductPaidOrderStock } from '@/lib/productStock';
 
 async function getOrderId(request) {
     if (request.method === 'GET') {
@@ -104,6 +105,9 @@ async function handleStatus(request) {
             .eq('order_id', orderId);
         if (orderUpdateError) throw orderUpdateError;
 
+        if (normalizedStatus === 'paid' && localOrder.status !== 'paid') {
+            await deductPaidOrderStock(supabaseAdmin, localOrder);
+        }
         const solanaTrace = normalizedStatus === 'paid'
             ? await ensureMidtransSolanaTrace(orderId, midtransData)
             : null;

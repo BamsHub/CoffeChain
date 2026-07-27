@@ -18,4 +18,13 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Pipeline reads may be granted to authenticated Supabase Auth sessions by
+-- fix_production_rls.sql. Writes remain server-only.
+GRANT SELECT ON TABLE public.products TO authenticated;
+GRANT SELECT ON TABLE public.production_batches TO authenticated;
+GRANT SELECT ON TABLE public.production_stage_logs TO authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.products FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.production_batches FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.production_stage_logs FROM authenticated;
+
 NOTIFY pgrst, 'reload schema';

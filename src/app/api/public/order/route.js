@@ -7,6 +7,11 @@ import { SOLANA_NETWORK, STORE_WALLET, getExplorerTxUrl } from '@/lib/contractCo
 import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { verifyToken } from '@/lib/auth';
 import { canMakePayment } from '@/lib/paymentAccess';
+import {
+    createVariantStockDeduction,
+    getAvailableVariantStock,
+    setTaggedVariantStocks,
+} from '@/lib/productVariants';
 
 async function verifySolanaPayment({
     txSignature,
@@ -139,20 +144,9 @@ export async function POST(request) {
             }, { status: 409 });
         }
 
-        // Cek stok tersedia
-        const currentStock = product.stock ?? 0;
-        if (currentStock <= 0) {
-            return Response.json({ success: false, message: 'Stok produk habis' }, { status: 400 });
-        }
         const normalizedQuantity = Math.floor(Number(quantity));
         if (!Number.isInteger(normalizedQuantity) || normalizedQuantity < 1 || normalizedQuantity > 1_000) {
             return Response.json({ success: false, message: 'Jumlah pembelian tidak valid' }, { status: 400 });
-        }
-        if (currentStock < normalizedQuantity) {
-            return Response.json({
-                success: false,
-                message: `Stok tidak cukup. Tersedia: ${currentStock} unit`,
-            }, { status: 400 });
         }
 
         // Tentukan harga berdasarkan berat yang dipilih
@@ -161,6 +155,14 @@ export async function POST(request) {
         const weightIdx = weightOptions.indexOf(selectedWeight);
         if (weightIdx < 0) {
             return Response.json({ success: false, message: 'Pilihan berat produk tidak valid' }, { status: 400 });
+        }
+        const currentStock = product.stock ?? 0;
+        const availableVariantStock = getAvailableVariantStock(product, weightIdx);
+        if (availableVariantStock < normalizedQuantity) {
+            return Response.json({
+                success: false,
+                message: `Stok kemasan ${selectedWeight}g tidak cukup. Tersedia: ${availableVariantStock} unit`,
+            }, { status: 400 });
         }
         const pricePerUnit = Number(product.pricePerUnit?.[weightIdx]);
         if (!Number.isInteger(pricePerUnit) || pricePerUnit < 1_000) {
@@ -252,13 +254,23 @@ export async function POST(request) {
         }
 
         // Kurangi stok setelah order berhasil dibuat
+        const stockUpdate = createVariantStockDeduction(product, weightIdx, normalizedQuantity);
         try {
-            await updateItem('products', product.id, {
-                stock: currentStock - normalizedQuantity,
-            });
+            await updateItem('products', product.id, stockUpdate);
         } catch (stockErr) {
-            // Log but don't fail the order
-            console.error('[order] Stock update failed:', stockErr?.message);
+            if (stockUpdate.stock_per_unit && /stock_per_unit/i.test(stockErr?.message || '')) {
+                try {
+                    await updateItem('products', product.id, {
+                        stock: stockUpdate.stock,
+                        tags: setTaggedVariantStocks(product.tags, stockUpdate.stock_per_unit),
+                    });
+                } catch (compatibilityError) {
+                    console.error('[order] Compatibility stock update failed:', compatibilityError?.message);
+                }
+            } else {
+                // Log but don't fail the order
+                console.error('[order] Stock update failed:', stockErr?.message);
+            }
         }
 
         return Response.json({
@@ -290,7 +302,8 @@ export async function POST(request) {
                 virtualAccount: order.virtualAccount,
                 status: order.status,
                 expiresAt: order.expiresAt,
-                stockLeft: currentStock - normalizedQuantity,
+                stockLeft: Math.max(0, currentStock - normalizedQuantity),
+                variantStockLeft: availableVariantStock - normalizedQuantity,
             },
         }, {
             status: 201,

@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS products (
   roast TEXT,
   weight JSONB,
   price_per_unit JSONB,
+  stock_per_unit JSONB,
   description TEXT,
   image TEXT,
   tags JSONB,

@@ -6,6 +6,7 @@ import { calculatePaymentPricing } from '@/lib/paymentPricing';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
 import { canMakePayment } from '@/lib/paymentAccess';
+import { getAvailableVariantStock } from '@/lib/productVariants';
 
 /**
  * POST /api/midtrans/create-transaction
@@ -60,14 +61,6 @@ export async function POST(request) {
             }, { status: 409 });
         }
 
-        const currentStock = product.stock ?? 0;
-        if (currentStock < normalizedQuantity) {
-            return Response.json({
-                success: false,
-                message: `Stok tidak cukup. Tersedia: ${currentStock} unit`,
-            }, { status: 400 });
-        }
-
         // Fail sebelum membuat order bila konfigurasi Midtrans belum lengkap.
         const midtransAuthorization = getMidtransAuthHeader();
         const weightOptions = Array.isArray(product.weight) ? product.weight.map(Number) : [];
@@ -75,6 +68,14 @@ export async function POST(request) {
         const weightIdx = weightOptions.indexOf(selectedWeight);
         if (weightIdx < 0) {
             return Response.json({ success: false, message: 'Pilihan berat produk tidak valid' }, { status: 400 });
+        }
+        const currentStock = product.stock ?? 0;
+        const availableVariantStock = getAvailableVariantStock(product, weightIdx);
+        if (availableVariantStock < normalizedQuantity) {
+            return Response.json({
+                success: false,
+                message: `Stok kemasan ${selectedWeight}g tidak cukup. Tersedia: ${availableVariantStock} unit`,
+            }, { status: 400 });
         }
         const pricePerUnit = Number(product.pricePerUnit?.[weightIdx]);
         if (!Number.isInteger(pricePerUnit) || pricePerUnit < 1_000) {
@@ -249,6 +250,7 @@ export async function POST(request) {
                 receiptUrl,
                 coffeeId: order.coffeeId,
                 stockLeft: currentStock,
+                variantStockLeft: availableVariantStock,
             },
         }, { status: 201 });
     } catch (err) {

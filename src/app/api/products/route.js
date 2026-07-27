@@ -4,9 +4,11 @@ import { verifyToken } from '@/lib/auth';
 import { readDb } from '@/lib/db';
 import { getCompleteProductionAudit } from '@/lib/productionAudit';
 import { supabaseAdmin } from '@/lib/supabase';
-
-const ACCOUNT_ROLES = new Set(['farmer', 'koperasi', 'developer', 'admin']);
-const REVIEW_ROLES = new Set(['koperasi', 'developer', 'admin']);
+import {
+    canReviewAllPipelines,
+    isPipelineAccountRole,
+} from '@/lib/productionAccess';
+import { setTaggedVariantStocks } from '@/lib/productVariants';
 
 function toCamel(str) {
     return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -33,7 +35,7 @@ function withOffchainReferences(product) {
 async function requireSession(request) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
     const session = await verifyToken(token);
-    return session && ACCOUNT_ROLES.has(session.role) ? session : null;
+    return session && isPipelineAccountRole(session.role) ? session : null;
 }
 
 async function getActorName(session) {
@@ -57,7 +59,7 @@ export async function GET(request) {
         const statusFilter = searchParams.get('status');
         const submittedByFilter = searchParams.get('submittedBy');
         const mineOnly = searchParams.get('scope') === 'mine';
-        const canReviewAll = REVIEW_ROLES.has(session.role);
+        const canReviewAll = canReviewAllPipelines(session.role);
 
         let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
         if (statusFilter) query = query.eq('status', statusFilter);
@@ -114,7 +116,7 @@ export async function DELETE(request) {
         }
 
         const isOwner = product.submitted_by === session.userId;
-        if (!isOwner && !REVIEW_ROLES.has(session.role)) {
+        if (!isOwner && !canReviewAllPipelines(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
@@ -156,7 +158,7 @@ export async function PATCH(request) {
 
         const { data: product, error: findError } = await supabaseAdmin
             .from('products')
-            .select('id, name, submitted_by, status, coffee_id')
+            .select('*')
             .eq('id', id)
             .maybeSingle();
         if (findError || !product) {
@@ -164,7 +166,7 @@ export async function PATCH(request) {
         }
 
         const isOwner = product.submitted_by === session.userId;
-        const isReviewer = REVIEW_ROLES.has(session.role);
+        const isReviewer = canReviewAllPipelines(session.role);
 
         if (action === 'resubmit') {
             if (!isOwner) {
@@ -258,7 +260,7 @@ export async function PATCH(request) {
 
         // Metadata produk berasal dari audit tahap produksi. Setelah itu penjual hanya
         // boleh mengatur stok; metadata tersertifikasi dan signature tetap immutable.
-        const allowedKeys = new Set(['id', 'stock']);
+        const allowedKeys = new Set(['id', 'stock', 'stockPerUnit']);
         const attemptedMetadataChange = Object.keys(body).some(key => !allowedKeys.has(key));
         if (attemptedMetadataChange) {
             return Response.json({
@@ -267,17 +269,57 @@ export async function PATCH(request) {
             }, { status: 409 });
         }
 
-        const stock = Number(body.stock);
-        if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) {
-            return Response.json({ success: false, message: 'Stok tidak valid' }, { status: 400 });
+        const stockPerUnit = body.stockPerUnit;
+        let updates;
+        if (Array.isArray(stockPerUnit)) {
+            const weightCount = Array.isArray(product.weight) ? product.weight.length : 0;
+            const normalizedStocks = stockPerUnit.map(Number);
+            if (
+                !weightCount
+                || normalizedStocks.length !== weightCount
+                || normalizedStocks.some(value => !Number.isInteger(value) || value < 0 || value > 1_000_000)
+                || normalizedStocks.reduce((total, value) => total + value, 0) > 1_000_000
+            ) {
+                return Response.json({ success: false, message: 'Stok per varian tidak valid' }, { status: 400 });
+            }
+            updates = {
+                stock_per_unit: normalizedStocks,
+                stock: normalizedStocks.reduce((total, value) => total + value, 0),
+            };
+        } else {
+            const stock = Number(body.stock);
+            if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) {
+                return Response.json({ success: false, message: 'Stok tidak valid' }, { status: 400 });
+            }
+            if (Array.isArray(product.stock_per_unit) && product.stock_per_unit.length > 1) {
+                return Response.json({
+                    success: false,
+                    message: 'Produk memiliki beberapa varian. Kirim stok untuk setiap ukuran.',
+                }, { status: 409 });
+            }
+            updates = {
+                stock,
+                ...(Array.isArray(product.weight) && product.weight.length === 1 ? { stock_per_unit: [stock] } : {}),
+            };
         }
 
-        const { data, error } = await supabaseAdmin
+        let { data, error } = await supabaseAdmin
             .from('products')
-            .update({ stock })
+            .update(updates)
             .eq('id', id)
             .select()
             .single();
+        if (error && updates.stock_per_unit && /stock_per_unit/i.test(error.message || '')) {
+            ({ data, error } = await supabaseAdmin
+                .from('products')
+                .update({
+                    stock: updates.stock,
+                    tags: setTaggedVariantStocks(product.tags, updates.stock_per_unit),
+                })
+                .eq('id', id)
+                .select()
+                .single());
+        }
         if (error) throw error;
 
         return Response.json({ success: true, data: convertKeys(data) });

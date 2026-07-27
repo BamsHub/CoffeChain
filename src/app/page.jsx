@@ -149,6 +149,7 @@ export default function LandingPage() {
     const [walletBalance, setWalletBalance] = useState(0);
     const [walletConnecting, setWalletConnecting] = useState(false);
     const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
     /* ── Theme State ── */
     const [theme, setTheme] = useState('dark');
@@ -356,6 +357,7 @@ export default function LandingPage() {
         if (!window.confirm('Anda yakin ingin keluar?')) return;
         await logout();
         setAdminUser(null);
+        setProfileMenuOpen(false);
     }
 
     /* ── Phantom Wallet Functions ── */
@@ -816,7 +818,12 @@ export default function LandingPage() {
         loadMidtransSnap(); // Lazy-load Midtrans SDK on first order
         if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
         setSelectedProduct(product);
-        setOrderForm({ buyerName: user.name || '', buyerEmail: user.email || '', buyerPhone: user.phone || '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: user.name || '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: user.phone || '' });
+        const hasVariantStock = Array.isArray(product.stockPerUnit) && product.stockPerUnit.length === product.weight?.length;
+        const firstAvailableIndex = hasVariantStock
+            ? product.stockPerUnit.findIndex(stock => Number(stock) > 0)
+            : 0;
+        const defaultWeightIndex = firstAvailableIndex >= 0 ? firstAvailableIndex : 0;
+        setOrderForm({ buyerName: user.name || '', buyerEmail: user.email || '', buyerPhone: user.phone || '', quantity: 1, weight: product.weight?.[defaultWeightIndex] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: user.name || '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: user.phone || '' });
         setOrderResult(null);
         setQrDataUrl(null);
         setQrConfirm({ loading: false, done: false, error: null });
@@ -827,6 +834,11 @@ export default function LandingPage() {
 
     const weightIdx = selectedProduct && orderForm.weight ? (selectedProduct.weight?.indexOf(orderForm.weight) ?? 0) : 0;
     const unitPrice = selectedProduct?.pricePerUnit?.[weightIdx] ?? 0;
+    const hasSelectedVariantStock = Array.isArray(selectedProduct?.stockPerUnit)
+        && selectedProduct.stockPerUnit.length === selectedProduct.weight?.length;
+    const selectedVariantStock = hasSelectedVariantStock
+        ? (Number(selectedProduct.stockPerUnit[weightIdx]) || 0)
+        : (Number(selectedProduct?.stock) || 0);
     const pricing = calculatePaymentPricing({ unitPrice, quantity: orderForm.quantity });
     const totalPrice = pricing.totalPrice;
     const solAmount = rupiahToSol(totalPrice);
@@ -968,13 +980,44 @@ export default function LandingPage() {
                             {walletConnecting ? 'Menghubungkan...' : 'Phantom Wallet'}
                         </button>
                     )}
-                    <Link href="/login" className="cc-btn-outline" onClick={() => setMobileMenu(false)} style={{ padding:'9px 14px', fontSize:13 }}>
-                        <IconLock /> Masuk
-                    </Link>
-                    {adminUser && (
-                        <button onClick={handleLandingLogout} style={{ padding:'9px 14px', fontSize:13, borderRadius:12, background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', color:'#f87171', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
-                            <IconClose /> Keluar
-                        </button>
+                    {!authLoading && !user && (
+                        <Link href="/login" className="cc-btn-outline" onClick={() => setMobileMenu(false)} style={{ padding:'9px 14px', fontSize:13 }}>
+                            <IconLock /> Masuk
+                        </Link>
+                    )}
+                    {!authLoading && user && (
+                        <div style={{ position:'relative' }}>
+                            <button
+                                type="button"
+                                aria-haspopup="menu"
+                                aria-expanded={profileMenuOpen}
+                                onClick={() => setProfileMenuOpen(open => !open)}
+                                style={{ padding:'7px 10px', fontSize:13, borderRadius:12, background:'rgba(132,224,104,0.1)', border:'1px solid rgba(132,224,104,0.28)', color:'var(--cc-text)', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:9, maxWidth:210 }}
+                            >
+                                <span style={{ width:30, height:30, borderRadius:9, display:'grid', placeItems:'center', flexShrink:0, background:'linear-gradient(135deg,#84e068,#4ab830)', color:'#102d1f', fontWeight:900 }}>
+                                    {String(user.name || user.email || 'A').trim().charAt(0).toUpperCase()}
+                                </span>
+                                <span style={{ minWidth:0, textAlign:'left' }}>
+                                    <span style={{ display:'block', maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight:800 }}>{user.name || user.email}</span>
+                                    <span style={{ display:'block', color:'var(--cc-text-muted)', fontSize:10, textTransform:'capitalize', marginTop:1 }}>{user.role || 'akun'}</span>
+                                </span>
+                                <span aria-hidden="true" style={{ color:'var(--cc-text-muted)', transform: profileMenuOpen ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>⌄</span>
+                            </button>
+                            {profileMenuOpen && (
+                                <div role="menu" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, width:230, padding:8, borderRadius:13, background:'var(--cc-dropdown-bg)', border:'1px solid var(--cc-divider)', boxShadow:'0 22px 55px rgba(0,0,0,.5)', zIndex:220 }}>
+                                    <div style={{ padding:'8px 10px 10px', borderBottom:'1px solid var(--cc-divider)', marginBottom:7 }}>
+                                        <div style={{ color:'var(--cc-text)', fontSize:13, fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name || 'Profil CoffeeChain'}</div>
+                                        <div style={{ color:'var(--cc-text-muted)', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:2 }}>{user.email}</div>
+                                    </div>
+                                    <Link role="menuitem" href="/dashboard" onClick={() => { setProfileMenuOpen(false); setMobileMenu(false); }} style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:9, color:'var(--cc-text)', textDecoration:'none', fontSize:13, fontWeight:700, background:'rgba(132,224,104,.08)' }}>
+                                        <IconPackage /> Masuk ke Dashboard
+                                    </Link>
+                                    <button role="menuitem" type="button" onClick={handleLandingLogout} style={{ width:'100%', marginTop:6, padding:'9px 10px', borderRadius:9, background:'rgba(248,113,113,.08)', border:'1px solid rgba(248,113,113,.18)', color:'#f87171', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:13, fontWeight:700 }}>
+                                        <IconClose /> Keluar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -1444,7 +1487,7 @@ export default function LandingPage() {
                         2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana
                     </p>
                     <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
-                        {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/guide', 'Panduan'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
+                        {[['/', 'Beranda'], user ? ['/dashboard', 'Dashboard'] : ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/guide', 'Panduan'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
                             <a key={label} href={href} style={{ color:'#2d4a2d', fontSize:12, textDecoration:'none', transition:'color 0.2s' }}
                                 onMouseEnter={e => e.currentTarget.style.color='#84e068'}
                                 onMouseLeave={e => e.currentTarget.style.color='#2d4a2d'}
@@ -1793,15 +1836,15 @@ export default function LandingPage() {
                                             <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:6 }}>Ukuran Berat</label>
                                             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                                                 {selectedProduct.weight
-                                                    .map((w, i) => ({ w, i, price: selectedProduct.pricePerUnit?.[i] ?? 0 }))
+                                                    .map((w, i) => ({ w, i, price: selectedProduct.pricePerUnit?.[i] ?? 0, variantStock: hasSelectedVariantStock ? (Number(selectedProduct.stockPerUnit[i]) || 0) : (Number(selectedProduct.stock) || 0) }))
                                                     .filter(({ w, price }) => w >= 50 && w <= 5000 && price <= 10_000_000)
-                                                    .map(({ w, i, price }) => (
-                                                    <button key={w} type="button" onClick={() => setOrderForm(f => ({ ...f, weight: w }))}
-                                                        style={{ padding:'8px 14px', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:600,
+                                                    .map(({ w, i, price, variantStock }) => (
+                                                    <button key={w} type="button" disabled={variantStock <= 0} onClick={() => setOrderForm(f => ({ ...f, weight: w, quantity: Math.min(f.quantity, variantStock) || 1 }))}
+                                                        style={{ padding:'8px 14px', borderRadius:10, cursor:variantStock > 0 ? 'pointer' : 'not-allowed', fontSize:12, fontWeight:600, opacity: variantStock > 0 ? 1 : 0.48,
                                                             background: orderForm.weight === w ? 'rgba(132,224,104,0.15)' : 'var(--cc-input-bg)',
                                                             border:`1px solid ${orderForm.weight === w ? 'rgba(132,224,104,0.5)' : 'var(--cc-input-border)'}`,
                                                             color: orderForm.weight === w ? 'var(--cc-text-highlight)' : 'var(--cc-text-muted)' }}>
-                                                        {w}g<br /><span style={{ fontSize:10, opacity:0.7 }}>Rp {price?.toLocaleString('id-ID')}</span>
+                                                        {w}g<br /><span style={{ fontSize:10, opacity:0.8 }}>Rp {price?.toLocaleString('id-ID')} · {variantStock} unit</span>
                                                     </button>
                                                 ))}
                                             </div>
@@ -1809,9 +1852,9 @@ export default function LandingPage() {
                                     )}
 
                                     <div>
-                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Jumlah (max: {selectedProduct.stock ?? 0})</label>
-                                        <input type="number" min={1} max={selectedProduct.stock ?? 50} value={orderForm.quantity}
-                                            onChange={e => setOrderForm(f => ({ ...f, quantity: Math.min(parseInt(e.target.value)||1, selectedProduct.stock??999) }))}
+                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Jumlah kemasan {orderForm.weight}g (maks: {selectedVariantStock})</label>
+                                        <input type="number" min={1} max={selectedVariantStock || 1} value={orderForm.quantity}
+                                            onChange={e => setOrderForm(f => ({ ...f, quantity: Math.min(parseInt(e.target.value)||1, selectedVariantStock || 1) }))}
                                             className="cc-inp" />
                                     </div>
 

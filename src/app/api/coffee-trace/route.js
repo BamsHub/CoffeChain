@@ -14,6 +14,7 @@ import {
     verifyProductOffchainProof,
 } from '@/lib/offchainProduct';
 import { getCompleteProductionAudit } from '@/lib/productionAudit';
+import { canReviewAllPipelines } from '@/lib/productionAccess';
 
 function generateCoffeeId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -60,8 +61,11 @@ export async function POST(request) {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
         if (!session) return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        if (!['koperasi', 'developer', 'admin'].includes(session.role)) {
-            return Response.json({ success: false, message: 'Hanya admin yang dapat menyetujui register Solana' }, { status: 403 });
+        if (!canReviewAllPipelines(session.role)) {
+            return Response.json({
+                success: false,
+                message: 'Produk akhir wajib disetujui oleh developer/koperasi sebelum register Solana.',
+            }, { status: 403 });
         }
 
         const body = await request.json();

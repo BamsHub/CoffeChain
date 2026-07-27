@@ -194,8 +194,12 @@ export default function CoffeeRegisterContent() {
 
     /* ── Submit: server wallet sign → Solana → save to DB ── */
     async function handleRegister(e) {
-        e.preventDefault();
+        e?.preventDefault();
         if (!regProduct) return;
+        if (e) {
+            setPreviewOpen(true);
+            return;
+        }
 
         setSubmitting(true); setRegMsg(null);
         try {
@@ -247,6 +251,7 @@ export default function CoffeeRegisterContent() {
             const data = await res.json();
 
             if (data.success) {
+                setPreviewOpen(false);
                 setRegMsg({
                     type: 'success',
                     text: `"${regProduct.name}" berhasil terdaftar di Solana Blockchain!`,
@@ -257,9 +262,11 @@ export default function CoffeeRegisterContent() {
                 await Promise.all([loadProducts(), loadTraces()]);
                 setTimeout(() => { setRegProduct(null); setRegMsg(null); }, 4500);
             } else {
+                setPreviewOpen(false);
                 setRegMsg({ type: 'error', text: data.message || 'Gagal simpan ke DB' });
             }
         } catch (err) {
+            setPreviewOpen(false);
             setRegMsg({ type: 'error', text: err.message || 'Terjadi kesalahan' });
         }
         setSubmitting(false);
@@ -389,7 +396,7 @@ export default function CoffeeRegisterContent() {
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
                 <div>
                     <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text,#E8F5E0)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <IcoShield /> Review & Register Kopi
+                        <IcoShield /> Persetujuan Produk & Register Kopi
                     </h1>
                     <p style={{ fontSize: 13, color: 'rgba(232,245,224,0.45)' }}>
                         Periksa deskripsi dan foto IPFS Tahap 1-6, lalu kirim hash traceability ke <strong style={{ color: '#9945FF' }}>Solana Testnet</strong>
@@ -568,7 +575,7 @@ export default function CoffeeRegisterContent() {
                                                 </div>
                                                 <button onClick={(e) => { e.stopPropagation(); openRegister(p); }}
                                                     style={{ ...S.btnG, width: '100%', justifyContent: 'center', padding: '9px', fontSize: 12 }}>
-                                                    <IcoShield /> Review & Kirim ke Solana
+                                                    <IcoShield /> Setujui & Kirim ke Solana
                                                 </button>
                                                 <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
                                                     style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', border: '1px solid rgba(126,212,74,0.25)', fontWeight: 700 }}>
@@ -799,13 +806,13 @@ export default function CoffeeRegisterContent() {
                                     <IcoEye /> Lihat Semua Data
                                 </button>
                                 <button type="submit" disabled={submitting} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting ? 0.7 : 1 }}>
-                                    {submitting ? <><IcoSpin /> Menulis Memo...</> : <><IcoWallet /> Daftarkan via Server Wallet</>}
+                                    {submitting ? <><IcoSpin /> Menulis Memo...</> : <><IcoEye /> Periksa & Ajukan Sertifikat</>}
                                 </button>
                             </form>
                         )}
 
                         {previewOpen && (
-                            <div className="cr-overlay" style={{ zIndex: 360, padding: 12 }} onClick={() => setPreviewOpen(false)}>
+                            <div className="cr-overlay" style={{ zIndex: 360, padding: 12 }} onClick={() => { if (!submitting) setPreviewOpen(false); }}>
                                 <div className="cr-modal" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
                                         <div>
@@ -814,7 +821,7 @@ export default function CoffeeRegisterContent() {
                                             </div>
                                             <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 3 }}>Periksa data sebelum server wallet menulis Memo.</div>
                                         </div>
-                                        <button type="button" onClick={() => setPreviewOpen(false)}
+                                        <button type="button" disabled={submitting} onClick={() => setPreviewOpen(false)}
                                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: 'rgba(232,245,224,0.7)', cursor: 'pointer' }}>
                                             <IcoClose />
                                         </button>
@@ -841,6 +848,7 @@ export default function CoffeeRegisterContent() {
                                                 ['Stok', `${regProduct.stock ?? 0} unit`],
                                                 ['Ukuran', Array.isArray(regProduct.weight) ? regProduct.weight.map(w => `${w}g`).join(', ') : '-'],
                                                 ['Harga', Array.isArray(regProduct.pricePerUnit) ? regProduct.pricePerUnit.map(v => `Rp ${Number(v || 0).toLocaleString('id-ID')}`).join(', ') : '-'],
+                                                ['Stok per Ukuran', Array.isArray(regProduct.stockPerUnit) ? regProduct.stockPerUnit.map((stock, index) => `${regProduct.weight?.[index] || '-'}g: ${stock} unit`).join(', ') : `${regProduct.stock ?? 0} unit total`],
                                                 ['Nama Petani', regForm.farmerName || '-'],
                                                 ['Tanggal Panen', regForm.harvestDate || '-'],
                                                 ['Metode Proses', regForm.processMethod],
@@ -862,8 +870,11 @@ export default function CoffeeRegisterContent() {
                                         </div>
                                     )}
 
-                                    <button type="button" onClick={() => setPreviewOpen(false)} style={{ ...S.btnG, marginTop: 16, width: '100%', justifyContent: 'center' }}>
-                                        Data Sudah Sesuai
+                                    <div style={{ marginTop: 14, padding: '11px 13px', borderRadius: 10, background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)', color: 'rgba(255,236,193,0.82)', fontSize: 12, lineHeight: 1.55 }}>
+                                        Pastikan seluruh data sudah benar. Setelah signature sertifikat tersimpan, signature tersebut tidak akan diganti.
+                                    </div>
+                                    <button type="button" disabled={submitting} onClick={() => handleRegister()} style={{ ...S.btnG, marginTop: 12, width: '100%', justifyContent: 'center', opacity: submitting ? 0.7 : 1 }}>
+                                        {submitting ? <><IcoSpin /> Menulis ke Solana...</> : <><IcoShield /> Data Benar, Setujui & Kirim ke Solana</>}
                                     </button>
                                 </div>
                             </div>
@@ -900,7 +911,7 @@ export default function CoffeeRegisterContent() {
                             {!detailProduct.coffeeId && (
                                 <button type="button" onClick={() => { openRegister(detailProduct); setDetailProduct(null); }}
                                     style={{ ...S.btnG, flex: '1 1 220px', justifyContent: 'center' }}>
-                                    <IcoShield /> Review & Kirim ke Solana
+                                    <IcoShield /> Setujui & Kirim ke Solana
                                 </button>
                             )}
                             {!detailProduct.coffeeId && (

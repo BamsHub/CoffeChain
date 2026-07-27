@@ -150,13 +150,22 @@ export default function ProductsContent() {
     }
 
     async function handleStock(product) {
-        const value = prompt(`Stok terbaru untuk "${product.name}"`, String(product.stock ?? 0));
-        if (value === null) return;
-        const stock = Number(value);
-        if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) {
-            setMsg({ type: 'err', text: 'Stok harus berupa bilangan bulat antara 0 dan 1.000.000.' });
-            return;
+        const weights = Array.isArray(product.weight) && product.weight.length ? product.weight : [250];
+        const currentStocks = Array.isArray(product.stockPerUnit) && product.stockPerUnit.length === weights.length
+            ? product.stockPerUnit
+            : weights.map((_, index) => index === 0 ? (product.stock ?? 0) : 0);
+        const stockPerUnit = [];
+        for (let index = 0; index < weights.length; index += 1) {
+            const value = prompt(`Stok terbaru kemasan ${weights[index]}g untuk "${product.name}"`, String(currentStocks[index] ?? 0));
+            if (value === null) return;
+            const stock = Number(value);
+            if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) {
+                setMsg({ type: 'err', text: `Stok kemasan ${weights[index]}g harus berupa bilangan bulat antara 0 dan 1.000.000.` });
+                return;
+            }
+            stockPerUnit.push(stock);
         }
+        const stock = stockPerUnit.reduce((total, value) => total + value, 0);
 
         setSaving(true);
         try {
@@ -167,11 +176,11 @@ export default function ProductsContent() {
                     'Content-Type': 'application/json',
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify({ id: product.id, stock }),
+                body: JSON.stringify({ id: product.id, stockPerUnit }),
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Gagal memperbarui stok');
-            setMsg({ type: 'ok', text: `Stok "${product.name}" diperbarui menjadi ${stock} unit.` });
+            setMsg({ type: 'ok', text: `Stok "${product.name}" diperbarui menjadi ${stock} unit pada ${stockPerUnit.length} varian.` });
             load();
         } catch (error) {
             setMsg({ type: 'err', text: error.message || 'Gagal memperbarui stok' });
@@ -633,7 +642,7 @@ export default function ProductsContent() {
                                     <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                                     <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 2 }}>{p.origin} · {p.variety}</div>
                                     {p.status === 'pending' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Persetujuan</span>}
-                                    {p.status === 'pending_certification' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Register Admin</span>}
+                                    {p.status === 'pending_certification' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(245,166,35,0.15)', color: '#F5A623', border: '1px solid rgba(245,166,35,0.35)', fontWeight: 700 }}>Menunggu Izin Developer/Koperasi</span>}
                                     {p.status === 'rejected' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(244,67,54,0.12)', color: '#f44336', border: '1px solid rgba(244,67,54,0.3)', fontWeight: 700 }}>Ditolak</span>}
                                     {p.status === 'archived' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 100, background: 'rgba(179,136,255,0.12)', color: '#b388ff', border: '1px solid rgba(179,136,255,0.3)', fontWeight: 700 }}>Diarsipkan dari Landing</span>}
                                 </div>
@@ -656,7 +665,7 @@ export default function ProductsContent() {
                             {p.weight?.map((w, i) => (
                                 w >= 50 && w <= 5000 && p.pricePerUnit?.[i] <= 10_000_000 ? (
                                     <div key={w} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderTop: '1px solid var(--color-border)' }}>
-                                        <span style={{ color: 'var(--color-text-muted)' }}>{w}g</span>
+                                        <span style={{ color: 'var(--color-text-muted)' }}>{w}g · {Array.isArray(p.stockPerUnit) ? (p.stockPerUnit[i] ?? 0) : p.stock} unit</span>
                                         <span style={{ fontWeight: 700, color: 'var(--color-primary-light)' }}>Rp {p.pricePerUnit[i]?.toLocaleString('id-ID')}</span>
                                     </div>
                                 ) : null
@@ -675,6 +684,14 @@ export default function ProductsContent() {
                                     </div>
                                 ) : p.status === 'pending' ? (
                                     <span style={{ fontSize: 10, fontWeight: 600, color: '#FFB300', padding: '3px 8px', borderRadius: 6, background: 'rgba(255,152,0,0.08)', border: '1px solid rgba(255,152,0,0.2)' }}> Menunggu Persetujuan</span>
+                                ) : p.status === 'rejected' ? (
+                                    p.submittedBy === (user?.id || '') ? (
+                                        <Link href="/products/stock" style={{ fontSize: 11, fontWeight: 800, padding: '5px 12px', borderRadius: 7, background: 'rgba(245,166,35,0.1)', color: '#F5C15D', border: '1px solid rgba(245,166,35,0.32)', textDecoration: 'none' }}>
+                                            Perbaiki Pipeline
+                                        </Link>
+                                    ) : (
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#F5C15D' }}>Menunggu perbaikan pemilik</span>
+                                    )
                                 ) : (
                                     canApprove ? <Link href="/coffee-register"
                                         style={{
@@ -684,10 +701,10 @@ export default function ProductsContent() {
                                             display: 'inline-flex', alignItems: 'center', gap: 5,
                                             textDecoration: 'none', transition: 'all 0.2s',
                                         }}>
-                                         Daftarkan ke Blockchain
+                                         Tinjau & Setujui
                                     </Link> : (
                                         <span style={{ fontSize: 10, fontWeight: 600, color: '#F5A623' }}>
-                                            Menunggu registrasi Solana
+                                             Menunggu izin developer/koperasi
                                         </span>
                                     )
                                 )}

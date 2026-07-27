@@ -3,11 +3,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
 import { readDb } from '@/lib/db';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import {
+    canReviewAllPipelines,
+    isPipelineAccountRole,
+    ownsPipelineBatch,
+} from '@/lib/productionAccess';
 
 export const runtime = 'nodejs';
-
-const ACCOUNT_ROLES = new Set(['farmer', 'koperasi', 'developer', 'admin']);
-const REVIEW_ROLES = new Set(['koperasi', 'developer', 'admin']);
 
 function getToken(req) {
     return req.headers.get('Authorization')?.replace('Bearer ', '');
@@ -15,7 +17,7 @@ function getToken(req) {
 
 async function requireSession(req) {
     const session = await verifyToken(getToken(req));
-    return session && ACCOUNT_ROLES.has(session.role) ? session : null;
+    return session && isPipelineAccountRole(session.role) ? session : null;
 }
 
 async function getActorName(session) {
@@ -41,7 +43,7 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const stage = searchParams.get('stage');
-        const reviewScope = searchParams.get('scope') === 'review' && REVIEW_ROLES.has(session.role);
+        const reviewScope = searchParams.get('scope') === 'review' && canReviewAllPipelines(session.role);
         const requestedOwner = searchParams.get('ownerId');
         const ownerId = reviewScope ? requestedOwner : session.userId;
 
@@ -65,7 +67,7 @@ export async function GET(req) {
         if (productIds.length) {
             const { data: products, error: productError } = await supabase
                 .from('products')
-                .select('id, status, rejected_reason, coffee_id')
+                .select('id, status, rejected_reason, coffee_id, approved_by, approved_by_name, approved_at')
                 .in('id', productIds);
             if (productError) throw new Error(productError.message);
             for (const product of products || []) productById.set(product.id, product);
@@ -86,6 +88,19 @@ export async function GET(req) {
             productId: row.product_id,
             productStatus: productById.get(row.product_id)?.status || null,
             rejectedReason: productById.get(row.product_id)?.rejected_reason || null,
+            approvedBy: productById.get(row.product_id)?.approved_by || null,
+            approvedByName: productById.get(row.product_id)?.approved_by_name || null,
+            approvedAt: productById.get(row.product_id)?.approved_at || null,
+            approvalStatus: productById.get(row.product_id)?.status === 'published'
+                ? 'approved'
+                : productById.get(row.product_id)?.status === 'rejected'
+                    ? 'rejected'
+                    : row.product_id
+                        ? 'pending'
+                        : 'draft',
+            canEdit: ownsPipelineBatch(session, row),
+            canReview: reviewScope && Boolean(row.product_id)
+                && productById.get(row.product_id)?.status === 'pending_certification',
             notes: row.notes,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -176,7 +191,7 @@ export async function DELETE(req) {
         if (findError || !batch) {
             return NextResponse.json({ success: false, message: 'Batch tidak ditemukan' }, { status: 404 });
         }
-        if (batch.farmer_id !== session.userId) {
+        if (!ownsPipelineBatch(session, batch)) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
         if (batch.product_id || batch.coffee_id) {

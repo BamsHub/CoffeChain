@@ -8,6 +8,7 @@ import {
     getPaidAtForStatus,
 } from '@/lib/midtrans';
 import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
+import { deductPaidOrderStock } from '@/lib/productStock';
 import crypto from 'crypto';
 
 /**
@@ -49,7 +50,7 @@ export async function POST(request) {
         // Update order di Supabase (primary DB on Vercel)
         const { data: orders, error: orderLookupError } = await supabaseAdmin
             .from('orders')
-            .select('id, total_price, status, tx_signature')
+            .select('id, total_price, status, tx_signature, product_id, weight, quantity')
             .eq('order_id', order_id)
             .limit(1);
 
@@ -67,6 +68,9 @@ export async function POST(request) {
 
             let solanaTrace = null;
             if (newStatus === 'paid') {
+                if (orders[0].status !== 'paid') {
+                    await deductPaidOrderStock(supabaseAdmin, orders[0]);
+                }
                 solanaTrace = await ensureMidtransSolanaTrace(order_id, body);
                 if (solanaTrace?.solanaTraceError) {
                     return Response.json({
