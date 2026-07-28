@@ -1,9 +1,10 @@
 // Konfigurasi Smart Contract & Wallet CoffeeChain
 // ================================================
 
-// CAUTION: Satu identitas wallet Testnet dipakai untuk penerima pembayaran,
-// pencatat sertifikat produk, dan pembayar network fee registrasi on-chain.
-// Jangan diganti tanpa rotasi wallet yang disetujui pemilik repository.
+// CAUTION: Wallet server ini adalah identitas tetap untuk pencatat sertifikat
+// inventory dan pembayar network fee registrasi trace on-chain. Jangan diganti
+// tanpa rotasi wallet yang disetujui pemilik repository. Alur payment gateway
+// checkout terpisah dari proses sertifikasi inventory ini.
 export const PINNED_MEMO_SIGNER_PUBLIC = "8erURhHZgSvoFeXAJSDWzk2JDEiLsWeKq11zpiPs7AhJ";
 export const FARMER_WALLET = PINNED_MEMO_SIGNER_PUBLIC;
 export const STORE_WALLET = PINNED_MEMO_SIGNER_PUBLIC;

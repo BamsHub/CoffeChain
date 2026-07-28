@@ -3,7 +3,7 @@
  * CoffeeRegisterContent — Unified Register Kopi + Request Log
  * Alur: Kelola Produk → status blockchain per produk → server wallet → Solana
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
     isPhantomInstalled, connectPhantom, disconnectPhantom,
@@ -84,6 +84,7 @@ export default function CoffeeRegisterContent() {
     const [batchLoading, setBatchLoading] = useState(false);
     const [batchResult, setBatchResult]   = useState(null);
     const [batchAudit, setBatchAudit]     = useState(null);
+    const requestedProductOpenedRef       = useRef(false);
 
     /* ── Auto-connect Phantom ── */
     useEffect(() => {
@@ -98,12 +99,13 @@ export default function CoffeeRegisterContent() {
             } catch { }
         };
         tryAuto();
-        if (window.solana) {
-            window.solana.on('accountChanged', (newKey) => {
-                if (newKey) setWalletPK(newKey.toString());
-                else { setWalletPK(null); setWalletBal(0); }
-            });
-        }
+        const provider = window.solana;
+        const handleAccountChanged = (newKey) => {
+            if (newKey) setWalletPK(newKey.toString());
+            else { setWalletPK(null); setWalletBal(0); }
+        };
+        provider?.on?.('accountChanged', handleAccountChanged);
+        return () => provider?.removeListener?.('accountChanged', handleAccountChanged);
     }, []);
 
     /* ── Load data ── */
@@ -116,8 +118,12 @@ export default function CoffeeRegisterContent() {
                 cache: 'no-store',
             });
             const d = await res.json();
-            if (d.success) setProducts(d.data || []);
-        } catch { }
+            if (!res.ok || !d.success) throw new Error(d.message || 'Gagal memuat antrean Register Kopi');
+            setProducts(d.data || []);
+        } catch (error) {
+            setProducts([]);
+            setRegMsg({ type: 'error', text: error.message || 'Gagal memuat antrean Register Kopi' });
+        }
         setLoadingProd(false);
     }, [getToken]);
 
@@ -180,7 +186,7 @@ export default function CoffeeRegisterContent() {
     }
 
     /* ── Open Register Modal ── */
-    function openRegister(product) {
+    const openRegister = useCallback((product) => {
         setRegProduct(product);
         setRegForm({
             farmerName: product.submittedByName || user?.name || '',
@@ -190,7 +196,29 @@ export default function CoffeeRegisterContent() {
         });
         setRegMsg(null);
         setPreviewOpen(false);
-    }
+    }, [user?.name]);
+
+    useEffect(() => {
+        if (requestedProductOpenedRef.current || typeof window === 'undefined' || !products.length) return;
+
+        const requestedProductId = new URLSearchParams(window.location.search).get('productId');
+        if (!requestedProductId) return;
+
+        requestedProductOpenedRef.current = true;
+        const requestedProduct = products.find(product => (
+            product.id === requestedProductId
+            && !product.coffeeId
+            && product.status === 'pending_certification'
+        ));
+        if (requestedProduct) {
+            openRegister(requestedProduct);
+            return;
+        }
+        setRegMsg({
+            type: 'error',
+            text: 'Produk belum berada di antrean sertifikasi. Pastikan petani sudah mengajukan ulang Tahap 6.',
+        });
+    }, [openRegister, products]);
 
     /* ── Submit: server wallet sign → Solana → save to DB ── */
     async function handleRegister(e) {
@@ -371,7 +399,7 @@ export default function CoffeeRegisterContent() {
     }
 
     /* ── Derived data ── */
-    const unregistered    = products.filter(p => !p.coffeeId && p.status !== 'rejected');
+    const unregistered    = products.filter(p => !p.coffeeId && p.status === 'pending_certification');
     const registered      = products.filter(p => !!p.coffeeId);
     const filteredTraces  = traces.filter(t => {
         const q = logSearch.toLowerCase();
@@ -521,7 +549,7 @@ export default function CoffeeRegisterContent() {
                 <div>
                     <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(126,212,74,0.08)', border: '1px solid rgba(126,212,74,0.25)', fontSize: 13, color: 'rgba(232,245,224,0.6)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
                         <IcoWallet />
-                        Registrasi Memo memakai server wallet Testnet. Pembayaran produk tetap masuk ke <strong style={{ color: '#7ED44A' }}>{shortenAddress(STORE_WALLET, 8)}</strong>.
+                        Biaya transaksi trace inventory dan sertifikat dibayar oleh server wallet Testnet <strong style={{ color: '#7ED44A' }}>{shortenAddress(STORE_WALLET, 8)}</strong>. Proses ini bukan payment gateway atau pembayaran checkout.
                     </div>
                     {loadingProd ? (
                         <div style={{ textAlign: 'center', padding: 48, color: 'rgba(232,245,224,0.3)' }}>Memuat produk...</div>

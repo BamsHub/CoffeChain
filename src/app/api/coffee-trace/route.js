@@ -137,6 +137,7 @@ export async function POST(request) {
         let txSignature = null;
         let explorerUrl = null;
         let txError = null;
+        let chainTx = null;
 
         const immutableSignature = (Array.isArray(product.tags) ? product.tags : [])
             .map(String)
@@ -150,6 +151,7 @@ export async function POST(request) {
         } else {
             try {
                 const result = await sendServerMemoTx(proof.memo);
+                chainTx = result;
                 txSignature = result.txSignature;
                 explorerUrl = result.explorerUrl;
             } catch (error) {
@@ -159,6 +161,20 @@ export async function POST(request) {
         }
 
         const isVerified = Boolean(txSignature);
+        if (!isVerified) {
+            return Response.json({
+                success: false,
+                verified: false,
+                message: `Bukti IPFS sudah dibuat, tetapi sertifikat inventory belum dicatat ke Solana Testnet: ${txError}`,
+                data: {
+                    coffeeId,
+                    txSignature: null,
+                    explorerUrl: null,
+                    offchainProof: proof,
+                },
+            }, { status: 502 });
+        }
+
         const trace = {
             id: uuidv4(),
             coffeeId,
@@ -176,7 +192,7 @@ export async function POST(request) {
             description: trustedTraceData.description || null,
             txSignature,
             explorerUrl,
-            status: isVerified ? 'verified' : 'registered',
+            status: 'verified',
             registeredBy: session.userId,
             productId: product.id,
             paymentWallet: STORE_WALLET,
@@ -213,13 +229,19 @@ export async function POST(request) {
         }
 
         return Response.json({
-            success: isVerified,
-            verified: isVerified,
-            message: isVerified
-                ? `Kopi ${coffeeId} terverifikasi: foto dan metadata di IPFS, hanya hash di Solana.`
-                : `Kopi ${coffeeId} tersimpan di IPFS tetapi bukti Solana gagal: ${txError}`,
-            data: { ...trace, offchainProof: proof },
-        }, { status: isVerified ? 201 : 502 });
+            success: true,
+            verified: true,
+            message: `Kopi ${coffeeId} terverifikasi: foto dan metadata di IPFS, hanya hash di Solana.`,
+            data: {
+                ...trace,
+                offchainProof: proof,
+                inventoryTracePayment: {
+                    wallet: chainTx?.signer || PINNED_MEMO_SIGNER_PUBLIC,
+                    networkFeeLamports: chainTx?.networkFeeLamports ?? null,
+                    networkFeeSol: chainTx?.networkFeeSol ?? null,
+                },
+            },
+        }, { status: 201 });
     } catch (error) {
         console.error('[coffee-trace] Error:', error);
         return Response.json({ success: false, message: error.message || 'Server error' }, { status: 500 });

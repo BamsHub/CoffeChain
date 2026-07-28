@@ -191,10 +191,17 @@ export async function PATCH(request) {
                     submitted_at: new Date().toISOString(),
                 })
                 .eq('id', id)
+                .eq('status', 'rejected')
+                .is('coffee_id', null)
                 .select()
                 .single();
             if (error) throw error;
-            return Response.json({ success: true, resubmitted: true, data: convertKeys(data) });
+            return Response.json({
+                success: true,
+                resubmitted: true,
+                registerReady: true,
+                data: convertKeys(data),
+            });
         }
 
         if (action === 'restore') {

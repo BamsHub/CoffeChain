@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { readDb } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import { PRODUCTION_STAGES } from '@/lib/productionAudit';
+import { getCompleteProductionAudit, PRODUCTION_STAGES } from '@/lib/productionAudit';
 import {
     PIPELINE_REVIEW_ROLES,
     canReviewAllPipelines,
@@ -450,11 +450,14 @@ export async function PATCH(req) {
             .single();
         if (updateError) throw new Error(updateError.message);
 
+        let resubmitted = false;
         if (stageNumber === 6 && product) {
             const tags = (Array.isArray(product.tags) ? product.tags : [])
                 .filter(tag => !String(tag).startsWith('ipfs-image:'));
             tags.push(...evidencePhotos.map(photo => `ipfs-image:${photo.cid}`));
             const stockPerUnit = stageData.stockPerUnit.map(Number);
+            resubmitted = product.status === 'rejected';
+            if (resubmitted) await getCompleteProductionAudit(product.id);
             const productUpdates = {
                 name: stageData.productName || batch.name,
                 roast: stageData.roast || stageData.levelRoast || 'Medium Roast',
@@ -465,6 +468,14 @@ export async function PATCH(req) {
                 image: photoUrl,
                 tags: setTaggedVariantStocks(tags, stockPerUnit),
                 stock: stockPerUnit.reduce((total, stock) => total + stock, 0),
+                ...(resubmitted ? {
+                    status: 'pending_certification',
+                    rejected_reason: null,
+                    approved_by: null,
+                    approved_by_name: null,
+                    approved_at: null,
+                    submitted_at: new Date().toISOString(),
+                } : {}),
             };
             let { error: productUpdateError } = await supabase.from('products').update(productUpdates).eq('id', product.id);
             if (productUpdateError && /stock_per_unit/i.test(productUpdateError.message || '')) {
@@ -478,6 +489,7 @@ export async function PATCH(req) {
         return NextResponse.json({
             success: true,
             edited: true,
+            resubmitted,
             data: {
                 id: updatedLog.id,
                 batchId,

@@ -304,7 +304,18 @@ export default function StockManagement() {
             });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || 'Gagal mengirim ulang permintaan produk');
-            setMsg({ type: 'ok', text: `Produk dari batch "${batch.name}" dikirim ulang. Developer/koperasi akan meninjau pipeline Tahap 1-6 yang sudah diperbaiki.` });
+            setBatches(current => current.map(item => (
+                item.id === batch.id
+                    ? {
+                        ...item,
+                        productStatus: 'pending_certification',
+                        approvalStatus: 'pending',
+                        rejectedReason: null,
+                        canReview: false,
+                    }
+                    : item
+            )));
+            setMsg({ type: 'ok', text: `Produk dari batch "${batch.name}" berhasil diajukan ulang dan sekarang masuk antrean Register Kopi untuk developer/koperasi.` });
             setResubmitTarget(null);
             await load();
         } catch (err) {
@@ -407,8 +418,10 @@ export default function StockManagement() {
 
             const nextStage = STAGES.find(item => item.id === data.nextStage);
             const successText = stageModal.isEditing
-                ? isRejected
-                    ? `${stage.name} untuk "${batch.name}" berhasil diperbarui. Periksa tahap lain lalu kirim ulang request produk.`
+                ? data.resubmitted
+                    ? `${stage.name} untuk "${batch.name}" berhasil diperbarui dan otomatis diajukan ulang. Produk sekarang masuk antrean Register Kopi untuk developer/koperasi.`
+                    : isRejected
+                    ? `${stage.name} untuk "${batch.name}" berhasil diperbarui. Periksa tahap lain lalu ajukan ulang ke Register Kopi.`
                     : `${stage.name} untuk "${batch.name}" berhasil diperbarui. Data masih dapat disunting sampai tahap berikutnya disimpan.`
                 : isFinal
                 ? `${stage.name} untuk "${batch.name}" tersimpan. Produk menunggu persetujuan developer/koperasi sebelum dikirim ke Solana Testnet.`
@@ -712,7 +725,7 @@ export default function StockManagement() {
 
                                 {isRejected && isFarmer && (
                                     <button type="button" style={{ ...primaryButton, width: '100%', marginTop: 9 }} disabled={saving} onClick={() => setResubmitTarget(batch)}>
-                                        {saving ? 'Mengirim Ulang...' : 'Kirim Ulang Request Produk'}
+                                        {saving ? 'Mengajukan Ulang...' : 'Ajukan Ulang ke Register Kopi'}
                                     </button>
                                 )}
 
@@ -820,7 +833,7 @@ export default function StockManagement() {
             {resubmitTarget && (
                 <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(0,0,0,0.94)', backdropFilter: 'blur(9px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={event => { if (event.target === event.currentTarget && !saving) setResubmitTarget(null); }}>
                     <div role="alertdialog" aria-modal="true" aria-labelledby="resubmit-product-title" style={{ background: '#101410', border: '1px solid rgba(245,166,35,0.42)', borderRadius: 18, padding: 24, width: '100%', maxWidth: 540, boxShadow: '0 30px 100px rgba(0,0,0,0.86)' }}>
-                        <div style={{ color: '#F5C15D', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Kirim Ulang Produk</div>
+                        <div style={{ color: '#F5C15D', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Ajukan Ulang Produk</div>
                         <h2 id="resubmit-product-title" style={{ color: '#F7F9F5', margin: '7px 0 0', fontSize: 22, fontWeight: 900 }}>Data “{resubmitTarget.name}” sudah diperbaiki?</h2>
                         <p style={{ color: '#AEB8AA', fontSize: 13, lineHeight: 1.65, margin: '10px 0 0' }}>
                             Periksa kembali seluruh Tahap 1–6, foto IPFS, varian kemasan, harga, dan stok. Setelah dikirim, Developer/Koperasi akan meninjau ulang.
@@ -828,7 +841,7 @@ export default function StockManagement() {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
                             <button type="button" style={mutedButton} onClick={() => setResubmitTarget(null)} disabled={saving}>Belum, Periksa Lagi</button>
                             <button type="button" style={{ ...primaryButton, opacity: saving ? 0.65 : 1 }} onClick={() => resubmitRejectedProduct(resubmitTarget)} disabled={saving}>
-                                {saving ? 'Mengirim...' : 'Ya, Kirim Ulang'}
+                                {saving ? 'Mengajukan...' : 'Ya, Ajukan ke Register'}
                             </button>
                         </div>
                     </div>

@@ -223,7 +223,7 @@ export async function verifySolanaTransaction(signature, expectedSigner, expecte
             .slice(0, signerCount)
             .map(key => key.toBase58());
         if (!signerAddresses.includes(expectedSigner)) {
-            throw new Error('Wallet Phantom bukan signer transaksi Solana tersebut');
+            throw new Error('Wallet server bukan signer transaksi Solana tersebut');
         }
     }
 
