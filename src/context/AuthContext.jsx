@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { disconnectPhantom } from '@/lib/phantom';
 
@@ -66,9 +66,9 @@ export function AuthProvider({ children }) {
         router.push('/');
     }
 
-    function getToken() {
+    const getToken = useCallback(() => {
         return typeof window !== 'undefined' ? localStorage.getItem('cc_token') : null;
-    }
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, setUser, loading, login, logout, getToken }}>
@@ -93,9 +93,9 @@ export const ROLE_LABELS = {
 
 // Nav items per role
 export const ROLE_NAV = {
-    farmer: ['dashboard', 'transactions', 'wallet', 'products', 'ipfs', 'contact', 'documentation'],
-    koperasi: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'documentation'],
-    developer: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'admin-contact', 'documentation'],
-    admin: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'admin-contact', 'documentation'],
+    farmer: ['dashboard', 'transactions', 'wallet', 'products', 'ipfs', 'contact', 'documentation', 'system-design'],
+    koperasi: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'documentation', 'system-design'],
+    developer: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'admin-contact', 'documentation', 'system-design'],
+    admin: ['dashboard', 'transactions', 'farmers', 'wallet', 'markets', 'integrations', 'products', 'coffee-register', 'ipfs', 'admin-contact', 'documentation', 'system-design'],
 };
 

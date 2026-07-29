@@ -15,7 +15,7 @@ export async function GET(request) {
         const userId = searchParams.get('userId') || session.userId;
 
         // Security check: users can only fetch their own notifications unless they are cooperative or developer
-        if (userId !== session.userId && !['koperasi', 'developer'].includes(session.role)) {
+        if (userId !== session.userId && !['koperasi', 'developer', 'admin'].includes(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
@@ -74,7 +74,7 @@ export async function PATCH(request) {
             const targetUserId = body.userId || session.userId;
 
             // Security check: users can only mark their own notifications as read
-            if (targetUserId !== session.userId && !['koperasi', 'developer'].includes(session.role)) {
+            if (targetUserId !== session.userId && !['koperasi', 'developer', 'admin'].includes(session.role)) {
                 return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
             }
 
@@ -85,7 +85,7 @@ export async function PATCH(request) {
         } else if (body.id) {
             // Check if notification belongs to the user
             const notif = db.items.find(n => n.id === body.id);
-            if (notif && notif.targetUserId !== session.userId && notif.targetUserId !== 'all' && !['koperasi', 'developer'].includes(session.role)) {
+            if (notif && notif.targetUserId !== session.userId && notif.targetUserId !== 'all' && !['koperasi', 'developer', 'admin'].includes(session.role)) {
                 return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
             }
             await updateItem('notifications', body.id, { read: true });

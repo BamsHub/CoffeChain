@@ -3,10 +3,13 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { downloadReceiptPdf } from '@/lib/receiptPdf';
+import ReceiptLoading from './ReceiptLoading';
 
 const IconCheck = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-const IconQr = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" /><rect x="14" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" /><rect x="3" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" /><path d="M14 14h3v3h-3zM19 19h2M14 21h3M21 14v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>;
 const IconArrow = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+const IconDownload = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
 function ReceiptQR({ value }) {
     const [src, setSrc] = useState('');
@@ -62,8 +65,12 @@ async function fetchReceiptData(orderId) {
     return json.data;
 }
 
-async function syncMidtransReceipt(orderId) {
-    const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
+async function syncMidtransReceipt(orderId, token) {
+    if (!token) throw new Error('Silakan login kembali untuk menyinkronkan pembayaran');
+    const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` },
+    });
     const json = await res.json().catch(() => ({}));
     if (!res.ok || !json.success) {
         const error = new Error(json.message || 'Gagal sinkronisasi pembayaran Midtrans');
@@ -79,12 +86,13 @@ function wait(ms) {
 
 function ReceiptContent() {
     const searchParams = useSearchParams();
+    const { getToken } = useAuth();
     const orderId = searchParams.get('orderId');
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [syncingTrace, setSyncingTrace] = useState(false);
-    const [traceSyncAttempted, setTraceSyncAttempted] = useState(false);
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
 
     useEffect(() => {
         let alive = true;
@@ -100,7 +108,7 @@ function ReceiptContent() {
             } catch (err) {
                 if (err.status === 402) {
                     try {
-                        const status = await syncMidtransReceipt(orderId);
+                        const status = await syncMidtransReceipt(orderId, getToken());
                         if (status?.status === 'paid') {
                             const retryDelays = [400, 900, 1600, 2600];
                             for (const delay of retryDelays) {
@@ -137,19 +145,42 @@ function ReceiptContent() {
     useEffect(() => {
         let alive = true;
         const order = data?.order;
-        const hasTrace = Boolean(data?.trace?.txSignature || order?.txSignature || data?.trace?.coffeeId || order?.coffeeId);
-        if (!order?.orderId || order.paymentMethod !== 'midtrans' || hasTrace || syncingTrace || traceSyncAttempted) return;
+        const hasPaymentTrace = Boolean(order?.txSignature);
+        if (!order?.orderId || order.paymentMethod !== 'midtrans' || hasPaymentTrace) return;
 
         async function syncMidtransTrace() {
-            setTraceSyncAttempted(true);
             setSyncingTrace(true);
             try {
-                await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(order.orderId)}`, { cache: 'no-store' });
-                const res = await fetch(`/api/public/receipt?orderId=${encodeURIComponent(order.orderId)}`, { cache: 'no-store' });
-                const json = await res.json();
-                if (alive && json.success) setData(json.data);
-            } catch {
-                // Receipt still renders the payment data even if trace sync is delayed.
+                const token = getToken();
+                const statusSync = syncMidtransReceipt(order.orderId, token).catch(error => error);
+
+                // Solana Testnet dapat membutuhkan beberapa detik untuk confirmed/finalized.
+                // Poll receipt secara terpisah agar signature langsung tampil begitu tersimpan.
+                for (let attempt = 0; attempt < 45 && alive; attempt += 1) {
+                    if (attempt > 0) await wait(2000);
+                    try {
+                        const receipt = await fetchReceiptData(order.orderId);
+                        if (!alive) return;
+                        setData(receipt);
+                        if (receipt?.order?.txSignature) return;
+                    } catch {
+                        // Status Midtrans tetap berjalan; coba receipt lagi pada interval berikutnya.
+                    }
+                }
+
+                await statusSync;
+                const receipt = await fetchReceiptData(order.orderId);
+                if (alive) setData(receipt);
+            } catch (syncError) {
+                if (alive) {
+                    setData(current => current ? {
+                        ...current,
+                        order: {
+                            ...current.order,
+                            solanaTraceError: syncError.message || 'Sinkronisasi Solana belum selesai',
+                        },
+                    } : current);
+                }
             } finally {
                 if (alive) setSyncingTrace(false);
             }
@@ -157,17 +188,35 @@ function ReceiptContent() {
 
         syncMidtransTrace();
         return () => { alive = false; };
-    }, [data, syncingTrace, traceSyncAttempted]);
+    }, [data?.order?.orderId, data?.order?.paymentMethod, data?.order?.txSignature]);
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const order = data?.order;
-    const trace = data?.trace;
     const receiptUrl = useMemo(() => order?.orderId ? `${origin}/receipt?orderId=${encodeURIComponent(order.orderId)}` : '', [origin, order?.orderId]);
-    const traceUrl = trace?.traceUrl ? `${origin}${trace.traceUrl}` : order?.traceUrl ? `${origin}${order.traceUrl}` : '';
-    const qrTarget = traceUrl || receiptUrl;
-    const txSignature = trace?.txSignature || order?.txSignature;
-    const explorerUrl = trace?.explorerUrl || order?.explorerUrl;
-    const coffeeId = trace?.coffeeId || order?.coffeeId;
+    const qrTarget = receiptUrl;
+    const txSignature = order?.txSignature || null;
+    const explorerUrl = order?.explorerUrl || null;
+    const coffeeId = order?.coffeeId;
+    const certificationUrl = coffeeId
+        ? `${origin}/trace?id=${encodeURIComponent(coffeeId)}`
+        : null;
+
+    async function handleDownloadPdf() {
+        if (!order || !receiptUrl || downloadingPdf) return;
+        setDownloadingPdf(true);
+        try {
+            await downloadReceiptPdf({
+                order,
+                receiptUrl,
+                certificationUrl,
+                explorerUrl,
+            });
+        } catch (pdfError) {
+            alert(pdfError.message || 'Gagal membuat PDF receipt');
+        } finally {
+            setDownloadingPdf(false);
+        }
+    }
 
     return (
         <main style={{ minHeight: '100vh', background: 'var(--color-bg, #030d06)', color: 'var(--color-text, #E8F5E0)', padding: '48px 18px', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -178,7 +227,7 @@ function ReceiptContent() {
                 </div>
 
                 {loading ? (
-                    <div style={{ padding: 42, border: '1px solid var(--color-border, rgba(74,124,40,0.25))', borderRadius: 16, background: 'var(--color-bg-card, rgba(255,255,255,0.03))', textAlign: 'center' }}>Memuat receipt...</div>
+                    <ReceiptLoading />
                 ) : error ? (
                     <div style={{ padding: 42, border: '1px solid rgba(244,67,54,0.35)', borderRadius: 16, background: 'rgba(244,67,54,0.08)', textAlign: 'center', color: '#ff8a80', fontWeight: 800 }}>{error}</div>
                 ) : (
@@ -201,7 +250,10 @@ function ReceiptContent() {
                                     ['Produk', order.productName],
                                     ['Metode', paymentLabel(order.paymentMethod)],
                                     ['Jumlah', `${order.quantity || 1} x ${order.weight || '-'}g`],
-                                    ['Total', formatMoney(order.totalPrice)],
+                                    ['Subtotal', formatMoney(order.subtotalPrice ?? order.totalPrice)],
+                                    ['Biaya trace Solana', formatMoney(order.solanaTraceFee)],
+                                    [`PPN Indonesia ${Number(order.ppnRate || 0) * 100}%`, formatMoney(order.ppnAmount)],
+                                    ['Total dibayar', formatMoney(order.totalPrice)],
                                     ['Dibuat', formatDate(order.createdAt)],
                                     ['Dibayar', formatDate(order.paidAt)],
                                 ].map(([label, value]) => (
@@ -213,22 +265,39 @@ function ReceiptContent() {
                             </div>
 
                             <div style={{ padding: '28px clamp(18px, 4vw, 36px)' }}>
-                                <h2 style={{ fontSize: 18, marginBottom: 16 }}>Trace & QR</h2>
+                                <h2 style={{ fontSize: 18, marginBottom: 16 }}>Trace Pembayaran & QR Receipt</h2>
                                 <div style={{ display: 'grid', gap: 12, fontSize: 13 }}>
                                     <div style={{ padding: 14, borderRadius: 12, background: 'rgba(126,212,74,0.08)', border: '1px solid rgba(126,212,74,0.22)' }}>
-                                        <div style={{ color: '#7ED44A', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Coffee ID</div>
+                                        <div style={{ color: '#7ED44A', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Referensi Coffee ID Produk</div>
                                         <div style={{ fontFamily: 'monospace', fontWeight: 800 }}>{coffeeId || 'Belum tersedia'}</div>
                                     </div>
                                     <div style={{ padding: 14, borderRadius: 12, background: 'rgba(153,69,255,0.08)', border: '1px solid rgba(153,69,255,0.24)' }}>
-                                        <div style={{ color: '#b388ff', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Solana Signature</div>
-                                        <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.45 }}>{txSignature || (syncingTrace ? 'Sinkronisasi trace on-chain...' : 'Menunggu trace on-chain')}</div>
+                                        <div style={{ color: '#b388ff', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>Payment Trace Solana</div>
+                                        <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.45 }}>
+                                            {txSignature
+                                                || (syncingTrace
+                                                    ? 'Sinkronisasi trace on-chain...'
+                                                    : order.solanaTraceError || 'Menunggu trace on-chain')}
+                                        </div>
+                                        {!txSignature && syncingTrace && (
+                                            <div style={{ marginTop: 7, color: 'rgba(232,245,224,0.58)', fontSize: 11, lineHeight: 1.5 }}>
+                                                Konfirmasi Solana Testnet biasanya membutuhkan beberapa detik.
+                                                Halaman ini memperbarui receipt otomatis sampai signature tersedia.
+                                            </div>
+                                        )}
+                                        {order.solanaNetworkFeeLamports != null && (
+                                            <div style={{ marginTop: 7, color: 'rgba(232,245,224,0.58)', fontSize: 11 }}>
+                                                Network fee: {Number(order.solanaNetworkFeeLamports).toLocaleString('id-ID')} lamports
+                                                {' '}({(Number(order.solanaNetworkFeeLamports) / 1e9).toFixed(9)} SOL)
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
-                                    {traceUrl && (
-                                        <a href={traceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(135deg,#4A7C28,#7ED44A)', color: '#fff', fontWeight: 900, textDecoration: 'none' }}>
-                                            <IconQr /> Buka Trace Sertifikasi <IconArrow />
+                                    {certificationUrl && (
+                                        <a href={certificationUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(126,212,74,0.35)', color: '#7ED44A', fontWeight: 900, textDecoration: 'none' }}>
+                                            Lihat Sertifikasi Produk <IconArrow />
                                         </a>
                                     )}
                                     {explorerUrl && (
@@ -236,6 +305,9 @@ function ReceiptContent() {
                                             Solana Explorer <IconArrow />
                                         </a>
                                     )}
+                                    <button type="button" onClick={handleDownloadPdf} disabled={downloadingPdf} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)', color: '#E8F5E0', background: 'rgba(255,255,255,0.05)', fontWeight: 900, cursor: downloadingPdf ? 'wait' : 'pointer', opacity: downloadingPdf ? 0.65 : 1 }}>
+                                        <IconDownload /> {downloadingPdf ? 'Membuat PDF...' : 'Download PDF'}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -248,7 +320,7 @@ function ReceiptContent() {
 
 export default function ReceiptPage() {
     return (
-        <Suspense fallback={<main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>Memuat receipt...</main>}>
+        <Suspense fallback={<ReceiptLoading fullPage />}>
             <ReceiptContent />
         </Suspense>
     );

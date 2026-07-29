@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { simulateCoffeeTransaction } from '@/lib/solana';
+import { useAuth } from '@/context/AuthContext';
 import styles from './AddTransactionModal.module.css';
 
 const VARIETIES = ['Arabika', 'Robusta', 'Liberika', 'Excelsa'];
@@ -14,6 +14,7 @@ const LOCATIONS = [
 const MARKET_PRICES = { 'Arabika-A': 68500, 'Arabika-AA': 80000, 'Arabika-B': 55000, 'Robusta-A': 48000, 'Robusta-B': 42000, 'Liberika-A': 40000 };
 
 export default function AddTransactionModal({ onClose, onSuccess, walletPublicKey }) {
+    const { getToken } = useAuth();
     const [form, setForm] = useState({
         farmer: '', location: '', weight: '', variety: 'Arabika', grade: 'A',
         pricePerKg: 68500, note: '', walletTo: '',
@@ -54,18 +55,13 @@ export default function AddTransactionModal({ onClose, onSuccess, walletPublicKe
         setStep(3);
         setLoading(true);
         try {
-            // 1. Simulasi smart contract on-chain
-            const chainTx = await simulateCoffeeTransaction(
-                walletPublicKey || 'Demo',
-                Number(form.weight),
-                Number(form.pricePerKg),
-                form.variety
-            );
-
-            // 2. Simpan ke database lokal
+            const token = getToken();
             const res = await fetch('/api/transactions', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     farmer: form.farmer,
                     location: form.location,
@@ -79,7 +75,10 @@ export default function AddTransactionModal({ onClose, onSuccess, walletPublicKe
                 }),
             });
             const data = await res.json();
-            setTxResult({ ...data.data, chainSignature: chainTx.signature, slot: chainTx.slot });
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Transaksi gagal dikirim ke Solana');
+            }
+            setTxResult(data.data);
             onSuccess?.(data.data);
         } catch (err) {
             alert('Transaksi gagal: ' + err.message);
@@ -218,9 +217,20 @@ export default function AddTransactionModal({ onClose, onSuccess, walletPublicKe
                                     <div className={styles.confirmRow}><span>Tx ID</span><code className={styles.code}>{txResult.id}</code></div>
                                     <div className={styles.confirmRow}><span>Hash</span><code className={styles.code}>{txResult.hash}</code></div>
                                     <div className={styles.confirmRow}><span>Block</span><code className={styles.code}>#{txResult.block}</code></div>
-                                    <div className={styles.confirmRow}><span>Signature</span><code className={`${styles.code} ${styles.sigCode}`}>{txResult.chainSignature?.slice(0, 16)}...</code></div>
-                                    <div className={styles.confirmRow}><span>Status</span><span className={styles.pendingBadge}> Pending</span></div>
+                                    <div className={styles.confirmRow}><span>Signature</span><code className={`${styles.code} ${styles.sigCode}`}>{txResult.txSignature?.slice(0, 16)}...</code></div>
+                                    <div className={styles.confirmRow}><span>Status</span><span className={styles.pendingBadge}> Confirmed</span></div>
                                 </div>
+                                {txResult.explorerUrl && (
+                                    <a
+                                        className={styles.btnSubmit}
+                                        href={txResult.explorerUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 10 }}
+                                    >
+                                        Lihat transaksi di Solana Explorer
+                                    </a>
+                                )}
                                 <button className={styles.btnSubmit} onClick={onClose}>Selesai</button>
                             </div>
                         )}

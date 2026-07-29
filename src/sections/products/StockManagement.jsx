@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { normalizeExplorerUrl } from '@/lib/contractConfig';
+import { canReviewAllPipelines } from '@/lib/productionAccess';
+import { validateProductVariants } from '@/lib/productVariants';
 
 const STAGES = [
     { id: 1, name: 'Panen & Sortasi', short: 'Panen', tone: '#7ED44A' },
@@ -36,15 +38,14 @@ const initialStageForm = {
     ukuranGiling: 'Medium',
     gasReleaseHours: '',
     productName: '',
-    stock: '',
-    gram: 250,
-    price: '',
+    variants: [{ gram: 250, price: '', stock: '' }],
     description: '',
 };
 
 export default function StockManagement() {
     const { user, getToken } = useAuth();
     const isFarmer = user?.role === 'farmer';
+    const isReviewer = canReviewAllPipelines(user?.role);
 
     const [batches, setBatches] = useState([]);
     const [logs, setLogs] = useState([]);
@@ -55,25 +56,24 @@ export default function StockManagement() {
     const [batchForm, setBatchForm] = useState(initialBatchForm);
     const [stageModal, setStageModal] = useState(null);
     const [stageForm, setStageForm] = useState(initialStageForm);
-    const [photoUrl, setPhotoUrl] = useState('');
-    const [photoIpfs, setPhotoIpfs] = useState(null);
+    const [photoProofs, setPhotoProofs] = useState([]);
     const [msg, setMsg] = useState(null);
     const [search, setSearch] = useState('');
     const [detailLog, setDetailLog] = useState(null);
     const [cancelTarget, setCancelTarget] = useState(null);
     const [cancellingBatchId, setCancellingBatchId] = useState(null);
+    const [stageConfirmationOpen, setStageConfirmationOpen] = useState(false);
+    const [resubmitTarget, setResubmitTarget] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
         try {
             const token = await getToken();
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            const batchUrl = isFarmer && user?.id
-                ? `/api/production-batches?farmerId=${encodeURIComponent(user.id)}`
-                : '/api/production-batches';
+            const scope = isReviewer ? '?scope=review' : '';
             const [batchRes, logRes] = await Promise.all([
-                fetch(batchUrl, { headers }),
-                fetch('/api/production-stages', { headers }),
+                fetch(`/api/production-batches${scope}`, { headers, cache: 'no-store' }),
+                fetch(`/api/production-stages${scope}`, { headers, cache: 'no-store' }),
             ]);
             const [batchData, logData] = await Promise.all([batchRes.json(), logRes.json()]);
             if (!batchRes.ok || !batchData.success) throw new Error(batchData.message || 'Gagal memuat batch');
@@ -84,7 +84,7 @@ export default function StockManagement() {
             setMsg({ type: 'err', text: `Gagal memuat data: ${err.message}` });
         }
         setLoading(false);
-    }, [isFarmer, user?.id]);
+    }, [getToken, isReviewer]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -122,6 +122,35 @@ export default function StockManagement() {
         setStageForm(prev => ({ ...prev, [key]: value }));
     }
 
+    function updateVariant(index, key, value) {
+        setStageForm(prev => ({
+            ...prev,
+            variants: prev.variants.map((variant, variantIndex) => (
+                variantIndex === index ? { ...variant, [key]: value } : variant
+            )),
+        }));
+    }
+
+    function addVariant() {
+        setStageForm(prev => {
+            if (prev.variants.length >= 6) return prev;
+            const usedWeights = new Set(prev.variants.map(variant => Number(variant.gram)));
+            const nextWeight = [250, 500, 1000, 100, 200, 2000].find(weight => !usedWeights.has(weight)) || 250;
+            return {
+                ...prev,
+                variants: [...prev.variants, { gram: nextWeight, price: '', stock: '' }],
+            };
+        });
+    }
+
+    function removeVariant(index) {
+        setStageForm(prev => (
+            prev.variants.length <= 1
+                ? prev
+                : { ...prev, variants: prev.variants.filter((_, variantIndex) => variantIndex !== index) }
+        ));
+    }
+
     async function createBatch(event) {
         event.preventDefault();
         setSaving(true);
@@ -137,8 +166,6 @@ export default function StockManagement() {
                 body: JSON.stringify({
                     ...batchForm,
                     weightKg: Number(batchForm.weightKg) || null,
-                    farmerId: user?.id || null,
-                    farmerName: user?.name || user?.email || null,
                 }),
             });
             const data = await res.json();
@@ -183,42 +210,68 @@ export default function StockManagement() {
         }
     }
 
-    async function uploadPhoto(file) {
+    async function uploadPhotos(files) {
+        const selectedFiles = Array.from(files || []);
+        if (!selectedFiles.length) return;
         setUploading(true);
-        setPhotoUrl('');
-        setPhotoIpfs(null);
         setMsg(null);
         try {
             const token = await getToken();
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('batchId', stageModal?.batch?.id || '');
-            formData.append('stage', String(stageModal?.stage?.id || ''));
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-                body: formData
-            });
-            const data = await res.json();
-            if (!data.success) throw new Error(data.message || 'Upload gagal');
-            if (data.storage !== 'ipfs' || !data.cid || !data.ipfsUri || !data.gatewayUrl) {
-                throw new Error('Server tidak mengembalikan bukti pinning IPFS yang valid');
+            const uploaded = [];
+            for (const file of selectedFiles) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('batchId', stageModal?.batch?.id || '');
+                formData.append('stage', String(stageModal?.stage?.id || ''));
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    body: formData,
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message || `Upload ${file.name} gagal`);
+                if (data.storage !== 'ipfs' || !data.cid || !data.ipfsUri || !data.gatewayUrl) {
+                    throw new Error('Server tidak mengembalikan bukti pinning IPFS yang valid');
+                }
+                uploaded.push({ cid: data.cid, uri: data.ipfsUri, gatewayUrl: data.gatewayUrl });
             }
-            setPhotoUrl(data.gatewayUrl);
-            setPhotoIpfs({ cid: data.cid, uri: data.ipfsUri, gatewayUrl: data.gatewayUrl });
-            setMsg({ type: 'ok', text: `Foto berhasil dipin ke IPFS. CID: ${data.cid}` });
+            setPhotoProofs(current => {
+                const merged = [...current, ...uploaded].filter((photo, index, all) => all.findIndex(item => item.cid === photo.cid) === index);
+                return merged;
+            });
+            setMsg({ type: 'ok', text: `${uploaded.length} foto berhasil dipin ke IPFS.` });
         } catch (err) {
             setMsg({ type: 'err', text: err.message });
         }
         setUploading(false);
     }
 
+    function removePhoto(cid) {
+        setPhotoProofs(current => current.filter(photo => photo.cid !== cid));
+    }
+
     function openStageCard(batch, stage, existingLog = null) {
+        if (!batch.canEdit) {
+            setMsg({
+                type: 'err',
+                text: 'Pipeline milik akun lain hanya dapat dilihat. Perubahan tetap harus dilakukan oleh pemilik batch.',
+            });
+            return;
+        }
         const existingData = existingLog?.data || {};
         const existingEvidence = existingData.evidencePhoto || null;
+        const existingPhotos = Array.isArray(existingData.evidencePhotos) && existingData.evidencePhotos.length
+            ? existingData.evidencePhotos
+            : (existingEvidence ? [existingEvidence] : []);
         setStageModal({ batch, stage, isEditing: !!existingLog });
-        setPhotoUrl(existingLog?.photoUrl || '');
-        setPhotoIpfs(existingEvidence);
+        setPhotoProofs(existingPhotos);
+        const existingWeights = Array.isArray(existingData.weights) && existingData.weights.length
+            ? existingData.weights
+            : initialStageForm.variants.map(variant => variant.gram);
+        const existingPrices = Array.isArray(existingData.pricePerUnit) ? existingData.pricePerUnit : [];
+        const existingStocks = Array.isArray(existingData.stockPerUnit)
+            ? existingData.stockPerUnit
+            : existingWeights.map((_, index) => index === 0 ? (existingData.stock ?? '') : '');
         setStageForm({
             ...initialStageForm,
             ...existingData,
@@ -226,9 +279,13 @@ export default function StockManagement() {
             weightIn: existingData.weightIn ?? batch.weightKg ?? '',
             productName: existingData.productName || batch.name || '',
             description: existingData.description || batch.notes || '',
-            gram: existingData.weights?.[0] || initialStageForm.gram,
-            price: existingData.pricePerUnit?.[0] || '',
+            variants: existingWeights.map((gram, index) => ({
+                gram,
+                price: existingPrices[index] ?? '',
+                stock: existingStocks[index] ?? '',
+            })),
         });
+        setStageConfirmationOpen(false);
         setMsg(null);
     }
 
@@ -247,7 +304,19 @@ export default function StockManagement() {
             });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || 'Gagal mengirim ulang permintaan produk');
-            setMsg({ type: 'ok', text: `Produk dari batch "${batch.name}" dikirim ulang. Admin akan meninjau pipeline Tahap 1-6 yang sudah diperbaiki.` });
+            setBatches(current => current.map(item => (
+                item.id === batch.id
+                    ? {
+                        ...item,
+                        productStatus: 'pending_certification',
+                        approvalStatus: 'pending',
+                        rejectedReason: null,
+                        canReview: false,
+                    }
+                    : item
+            )));
+            setMsg({ type: 'ok', text: `Produk dari batch "${batch.name}" berhasil diajukan ulang dan sekarang masuk antrean Register Kopi untuk developer/koperasi.` });
+            setResubmitTarget(null);
             await load();
         } catch (err) {
             setMsg({ type: 'err', text: err.message });
@@ -256,19 +325,41 @@ export default function StockManagement() {
     }
 
     async function submitStage(event) {
-        event.preventDefault();
+        event?.preventDefault();
         if (!stageModal) return;
 
         const { batch, stage } = stageModal;
-        if (!photoUrl || !photoIpfs?.cid || !photoIpfs?.uri) {
-            setMsg({ type: 'err', text: 'Upload dan pin bukti foto ke IPFS wajib sebelum menyimpan tahap produksi.' });
+        const isFinal = stage.id === 6;
+        const isRejected = batch.productStatus === 'rejected';
+        const normalizedVariants = stageForm.variants.map(variant => ({
+            gram: Number(variant.gram),
+            price: Number(variant.price),
+            stock: Number(variant.stock),
+        }));
+        if (isFinal) {
+            const variantError = validateProductVariants({
+                weights: normalizedVariants.map(variant => variant.gram),
+                prices: normalizedVariants.map(variant => variant.price),
+                stocks: normalizedVariants.map(variant => variant.stock),
+            });
+            if (variantError) {
+                setMsg({ type: 'err', text: variantError });
+                return;
+            }
+            if (!stageConfirmationOpen) {
+                setStageConfirmationOpen(true);
+                return;
+            }
+        }
+        const primaryPhoto = photoProofs[0];
+        if (!primaryPhoto?.gatewayUrl || !primaryPhoto?.cid || !primaryPhoto?.uri) {
+            setMsg({ type: 'err', text: 'Upload dan pin minimal satu bukti foto ke IPFS sebelum menyimpan tahap produksi.' });
             return;
         }
         setSaving(true);
         setMsg(null);
         try {
             const token = await getToken();
-            const isFinal = stage.id === 6;
             const description = isFinal ? stageForm.description.trim() : stageForm.notes.trim();
             if (!description) {
                 setMsg({ type: 'err', text: `Deskripsi ${stage.name} wajib diisi.` });
@@ -288,18 +379,20 @@ export default function StockManagement() {
                 ukuranGiling: stageForm.ukuranGiling,
                 gasReleaseHours: Number(stageForm.gasReleaseHours) || null,
                 evidencePhoto: {
-                    cid: photoIpfs.cid,
-                    uri: photoIpfs.uri,
-                    gatewayUrl: photoIpfs.gatewayUrl,
+                    cid: primaryPhoto.cid,
+                    uri: primaryPhoto.uri,
+                    gatewayUrl: primaryPhoto.gatewayUrl,
                 },
+                evidencePhotos: photoProofs,
                 ...(isFinal ? {
                     productName: stageForm.productName || batch.name,
-                    stock: Number(stageForm.stock) || 0,
-                    weights: [Number(stageForm.gram) || 250],
-                    pricePerUnit: [Number(stageForm.price) || 0],
+                    stock: normalizedVariants.reduce((total, variant) => total + variant.stock, 0),
+                    stockPerUnit: normalizedVariants.map(variant => variant.stock),
+                    weights: normalizedVariants.map(variant => variant.gram),
+                    pricePerUnit: normalizedVariants.map(variant => variant.price),
                     description: stageForm.description,
                     roast: stageForm.levelRoast,
-                    image: photoUrl || null,
+                    image: primaryPhoto.gatewayUrl,
                 } : {}),
             };
 
@@ -313,9 +406,9 @@ export default function StockManagement() {
                     batchId: batch.id,
                     stage: stage.id,
                     stageData,
-                    photoUrl,
-                    photoCid: photoIpfs.cid,
-                    ipfsUri: photoIpfs.uri,
+                    photoUrl: primaryPhoto.gatewayUrl,
+                    photoCid: primaryPhoto.cid,
+                    ipfsUri: primaryPhoto.uri,
                     loggedBy: user?.id || null,
                     loggedByName: user?.name || user?.email || null,
                 }),
@@ -325,11 +418,16 @@ export default function StockManagement() {
 
             const nextStage = STAGES.find(item => item.id === data.nextStage);
             const successText = stageModal.isEditing
-                ? `${stage.name} untuk "${batch.name}" berhasil diperbarui. Periksa tahap lain lalu kirim ulang request produk.`
+                ? data.resubmitted
+                    ? `${stage.name} untuk "${batch.name}" berhasil diperbarui dan otomatis diajukan ulang. Produk sekarang masuk antrean Register Kopi untuk developer/koperasi.`
+                    : isRejected
+                    ? `${stage.name} untuk "${batch.name}" berhasil diperbarui. Periksa tahap lain lalu ajukan ulang ke Register Kopi.`
+                    : `${stage.name} untuk "${batch.name}" berhasil diperbarui. Data masih dapat disunting sampai tahap berikutnya disimpan.`
                 : isFinal
-                ? `${stage.name} untuk "${batch.name}" tersimpan. Produk menunggu review admin sebelum dikirim ke Solana Testnet.`
+                ? `${stage.name} untuk "${batch.name}" tersimpan. Produk menunggu persetujuan developer/koperasi sebelum dikirim ke Solana Testnet.`
                 : `${stage.name} tersimpan di IPFS. Batch "${batch.name}" otomatis lanjut ke Tahap ${data.nextStage}: ${nextStage?.name || 'tahap berikutnya'}.`;
             setMsg({ type: 'ok', text: successText, explorerUrl: data.explorerUrl });
+            setStageConfirmationOpen(false);
             setStageModal(null);
             load();
         } catch (err) {
@@ -382,23 +480,51 @@ export default function StockManagement() {
                     {stageModal.stage.id === 6 && (
                         <>
                             <Field label="Nama Produk Jadi" value={stageForm.productName} onChange={value => setStageField('productName', value)} input={input} labelStyle={label} required />
-                            <Field label="Stok Produk (unit)" type="number" value={stageForm.stock} onChange={value => setStageField('stock', value)} input={input} labelStyle={label} required />
-                            <Field label="Berat Kemasan (gram)" type="number" value={stageForm.gram} onChange={value => setStageField('gram', value)} input={input} labelStyle={label} required />
-                            <Field label="Harga" type="number" value={stageForm.price} onChange={value => setStageField('price', value)} input={input} labelStyle={label} required />
+                            <div style={{ gridColumn: '1 / -1', padding: 14, borderRadius: 12, background: '#121812', border: '1px solid rgba(126,212,74,0.24)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+                                    <div>
+                                        <div style={{ color: '#F5F7F3', fontSize: 14, fontWeight: 900 }}>Varian Kemasan & Stok</div>
+                                        <div style={{ color: '#AEB8AA', fontSize: 11, marginTop: 3 }}>Setiap ukuran memiliki harga dan stok yang terpisah.</div>
+                                    </div>
+                                    <button type="button" onClick={addVariant} disabled={stageForm.variants.length >= 6} style={{ ...mutedButton, padding: '7px 11px', color: '#9BEA6E', opacity: stageForm.variants.length >= 6 ? 0.5 : 1 }}>
+                                        + Tambah Varian
+                                    </button>
+                                </div>
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    {stageForm.variants.map((variant, index) => (
+                                        <div key={`${index}-${variant.gram}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, alignItems: 'end', padding: 11, borderRadius: 10, background: '#191E19', border: '1px solid rgba(255,255,255,0.09)' }}>
+                                            <SelectField label={`Ukuran ${index + 1}`} value={variant.gram} onChange={value => updateVariant(index, 'gram', value)} options={[100, 200, 250, 500, 1000, 2000]} input={input} labelStyle={label} />
+                                            <Field label="Harga (Rp)" type="number" min="1000" value={variant.price} onChange={value => updateVariant(index, 'price', value)} input={input} labelStyle={label} required />
+                                            <Field label="Stok (unit)" type="number" min="0" value={variant.stock} onChange={value => updateVariant(index, 'stock', value)} input={input} labelStyle={label} required />
+                                            <button type="button" onClick={() => removeVariant(index)} disabled={stageForm.variants.length <= 1} aria-label={`Hapus varian ${index + 1}`} style={{ ...mutedButton, minHeight: 42, padding: '8px 11px', color: '#FF7B72', opacity: stageForm.variants.length <= 1 ? 0.4 : 1 }}>
+                                                Hapus
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{ marginTop: 10, color: '#C7D1C3', fontSize: 12, fontWeight: 700 }}>
+                                    Total stok: {stageForm.variants.reduce((total, variant) => total + (Number(variant.stock) || 0), 0)} unit
+                                </div>
+                            </div>
                         </>
                     )}
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                    <label style={label}>Bukti Foto IPFS *</label>
+                    <label style={label}>Bukti Foto IPFS * (bisa lebih dari satu)</label>
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 8, background: 'rgba(74,124,40,0.12)', border: '1px solid rgba(74,124,40,0.35)', color: 'var(--color-primary-light)', fontSize: 13, fontWeight: 800, cursor: uploading ? 'wait' : 'pointer' }}>
-                        {uploading ? 'Mengunggah ke IPFS...' : 'Pilih Foto dan Pin ke IPFS'}
-                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" required={!photoIpfs?.cid} disabled={uploading} style={{ display: 'none' }} onChange={event => { const file = event.target.files?.[0]; if (file) uploadPhoto(file); }} />
+                        {uploading ? 'Mengunggah ke IPFS...' : 'Pilih Beberapa Foto dan Pin ke IPFS'}
+                        <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" required={!photoProofs.length} disabled={uploading} style={{ display: 'none' }} onChange={event => uploadPhotos(event.target.files)} />
                     </label>
-                    {photoUrl && (
-                        <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', color: 'var(--color-text-muted)', fontSize: 12 }}>
-                            <img src={photoUrl} alt="Bukti tahap" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
-                            <span>Foto sudah dipin ke IPFS.<br />CID: <code style={{ wordBreak: 'break-all' }}>{photoIpfs?.cid}</code></span>
+                    {photoProofs.length > 0 && (
+                        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 10 }}>
+                            {photoProofs.map((photo, index) => (
+                                <div key={photo.cid} style={{ position: 'relative', padding: 8, borderRadius: 9, border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: 10 }}>
+                                    <img src={photo.gatewayUrl} alt={`Bukti tahap ${index + 1}`} style={{ width: '100%', height: 88, objectFit: 'cover', borderRadius: 7, marginBottom: 6 }} />
+                                    <div>{index === 0 ? 'Cover · ' : ''}CID: <code>{photo.cid.slice(0, 12)}...</code></div>
+                                    <button type="button" onClick={() => removePhoto(photo.cid)} disabled={uploading} style={{ position: 'absolute', top: 4, right: 4, border: 'none', borderRadius: 999, width: 24, height: 24, cursor: 'pointer', background: 'rgba(244,67,54,0.9)', color: '#fff', fontWeight: 900 }}>×</button>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
@@ -410,8 +536,8 @@ export default function StockManagement() {
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                     <button type="button" style={mutedButton} onClick={() => setStageModal(null)}>Batal</button>
-                    <button type="submit" style={{ ...primaryButton, opacity: photoIpfs?.cid ? 1 : 0.6 }} disabled={saving || uploading || !photoIpfs?.cid}>
-                        {saving ? 'Menyimpan...' : stageModal.isEditing ? 'Simpan Perbaikan Tahap' : stageModal.stage.id === 6 ? 'Jadikan Produk' : 'Simpan & Lanjut Tahap'}
+                    <button type="submit" style={{ ...primaryButton, opacity: photoProofs.length ? 1 : 0.6 }} disabled={saving || uploading || !photoProofs.length}>
+                        {saving ? 'Menyimpan...' : stageModal.isEditing ? 'Simpan Perbaikan Tahap' : stageModal.stage.id === 6 ? 'Ajukan Izin Produk' : 'Simpan & Lanjut Tahap'}
                     </button>
                 </div>
             </form>
@@ -433,7 +559,9 @@ export default function StockManagement() {
                 <div>
                     <h1 style={{ fontSize: 'clamp(22px,4vw,30px)', color: 'var(--color-text)', margin: 0, fontWeight: 900 }}>Kelola Stok Produksi</h1>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 6 }}>
-                        Stok pasca-panen diproses bertahap sampai menjadi produk jadi yang muncul di Kelola Produk.
+                        {isReviewer
+                            ? 'Mode peninjau: seluruh pipeline terlihat. Hanya pemilik batch yang dapat mengubah tahap; produk akhir wajib mendapat izin reviewer.'
+                            : 'Stok pasca-panen milik akun Anda diproses bertahap. Produk akhir wajib mendapat izin developer/koperasi.'}
                     </p>
                 </div>
                 <button type="button" style={primaryButton} onClick={() => setShowBatchForm(prev => !prev)}>
@@ -496,14 +624,21 @@ export default function StockManagement() {
                         const currentStage = STAGES.find(stage => stage.id === Number(batch.currentStage)) || STAGES[0];
                         const batchLogs = logsByBatch[batch.id] || [];
                         const isRejected = batch.productStatus === 'rejected';
+                        const isPendingApproval = batch.approvalStatus === 'pending';
+                        const canEditBatch = Boolean(batch.canEdit);
                         return (
                             <div key={batch.id} style={card}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                                     <div style={{ minWidth: 0 }}>
                                         <h2 style={{ margin: 0, color: 'var(--color-text)', fontSize: 17, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{batch.name}</h2>
-                                        <div style={{ marginTop: 4, color: 'var(--color-text-muted)', fontSize: 12 }}>
-                                            {batch.origin || 'Asal belum diisi'} - {batch.variety || 'Varietas'} - {batch.weightKg || 0} kg
-                                        </div>
+                                         <div style={{ marginTop: 4, color: 'var(--color-text-muted)', fontSize: 12 }}>
+                                             {batch.origin || 'Asal belum diisi'} - {batch.variety || 'Varietas'} - {batch.weightKg || 0} kg
+                                         </div>
+                                         {isReviewer && (
+                                             <div style={{ marginTop: 5, color: '#8FCB6B', fontSize: 11, fontWeight: 800 }}>
+                                                 Pemilik: {batch.farmerName || batch.farmerId || 'Tidak diketahui'}
+                                             </div>
+                                         )}
                                     </div>
                                     <span style={{ flexShrink: 0, borderRadius: 999, padding: '4px 9px', color: currentStage.tone, background: `${currentStage.tone}18`, border: `1px solid ${currentStage.tone}44`, fontSize: 11, fontWeight: 900 }}>
                                         Tahap {currentStage.id}
@@ -513,8 +648,9 @@ export default function StockManagement() {
                                 <div style={{ margin: '16px 0 14px', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 5 }}>
                                     {STAGES.map(stage => {
                                         const done = batchLogs.some(log => Number(log.stage) === stage.id);
-                                        const active = Number(batch.currentStage) === stage.id && !batch.productId;
-                                        const editable = isRejected && done;
+                                        const active = canEditBatch && Number(batch.currentStage) === stage.id && !batch.productId;
+                                        const hasLaterLog = batchLogs.some(log => Number(log.stage) > stage.id);
+                                        const editable = canEditBatch && done && !batch.coffeeId && (isRejected || !hasLaterLog);
                                         return (
                                             <button
                                                 key={stage.id}
@@ -539,39 +675,57 @@ export default function StockManagement() {
                                 </div>
 
                                 <div style={{ color: 'var(--color-text)', fontSize: 13, fontWeight: 800, marginBottom: 10 }}>
-                                    {isRejected ? 'Status: Ditolak — klik tahap 1-6 untuk memperbaiki' : `Sekarang: ${currentStage.name}`}
+                                     {isRejected
+                                         ? 'Status: Ditolak - klik tahap 1-6 untuk memperbaiki'
+                                         : batch.coffeeId
+                                             ? 'Pipeline tersertifikasi on-chain dan tidak dapat diubah'
+                                             : isPendingApproval
+                                                 ? 'Status: Menunggu izin developer/koperasi'
+                                             : `Sekarang: ${currentStage.name} - tahap terakhir masih dapat diperbarui sebelum lanjut`}
                                 </div>
                                 {isRejected && (
                                     <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 9, color: '#ff8a80', background: 'rgba(244,67,54,0.08)', border: '1px solid rgba(244,67,54,0.28)', fontSize: 12 }}>
                                         <strong>Alasan penolakan:</strong> {batch.rejectedReason || 'Admin meminta perbaikan data pipeline.'}
                                     </div>
                                 )}
-                                <div style={{ display: 'grid', gridTemplateColumns: !batch.productId ? 'minmax(0,1fr) auto' : '1fr', gap: 9 }}>
-                                    <button
-                                        type="button"
-                                        style={{ ...primaryButton, width: '100%', opacity: batch.productId && !isRejected ? 0.65 : 1 }}
-                                        onClick={() => isRejected
-                                            ? openStageCard(batch, STAGES[5], batchLogs.find(log => Number(log.stage) === 6))
-                                            : openStageCard(batch, currentStage)}
-                                        disabled={!!batch.productId && !isRejected}
-                                    >
-                                        {isRejected ? 'Edit Tahap Produk Jadi' : batch.productId ? 'Sudah Jadi Produk' : `Buka Card Upload ${currentStage.short}`}
-                                    </button>
-                                    {!batch.productId && (
+                                {canEditBatch ? (
+                                    <div style={{ display: 'grid', gridTemplateColumns: !batch.productId ? 'minmax(0,1fr) auto' : '1fr', gap: 9 }}>
                                         <button
                                             type="button"
-                                            onClick={() => setCancelTarget(batch)}
-                                            disabled={cancellingBatchId === batch.id}
-                                            style={{ ...button, background: 'rgba(244,67,54,0.1)', border: '1px solid rgba(244,67,54,0.4)', color: '#ff6b6b', whiteSpace: 'nowrap' }}
+                                            style={{ ...primaryButton, width: '100%', opacity: batch.productId && !isRejected ? 0.65 : 1 }}
+                                            onClick={() => isRejected
+                                                ? openStageCard(batch, STAGES[5], batchLogs.find(log => Number(log.stage) === 6))
+                                                : openStageCard(batch, currentStage)}
+                                            disabled={!!batch.productId && !isRejected}
                                         >
-                                            Batalkan Pipeline
+                                            {isRejected ? 'Edit Tahap Produk Jadi' : batch.productId ? 'Sudah Jadi Produk' : `Buka Card Upload ${currentStage.short}`}
                                         </button>
-                                    )}
-                                </div>
+                                        {!batch.productId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setCancelTarget(batch)}
+                                                disabled={cancellingBatchId === batch.id}
+                                                style={{ ...button, background: 'rgba(244,67,54,0.1)', border: '1px solid rgba(244,67,54,0.4)', color: '#ff6b6b', whiteSpace: 'nowrap' }}
+                                            >
+                                                Batalkan Pipeline
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div style={{ padding: '10px 12px', borderRadius: 9, color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.035)', border: '1px solid var(--color-border)', fontSize: 12, fontWeight: 700 }}>
+                                        Mode lihat saja — perubahan tahap dilakukan oleh pemilik batch.
+                                    </div>
+                                )}
+
+                                {batch.canReview && (
+                                    <Link href="/coffee-register" style={{ ...primaryButton, display: 'block', width: '100%', marginTop: 9, textAlign: 'center', textDecoration: 'none' }}>
+                                        Tinjau & Berikan Izin Produk
+                                    </Link>
+                                )}
 
                                 {isRejected && isFarmer && (
-                                    <button type="button" style={{ ...primaryButton, width: '100%', marginTop: 9 }} disabled={saving} onClick={() => resubmitRejectedProduct(batch)}>
-                                        {saving ? 'Mengirim Ulang...' : 'Kirim Ulang Request Produk'}
+                                    <button type="button" style={{ ...primaryButton, width: '100%', marginTop: 9 }} disabled={saving} onClick={() => setResubmitTarget(batch)}>
+                                        {saving ? 'Mengajukan Ulang...' : 'Ajukan Ulang ke Register Kopi'}
                                     </button>
                                 )}
 
@@ -584,16 +738,16 @@ export default function StockManagement() {
                                     ) : (
                                         <div style={{ display: 'grid', gap: 8 }}>
                                             {batchLogs.slice(0, 6).map(log => (
-                                                <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
+                                                <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
                                                     <span>{log.stage}. {log.stageName}</span>
-                                                    <button type="button" onClick={() => setDetailLog(log)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)', color: 'var(--color-text)', borderRadius: 7, padding: '4px 8px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-                                                        Lihat data
-                                                    </button>
-                                                    {log.explorerUrl ? (
-                                                        <a href={normalizeExplorerUrl(log.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ color: '#B388FF', textDecoration: 'none', fontWeight: 800 }}>Sertifikat</a>
-                                                    ) : (
-                                                        <span style={{ color: '#7ED44A', fontWeight: 800 }}>Local</span>
-                                                    )}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <button type="button" onClick={() => { setStageModal(null); setDetailLog(log); }} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.16)', color: '#F5F7F3', borderRadius: 7, padding: '5px 9px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                                                            Lihat data
+                                                        </button>
+                                                        {log.explorerUrl && (
+                                                            <a href={normalizeExplorerUrl(log.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ color: '#C6A8FF', textDecoration: 'none', fontWeight: 800 }}>Sertifikat</a>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -606,31 +760,36 @@ export default function StockManagement() {
             )}
 
             {detailLog && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={event => { if (event.target === event.currentTarget) setDetailLog(null); }}>
-                    <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 620, maxHeight: '90vh', overflow: 'auto' }}>
+                <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 1400, background: 'rgba(0,0,0,0.94)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={event => { if (event.target === event.currentTarget) setDetailLog(null); }}>
+                    <div role="dialog" aria-modal="true" aria-labelledby="production-log-title" style={{ background: '#101410', border: '1px solid rgba(126,212,74,0.32)', borderRadius: 18, padding: 26, width: '100%', maxWidth: 760, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 30px 100px rgba(0,0,0,0.86)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
                             <div>
-                                <h2 style={{ color: 'var(--color-text)', margin: 0, fontSize: 19, fontWeight: 900 }}>{detailLog.stage}. {detailLog.stageName}</h2>
-                                <p style={{ color: 'var(--color-text-muted)', margin: '5px 0 0', fontSize: 12 }}>
+                                <h2 id="production-log-title" style={{ color: '#F5F7F3', margin: 0, fontSize: 21, fontWeight: 900 }}>{detailLog.stage}. {detailLog.stageName}</h2>
+                                <p style={{ color: '#AEB8AA', margin: '6px 0 0', fontSize: 12 }}>
                                     {detailLog.createdAt ? new Date(detailLog.createdAt).toLocaleString('id-ID') : 'Waktu tidak tersedia'} oleh {detailLog.loggedByName || 'Operator'}
                                 </p>
                             </div>
                             <button type="button" onClick={() => setDetailLog(null)} style={{ ...mutedButton, padding: '6px 10px' }}>Tutup</button>
                         </div>
 
-                        {detailLog.photoUrl && (
-                            <a href={detailLog.photoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: 14 }}>
-                                <img src={detailLog.photoUrl} alt={`Bukti ${detailLog.stageName}`} style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--color-border)' }} />
-                            </a>
+                        {getLogPhotos(detailLog).length > 0 && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginBottom: 14 }}>
+                                {getLogPhotos(detailLog).map((photo, index) => (
+                                    <a key={`${photo.gatewayUrl}-${index}`} href={photo.gatewayUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                                        <img src={photo.gatewayUrl} alt={`Bukti ${detailLog.stageName} ${index + 1}`} style={{ width: '100%', height: 210, objectFit: 'cover', borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)' }} />
+                                    </a>
+                                ))}
+                            </div>
                         )}
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
                             {Object.entries(detailLog.data || {})
+                                .filter(([key]) => !['evidencePhoto', 'evidencePhotos', 'image'].includes(key))
                                 .filter(([, value]) => value !== null && value !== undefined && value !== '')
                                 .map(([key, value]) => (
-                                    <div key={key} style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid var(--color-border)', borderRadius: 9, padding: 10 }}>
-                                        <div style={{ color: 'var(--color-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 4 }}>{formatLogKey(key)}</div>
-                                        <div style={{ color: 'var(--color-text)', fontSize: 13, fontWeight: 700, wordBreak: 'break-word' }}>{formatLogValue(value)}</div>
+                                    <div key={key} style={{ background: '#191E19', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 10, padding: 12 }}>
+                                        <div style={{ color: '#9FAA9B', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 5 }}>{formatLogKey(key)}</div>
+                                        <div style={{ color: '#F7F9F5', fontSize: 14, lineHeight: 1.45, fontWeight: 800, wordBreak: 'break-word' }}>{formatLogValue(value)}</div>
                                     </div>
                                 ))}
                         </div>
@@ -639,11 +798,52 @@ export default function StockManagement() {
                             <a href={normalizeExplorerUrl(detailLog.explorerUrl)} target="_blank" rel="noopener noreferrer" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: 16 }}>
                                 Buka Sertifikat Solana
                             </a>
-                        ) : (
-                            <div style={{ marginTop: 16, color: 'var(--color-text-muted)', fontSize: 12 }}>
-                                Tahap ini tersimpan sebagai log audit internal. Sertifikat Solana dibuat saat tahap Produk Jadi.
-                            </div>
-                        )}
+                        ) : null}
+                    </div>
+                </div>
+            )}
+
+            {stageConfirmationOpen && stageModal?.stage?.id === 6 && (
+                <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(0,0,0,0.94)', backdropFilter: 'blur(9px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={event => { if (event.target === event.currentTarget && !saving) setStageConfirmationOpen(false); }}>
+                    <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-product-title" aria-describedby="confirm-product-description" style={{ background: '#101410', border: '1px solid rgba(126,212,74,0.38)', borderRadius: 18, padding: 24, width: '100%', maxWidth: 600, boxShadow: '0 30px 100px rgba(0,0,0,0.86)' }}>
+                        <div style={{ color: '#91E861', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Konfirmasi Produk Jadi</div>
+                        <h2 id="confirm-product-title" style={{ color: '#F7F9F5', margin: '7px 0 0', fontSize: 22, fontWeight: 900 }}>Pastikan data produk sudah benar</h2>
+                        <p id="confirm-product-description" style={{ color: '#AEB8AA', fontSize: 13, lineHeight: 1.6, margin: '9px 0 14px' }}>
+                            Produk akan diajukan ke Developer/Koperasi untuk diperiksa sebelum sertifikat Solana dibuat.
+                        </p>
+                        <div style={{ display: 'grid', gap: 8 }}>
+                            {stageForm.variants.map((variant, index) => (
+                                <div key={`${variant.gram}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '10px 12px', borderRadius: 10, background: '#191E19', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F7F3', fontSize: 13, fontWeight: 800 }}>
+                                    <span>{variant.gram}g</span>
+                                    <span>Rp {Number(variant.price || 0).toLocaleString('id-ID')}</span>
+                                    <span>{Number(variant.stock || 0)} unit</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+                            <button type="button" style={mutedButton} onClick={() => setStageConfirmationOpen(false)} disabled={saving}>Periksa Lagi</button>
+                            <button type="button" style={{ ...primaryButton, opacity: saving ? 0.65 : 1 }} onClick={() => submitStage()} disabled={saving}>
+                                {saving ? 'Mengajukan...' : 'Data Benar, Ajukan Produk'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {resubmitTarget && (
+                <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(0,0,0,0.94)', backdropFilter: 'blur(9px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={event => { if (event.target === event.currentTarget && !saving) setResubmitTarget(null); }}>
+                    <div role="alertdialog" aria-modal="true" aria-labelledby="resubmit-product-title" style={{ background: '#101410', border: '1px solid rgba(245,166,35,0.42)', borderRadius: 18, padding: 24, width: '100%', maxWidth: 540, boxShadow: '0 30px 100px rgba(0,0,0,0.86)' }}>
+                        <div style={{ color: '#F5C15D', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Ajukan Ulang Produk</div>
+                        <h2 id="resubmit-product-title" style={{ color: '#F7F9F5', margin: '7px 0 0', fontSize: 22, fontWeight: 900 }}>Data “{resubmitTarget.name}” sudah diperbaiki?</h2>
+                        <p style={{ color: '#AEB8AA', fontSize: 13, lineHeight: 1.65, margin: '10px 0 0' }}>
+                            Periksa kembali seluruh Tahap 1–6, foto IPFS, varian kemasan, harga, dan stok. Setelah dikirim, Developer/Koperasi akan meninjau ulang.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+                            <button type="button" style={mutedButton} onClick={() => setResubmitTarget(null)} disabled={saving}>Belum, Periksa Lagi</button>
+                            <button type="button" style={{ ...primaryButton, opacity: saving ? 0.65 : 1 }} onClick={() => resubmitRejectedProduct(resubmitTarget)} disabled={saving}>
+                                {saving ? 'Mengajukan...' : 'Ya, Ajukan ke Register'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -683,11 +883,11 @@ export default function StockManagement() {
     );
 }
 
-function Field({ label, value, onChange, input, labelStyle, type = 'text', required = false, placeholder = '' }) {
+function Field({ label, value, onChange, input, labelStyle, type = 'text', required = false, placeholder = '', min, max }) {
     return (
         <div>
             <label style={labelStyle}>{label}{required ? ' *' : ''}</label>
-            <input style={input} type={type} value={value} onChange={event => onChange(event.target.value)} required={required} placeholder={placeholder} />
+            <input style={input} type={type} value={value} onChange={event => onChange(event.target.value)} required={required} placeholder={placeholder} min={min} max={max} />
         </div>
     );
 }
@@ -716,6 +916,7 @@ function formatLogKey(key) {
         gasReleaseHours: 'Pelepasan Gas',
         productName: 'Nama Produk',
         stock: 'Stok Produk',
+        stockPerUnit: 'Stok per Kemasan',
         weights: 'Berat Kemasan',
         pricePerUnit: 'Harga',
         description: 'Deskripsi',
@@ -723,6 +924,17 @@ function formatLogKey(key) {
         image: 'Foto',
     };
     return labels[key] || key.replace(/[A-Z]/g, letter => ` ${letter}`).trim();
+}
+
+function getLogPhotos(log) {
+    const evidencePhotos = Array.isArray(log?.data?.evidencePhotos) && log.data.evidencePhotos.length
+        ? log.data.evidencePhotos
+        : (log?.data?.evidencePhoto ? [log.data.evidencePhoto] : []);
+    const normalized = evidencePhotos
+        .map(photo => ({ cid: photo?.cid || '', gatewayUrl: photo?.gatewayUrl || '' }))
+        .filter(photo => photo.gatewayUrl);
+    if (!normalized.length && log?.photoUrl) return [{ cid: '', gatewayUrl: log.photoUrl }];
+    return normalized;
 }
 
 function formatLogValue(value) {

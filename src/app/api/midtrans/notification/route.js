@@ -2,8 +2,13 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { normalizeMidtransStatus, getPaidAtForStatus } from '@/lib/midtrans';
+import {
+    assertMidtransGrossAmount,
+    normalizeMidtransStatus,
+    getPaidAtForStatus,
+} from '@/lib/midtrans';
 import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
+import { deductPaidOrderStock } from '@/lib/productStock';
 import crypto from 'crypto';
 
 /**
@@ -24,6 +29,9 @@ export async function POST(request) {
 
         // Verifikasi signature dari Midtrans
         const serverKey = process.env.MIDTRANS_SERVER_KEY;
+        if (!serverKey) {
+            throw new Error('MIDTRANS_SERVER_KEY environment variable is not set');
+        }
         const expectedSignature = crypto
             .createHash('sha512')
             .update(`${order_id}${status_code}${gross_amount}${serverKey}`)
@@ -40,23 +48,38 @@ export async function POST(request) {
         const paidAt = getPaidAtForStatus(newStatus, body);
 
         // Update order di Supabase (primary DB on Vercel)
-        const { data: orders } = await supabaseAdmin
+        const { data: orders, error: orderLookupError } = await supabaseAdmin
             .from('orders')
-            .select('id')
+            .select('id, total_price, status, tx_signature, product_id, weight, quantity')
             .eq('order_id', order_id)
             .limit(1);
 
+        if (orderLookupError) throw orderLookupError;
         if (orders && orders.length > 0) {
+            assertMidtransGrossAmount(orders[0].total_price, body);
             const updatePayload = { status: newStatus };
             if (paidAt) updatePayload.paid_at = paidAt;
 
-            await supabaseAdmin
+            const { error: updateError } = await supabaseAdmin
                 .from('orders')
                 .update(updatePayload)
                 .eq('order_id', order_id);
+            if (updateError) throw updateError;
 
+            let solanaTrace = null;
             if (newStatus === 'paid') {
-                await ensureMidtransSolanaTrace(order_id, body);
+                if (orders[0].status !== 'paid') {
+                    await deductPaidOrderStock(supabaseAdmin, orders[0]);
+                }
+                solanaTrace = await ensureMidtransSolanaTrace(order_id, body);
+                if (solanaTrace?.solanaTraceError) {
+                    return Response.json({
+                        success: false,
+                        message: solanaTrace.solanaTraceError,
+                        paymentStatus: 'paid',
+                        solanaTraceStatus: solanaTrace.solanaTraceStatus,
+                    }, { status: 500 });
+                }
             }
 
             console.log(`[midtrans-notification] Order ${order_id} updated to: ${newStatus}`);

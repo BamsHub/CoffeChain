@@ -82,7 +82,7 @@ export async function POST(request) {
         if (!user) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
-        if (user.role !== 'farmer' && user.role !== 'koperasi' && user.role !== 'developer') {
+        if (!['farmer', 'koperasi', 'developer', 'admin'].includes(user.role)) {
             return NextResponse.json({ success: false, error: 'Hanya petani yang bisa mencatat penjualan' }, { status: 403 });
         }
 

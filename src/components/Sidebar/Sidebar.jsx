@@ -48,6 +48,10 @@ const ALL_NAV = [
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="M8 6h8M8 10h8M8 14h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>,
     },
     {
+        id: 'system-design', label: 'Desain & Bukti', href: '/system-design',
+        icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="2"/><rect x="15" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="2"/><rect x="9" y="15" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="2"/><path d="M6 9v3h12V9M12 12v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>,
+    },
+    {
         id: 'contact', label: 'Hubungi Kami', href: '/contact',
         icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     },

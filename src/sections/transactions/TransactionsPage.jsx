@@ -44,6 +44,7 @@ function formatBlock(block) {
 
 function typeLabel(tx) {
     if (tx.source === 'order') return 'Pembelian';
+    if (tx.source === 'trace') return 'Sertifikat Inventory';
     const labels = {
         product_approval: 'Approval Produk',
         blockchain_verify: 'On-chain Trace',
@@ -54,7 +55,7 @@ function typeLabel(tx) {
 }
 
 export default function TransactionsPage() {
-    const { user } = useAuth();
+    const { user, getToken } = useAuth();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -65,14 +66,19 @@ export default function TransactionsPage() {
     const [lastSyncedAt, setLastSyncedAt] = useState(null);
     const realtimeRef = useRef(null);
 
-    const canDelete = user?.role === 'developer';
-    const canReconcile = ['developer', 'koperasi'].includes(user?.role);
+    const canDelete = ['developer', 'admin'].includes(user?.role);
+    const canReconcile = ['developer', 'admin', 'koperasi'].includes(user?.role);
 
     const fetchData = useCallback(async ({ showLoading = false } = {}) => {
         if (showLoading) setLoading(true);
         try {
-            const res = await fetch('/api/transactions?includeOrders=true');
+            const token = getToken();
+            const res = await fetch('/api/transactions?includeOrders=true&includeTraces=true', {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                cache: 'no-store',
+            });
             const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Gagal memuat transaksi');
             setItems(data.data || []);
             setLastSyncedAt(new Date());
         } catch (e) {
@@ -80,7 +86,7 @@ export default function TransactionsPage() {
         } finally {
             if (showLoading) setLoading(false);
         }
-    }, []);
+    }, [getToken]);
 
     useEffect(() => {
         fetchData({ showLoading: true });
@@ -89,6 +95,7 @@ export default function TransactionsPage() {
             .channel('transactions-page-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, fetchData)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'coffee_traces' }, fetchData)
             .subscribe();
         realtimeRef.current = channel;
 
@@ -101,16 +108,16 @@ export default function TransactionsPage() {
         };
     }, [fetchData]);
 
-    const visibleItems = user?.role === 'farmer'
-        ? items.filter(tx => tx.farmer?.toLowerCase() === user?.name?.toLowerCase() || tx.farmer?.includes(user?.name || ''))
-        : items;
+    // Otorisasi dilakukan di API berdasarkan session.userId.
+    const visibleItems = items;
 
     const filtered = visibleItems.filter(tx => {
         const q = search.toLowerCase();
         const matchSearch = tx.farmer?.toLowerCase().includes(q) ||
             tx.hash?.toLowerCase().includes(q) ||
             tx.variety?.toLowerCase().includes(q) ||
-            tx.location?.toLowerCase().includes(q);
+            tx.location?.toLowerCase().includes(q) ||
+            tx.coffeeId?.toLowerCase().includes(q);
         const matchFilter = filter === 'Semua' || tx.status === filter;
         return matchSearch && matchFilter;
     });
@@ -120,7 +127,11 @@ export default function TransactionsPage() {
         if (!confirm(`Hapus transaksi ${item.hash}?`)) return;
         setDeletingId(item.id);
         try {
-            await fetch(`/api/transactions?id=${item.id}`, { method: 'DELETE' });
+            const token = getToken();
+            await fetch(`/api/transactions?id=${item.id}`, {
+                method: 'DELETE',
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             await fetchData();
         } catch (e) {
             alert('Gagal menghapus: ' + e.message);
@@ -134,9 +145,11 @@ export default function TransactionsPage() {
         setReconciling(true);
         setReconcileResult(null);
         try {
+            const token = getToken();
             const res = await fetch('/api/admin/reconcile-payments', {
                 method: 'POST',
                 credentials: 'same-origin',
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Reconcile gagal');
@@ -154,6 +167,7 @@ export default function TransactionsPage() {
         confirmed: visibleItems.filter(t => ['Confirmed', 'paid', 'confirmed'].includes(t.status)).length,
         pending: visibleItems.filter(t => ['Pending', 'pending'].includes(t.status)).length,
         failed: visibleItems.filter(t => ['Failed', 'failed', 'expired'].includes(t.status)).length,
+        inventory: visibleItems.filter(t => t.source === 'trace').length,
     };
 
     return (
@@ -162,8 +176,8 @@ export default function TransactionsPage() {
                 <div>
                     <h1 className={styles.pageTitle}>Transaksi Blockchain</h1>
                     <p className={styles.pageSubtitle}>
-                        Riwayat lengkap transaksi on-chain dan pembelian produk
-                        {user?.role === 'farmer' && <span style={{ color: '#F5A623', marginLeft: 6 }}>— Hanya transaksi Anda</span>}
+                        Riwayat pembelian dan bukti on-chain milik akun ini
+                        <span style={{ color: '#F5A623', marginLeft: 6 }}>— Dipisahkan berdasarkan akun</span>
                     </p>
                 </div>
                 <div className={styles.headerActions}>
@@ -199,6 +213,7 @@ export default function TransactionsPage() {
                     { label: 'Confirmed', val: counts.confirmed, color: '#4CAF50' },
                     { label: 'Pending', val: counts.pending, color: '#FF9800' },
                     { label: 'Failed', val: counts.failed, color: '#f44336' },
+                    { label: 'Sertifikat Inventory', val: counts.inventory, color: '#b388ff' },
                 ].map((s, i) => (
                     <div key={i} className={styles.summaryChip} style={{ borderColor: s.color + '44' }}>
                         <span className={styles.summaryVal} style={{ color: s.color }}>{s.val}</span>

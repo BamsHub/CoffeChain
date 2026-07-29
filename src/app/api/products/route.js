@@ -1,28 +1,22 @@
-// Node.js runtime — supabaseAdmin requires Node.js crypto modules
 export const runtime = 'nodejs';
 
-import { supabaseAdmin } from '@/lib/supabase';
-import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
 import { readDb } from '@/lib/db';
 import { getCompleteProductionAudit } from '@/lib/productionAudit';
+import { supabaseAdmin } from '@/lib/supabase';
+import {
+    canReviewAllPipelines,
+    isPipelineAccountRole,
+} from '@/lib/productionAccess';
+import { setTaggedVariantStocks } from '@/lib/productVariants';
 
-// ── Key converters ───────────────────────────────────────────────
-function toSnake(str) {
-    return str.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`);
-}
 function toCamel(str) {
     return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
-function convertKeys(obj, converter) {
+
+function convertKeys(obj) {
     if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
-    const result = {};
-    for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-            result[converter(key)] = obj[key];
-        }
-    }
-    return result;
+    return Object.fromEntries(Object.entries(obj).map(([key, value]) => [toCamel(key), value]));
 }
 
 function withOffchainReferences(product) {
@@ -38,237 +32,155 @@ function withOffchainReferences(product) {
     };
 }
 
-// ── GET /api/products ────────────────────────────────────────────
-export async function GET(request) {
+async function requireSession(request) {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    const session = await verifyToken(token);
+    return session && isPipelineAccountRole(session.role) ? session : null;
+}
+
+async function getActorName(session) {
     try {
-        const { searchParams } = new URL(request.url);
-        const statusFilter      = searchParams.get('status');
-        const submittedByFilter = searchParams.get('submittedBy');
-
-        let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
-        if (statusFilter)      query = query.eq('status', statusFilter);
-        if (submittedByFilter) query = query.eq('submitted_by', submittedByFilter);
-
-        const { data, error } = await query;
-        if (error) throw error;
-
-        const items = (data || []).map(row => withOffchainReferences(convertKeys(row, toCamel)));
-        return Response.json({ success: true, data: items });
-    } catch (err) {
-        console.error('[products GET]', err.message);
-        return Response.json({ success: false, message: err.message }, { status: 500 });
+        const users = await readDb('users');
+        const actor = users.items.find(item => item.id === session.userId);
+        return actor?.name || actor?.email || session.userId;
+    } catch {
+        return session.userId;
     }
 }
 
-// ── POST /api/products ───────────────────────────────────────────
-export async function POST(request) {
+export async function GET(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-        const session = await verifyToken(token);
+        const session = await requireSession(request);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const {
-            name, origin, grade, variety, roast,
-            weight, pricePerUnit, description, stock,
-            image, rating, sold, coffeeId,
-            submittedBy, submittedByName, submittedByRole, source,
-        } = body;
+        const { searchParams } = new URL(request.url);
+        const statusFilter = searchParams.get('status');
+        const submittedByFilter = searchParams.get('submittedBy');
+        const mineOnly = searchParams.get('scope') === 'mine';
+        const canReviewAll = canReviewAllPipelines(session.role);
 
-        if (source !== 'production_pipeline') {
-            return Response.json({
-                success: false,
-                message: 'Produk baru wajib dibuat lewat Kelola Stok agar melewati upload bukti dan audit tahap produksi.',
-            }, { status: 409 });
+        let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
+        if (statusFilter) query = query.eq('status', statusFilter);
+        if (!canReviewAll || mineOnly) {
+            query = query.eq('submitted_by', session.userId);
+        } else if (submittedByFilter) {
+            query = query.eq('submitted_by', submittedByFilter);
         }
 
-        if (!name || !origin || !weight || !pricePerUnit) {
-            return Response.json({ success: false, message: 'Nama, asal, berat, dan harga wajib diisi' }, { status: 400 });
-        }
-        if (!Array.isArray(weight) || !Array.isArray(pricePerUnit) || weight.length !== pricePerUnit.length) {
-            return Response.json({ success: false, message: 'Berat dan harga harus array dengan panjang sama' }, { status: 400 });
-        }
+        const { data, error } = await query;
+        if (error) throw error;
 
-        let targetSubmittedBy = submittedBy;
-        let targetSubmittedByName = submittedByName;
-        let targetSubmittedByRole = submittedByRole;
-        if (session.role === 'farmer') {
-            targetSubmittedBy = session.userId;
-            targetSubmittedByRole = 'farmer';
-            const dbUsers = await readDb('users');
-            const user = dbUsers.items.find(u => u.id === session.userId);
-            if (user) {
-                targetSubmittedByName = user.name;
-            }
-        }
-
-        const isFarmer = targetSubmittedByRole === 'farmer';
-        const now = new Date().toISOString();
-        const prodId = `prod-${uuidv4().slice(0, 8)}`;
-
-        // Build insert payload in snake_case directly to avoid conversion issues
-        const insertPayload = {
-            id: prodId,
-            name: name.trim(),
-            origin: origin.trim(),
-            grade: grade || 'A',
-            variety: variety || 'Arabika',
-            roast: roast || 'Medium Roast',
-            weight,
-            price_per_unit: pricePerUnit,
-            description: description?.trim() || '',
-            image: image || null,
-            tags: [variety, grade].filter(Boolean),
-            stock: Number(stock) || 50,
-            rating: Number(rating) || 4.5,
-            sold: Number(sold) || 0,
-        };
-
-        // Add optional columns (only if they exist in schema — try full then fallback)
-        const optionalFields = {
-            status: isFarmer ? 'pending' : 'published',
-            coffee_id: coffeeId || null,
-            submitted_by: targetSubmittedBy || null,
-            submitted_by_name: targetSubmittedByName || null,
-            submitted_by_role: targetSubmittedByRole || null,
-            submitted_at: now,
-        };
-
-        // Try full insert first
-        let { data, error } = await supabaseAdmin
-            .from('products')
-            .insert({ ...insertPayload, ...optionalFields })
-            .select()
-            .single();
-
-        if (error && error.message.includes('column')) {
-            // Fallback: insert only guaranteed base columns
-            console.warn('[products POST] Falling back to base columns due to:', error.message);
-            ({ data, error } = await supabaseAdmin
-                .from('products')
-                .insert(insertPayload)
-                .select()
-                .single());
-        }
-
-        if (error) {
-            console.error('[products POST] Insert error:', error.message, error.details);
-            return Response.json({ success: false, message: error.message }, { status: 500 });
-        }
-
-        return Response.json({ success: true, data: convertKeys(data, toCamel) }, { status: 201 });
-    } catch (err) {
-        console.error('[products POST] Exception:', err.message);
-        return Response.json({ success: false, message: err.message || 'Server error' }, { status: 500 });
+        const items = (data || []).map(row => withOffchainReferences(convertKeys(row)));
+        return Response.json({ success: true, data: items });
+    } catch (error) {
+        console.error('[products GET]', error.message);
+        return Response.json({ success: false, message: 'Gagal memuat produk' }, { status: 500 });
     }
 }
 
-// ── DELETE /api/products ─────────────────────────────────────────
+// Produk baru hanya boleh dibuat oleh production-stages setelah tahap 1-6 selesai.
+export async function POST(request) {
+    const session = await requireSession(request);
+    if (!session) {
+        return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    return Response.json({
+        success: false,
+        message: 'Produk baru hanya dibuat otomatis setelah Pipeline Tahap 1-6 selesai di Kelola Stok.',
+    }, { status: 409 });
+}
+
+// Soft-delete katalog off-chain. Coffee ID, signature, bukti, dan pipeline tidak dihapus.
 export async function DELETE(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-        const session = await verifyToken(token);
+        const session = await requireSession(request);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const { id } = await request.json();
-        if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        if (!id) {
+            return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
+        }
 
-        const { data: product, error: findErr } = await supabaseAdmin
+        const { data: product, error: findError } = await supabaseAdmin
             .from('products')
-            .select('id, coffee_id, submitted_by')
+            .select('id, coffee_id, submitted_by, status')
             .eq('id', id)
             .maybeSingle();
-
-        if (findErr || !product) {
+        if (findError || !product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
         }
 
-        if (!['farmer', 'koperasi', 'developer', 'admin'].includes(session.role)) {
+        const isOwner = product.submitted_by === session.userId;
+        if (!isOwner && !canReviewAllPipelines(session.role)) {
             return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        // Security check: if role is farmer, verify ownership of product
-        if (session.role === 'farmer' && product.submitted_by !== session.userId) {
-            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
-        }
-
-        const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
+        const { data, error } = await supabaseAdmin
+            .from('products')
+            .update({ status: 'archived' })
+            .eq('id', id)
+            .select('id, name, status, coffee_id')
+            .single();
         if (error) throw error;
 
-        if (isUuid) {
-            const { error: batchErr } = await supabaseAdmin
-                .from('production_batches')
-                .delete()
-                .eq('product_id', id);
-            if (batchErr && !batchErr.message?.includes('does not exist')) {
-                console.warn('[products DELETE] production batch cleanup failed:', batchErr.message);
-            }
-        }
-
-        const { error: traceProductErr } = await supabaseAdmin
-            .from('coffee_traces')
-            .delete()
-            .eq('product_id', id);
-        if (traceProductErr && !traceProductErr.message?.includes('does not exist')) {
-            console.warn('[products DELETE] trace cleanup by product failed:', traceProductErr.message);
-        }
-
-        if (product?.coffee_id) {
-            const { error: traceCoffeeErr } = await supabaseAdmin
-                .from('coffee_traces')
-                .delete()
-                .eq('coffee_id', product.coffee_id);
-            if (traceCoffeeErr && !traceCoffeeErr.message?.includes('does not exist')) {
-                console.warn('[products DELETE] trace cleanup by coffee ID failed:', traceCoffeeErr.message);
-            }
-        }
-
-        return Response.json({ success: true });
-    } catch (err) {
-        console.error('[products DELETE]', err.message);
-        return Response.json({ success: false, message: err.message }, { status: 500 });
+        return Response.json({
+            success: true,
+            archived: true,
+            onchainPreserved: Boolean(product.coffee_id),
+            data: convertKeys(data),
+            message: product.coffee_id
+                ? 'Produk diarsipkan dari katalog. Coffee ID dan sertifikat Solana tetap tersimpan.'
+                : 'Produk diarsipkan dari katalog.',
+        });
+    } catch (error) {
+        console.error('[products DELETE]', error.message);
+        return Response.json({ success: false, message: 'Gagal mengarsipkan produk' }, { status: 500 });
     }
 }
 
-// ── PATCH /api/products ──────────────────────────────────────────
 export async function PATCH(request) {
     try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-        const session = await verifyToken(token);
+        const session = await requireSession(request);
         if (!session) {
             return Response.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
-        const { id, ...updates } = body;
-        if (!id) return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
+        const { id, action, status, rejectedReason } = body;
+        if (!id) {
+            return Response.json({ success: false, message: 'ID wajib diisi' }, { status: 400 });
+        }
 
-        // Get existing product to verify ownership/status update permission
-        const { data: product, error: findErr } = await supabaseAdmin
+        const { data: product, error: findError } = await supabaseAdmin
             .from('products')
-            .select('id, submitted_by, status, coffee_id')
+            .select('*')
             .eq('id', id)
             .maybeSingle();
-
-        if (findErr || !product) {
+        if (findError || !product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
         }
 
-        if (updates.action === 'resubmit') {
-            if (session.role !== 'farmer' || product.submitted_by !== session.userId) {
+        const isOwner = product.submitted_by === session.userId;
+        const isReviewer = canReviewAllPipelines(session.role);
+
+        if (action === 'resubmit') {
+            if (!isOwner) {
                 return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
             }
             if (product.status !== 'rejected' || product.coffee_id) {
-                return Response.json({ success: false, message: 'Hanya produk ditolak yang belum tersertifikasi dapat diajukan ulang' }, { status: 409 });
+                return Response.json({
+                    success: false,
+                    message: 'Hanya produk ditolak yang belum tersertifikasi dapat diajukan ulang',
+                }, { status: 409 });
             }
 
             await getCompleteProductionAudit(id);
-            const { data: resubmitted, error: resubmitError } = await supabaseAdmin
+            const { data, error } = await supabaseAdmin
                 .from('products')
                 .update({
                     status: 'pending_certification',
@@ -279,97 +191,147 @@ export async function PATCH(request) {
                     submitted_at: new Date().toISOString(),
                 })
                 .eq('id', id)
+                .eq('status', 'rejected')
+                .is('coffee_id', null)
                 .select()
                 .single();
-            if (resubmitError) throw resubmitError;
-            return Response.json({ success: true, resubmitted: true, data: convertKeys(resubmitted, toCamel) });
-        }
-        delete updates.action;
-
-        // Security check: only koperasi, developer, or admin can approve/reject products
-        if ('status' in updates && updates.status !== product.status) {
-            if (!['koperasi', 'developer', 'admin'].includes(session.role)) {
-                return Response.json({ success: false, message: 'Forbidden: Hanya koperasi atau developer yang dapat menyetujui produk' }, { status: 403 });
-            }
+            if (error) throw error;
+            return Response.json({
+                success: true,
+                resubmitted: true,
+                registerReady: true,
+                data: convertKeys(data),
+            });
         }
 
-        // Security check: if role is farmer, verify ownership of product for edits
-        if (session.role === 'farmer') {
-            if (product.submitted_by !== session.userId) {
+        if (action === 'restore') {
+            if (!isOwner && !isReviewer) {
                 return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
             }
-            // Prevent farmer from modifying approval-related status fields
-            const forbiddenFields = ['approved_by', 'approved_by_name', 'approved_at', 'rejected_reason'];
-            for (const f of forbiddenFields) {
-                if (f in updates) {
-                    return Response.json({ success: false, message: `Forbidden: Petani tidak dapat mengubah field ${f}` }, { status: 403 });
-                }
+            if (!product.coffee_id) {
+                return Response.json({
+                    success: false,
+                    message: 'Produk belum memiliki sertifikat Solana dan tidak dapat dipublikasikan.',
+                }, { status: 409 });
             }
+
+            const { data, error } = await supabaseAdmin
+                .from('products')
+                .update({ status: 'published' })
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) throw error;
+            return Response.json({ success: true, restored: true, data: convertKeys(data) });
         }
 
-        // Build snake_case update object with allowed fields only
-        const fieldMap = {
-            name: 'name', origin: 'origin', grade: 'grade', variety: 'variety',
-            roast: 'roast', description: 'description', stock: 'stock',
-            weight: 'weight', pricePerUnit: 'price_per_unit', rating: 'rating',
-            status: 'status', coffeeId: 'coffee_id', paymentWallet: 'payment_wallet',
-            approvedBy: 'approved_by', approvedByName: 'approved_by_name',
-            approvedAt: 'approved_at', rejectedReason: 'rejected_reason',
-        };
-
-        const patchPayload = {};
-        for (const [camel, snake] of Object.entries(fieldMap)) {
-            if (camel in updates) {
-                patchPayload[snake] = updates[camel];
-            }
+        if (status === 'published') {
+            return Response.json({
+                success: false,
+                message: 'Persetujuan produk wajib melalui Register Coffee dan transaksi Solana server yang terkonfirmasi.',
+            }, { status: 409 });
         }
-        if ('stock' in patchPayload) patchPayload.stock = Math.max(0, parseInt(patchPayload.stock) || 0);
 
-        const { data, error } = await supabaseAdmin
+        if (status === 'rejected') {
+            if (!isReviewer) {
+                return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+            }
+            if (product.coffee_id) {
+                return Response.json({
+                    success: false,
+                    message: 'Produk yang sudah tersertifikasi Solana tidak dapat ditolak atau diubah.',
+                }, { status: 409 });
+            }
+
+            const actorName = await getActorName(session);
+            const reason = String(rejectedReason || 'Tidak memenuhi standar').trim().slice(0, 500);
+            const { data, error } = await supabaseAdmin
+                .from('products')
+                .update({
+                    status: 'rejected',
+                    rejected_reason: reason,
+                    approved_by: session.userId,
+                    approved_by_name: actorName,
+                    approved_at: new Date().toISOString(),
+                })
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) throw error;
+            return Response.json({ success: true, data: convertKeys(data) });
+        }
+
+        if (!isOwner) {
+            return Response.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+
+        // Metadata produk berasal dari audit tahap produksi. Setelah itu penjual hanya
+        // boleh mengatur stok; metadata tersertifikasi dan signature tetap immutable.
+        const allowedKeys = new Set(['id', 'stock', 'stockPerUnit']);
+        const attemptedMetadataChange = Object.keys(body).some(key => !allowedKeys.has(key));
+        if (attemptedMetadataChange) {
+            return Response.json({
+                success: false,
+                message: 'Ubah data produk melalui Pipeline Kelola Stok. Setelah tersertifikasi, hanya stok yang dapat diubah.',
+            }, { status: 409 });
+        }
+
+        const stockPerUnit = body.stockPerUnit;
+        let updates;
+        if (Array.isArray(stockPerUnit)) {
+            const weightCount = Array.isArray(product.weight) ? product.weight.length : 0;
+            const normalizedStocks = stockPerUnit.map(Number);
+            if (
+                !weightCount
+                || normalizedStocks.length !== weightCount
+                || normalizedStocks.some(value => !Number.isInteger(value) || value < 0 || value > 1_000_000)
+                || normalizedStocks.reduce((total, value) => total + value, 0) > 1_000_000
+            ) {
+                return Response.json({ success: false, message: 'Stok per varian tidak valid' }, { status: 400 });
+            }
+            updates = {
+                stock_per_unit: normalizedStocks,
+                stock: normalizedStocks.reduce((total, value) => total + value, 0),
+            };
+        } else {
+            const stock = Number(body.stock);
+            if (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000) {
+                return Response.json({ success: false, message: 'Stok tidak valid' }, { status: 400 });
+            }
+            if (Array.isArray(product.stock_per_unit) && product.stock_per_unit.length > 1) {
+                return Response.json({
+                    success: false,
+                    message: 'Produk memiliki beberapa varian. Kirim stok untuk setiap ukuran.',
+                }, { status: 409 });
+            }
+            updates = {
+                stock,
+                ...(Array.isArray(product.weight) && product.weight.length === 1 ? { stock_per_unit: [stock] } : {}),
+            };
+        }
+
+        let { data, error } = await supabaseAdmin
             .from('products')
-            .update(patchPayload)
+            .update(updates)
             .eq('id', id)
             .select()
             .single();
-
-        if (error) {
-            console.error('[products PATCH] Update error:', error.message, error.details);
-            return Response.json({ success: false, message: error.message }, { status: 500 });
+        if (error && updates.stock_per_unit && /stock_per_unit/i.test(error.message || '')) {
+            ({ data, error } = await supabaseAdmin
+                .from('products')
+                .update({
+                    stock: updates.stock,
+                    tags: setTaggedVariantStocks(product.tags, updates.stock_per_unit),
+                })
+                .eq('id', id)
+                .select()
+                .single());
         }
+        if (error) throw error;
 
-        const result = convertKeys(data, toCamel);
-
-        // Log approval to transactions
-        if (updates.status === 'published') {
-            const logEntry = {
-                id: `appr-${Date.now().toString(36)}`,
-                hash: `APPROVAL-${id.slice(0, 8)}`,
-                farmer: updates.submittedByName || 'Petani',
-                location: updates.name || id,
-                weight: null,
-                amount: null,
-                status: 'Confirmed',
-                block: null,
-                note: `Produk "${updates.name || id}" disetujui.`,
-            };
-            // Try with extra columns, ignore failure if columns missing
-            const extendedLog = {
-                ...logEntry,
-                type: 'product_approval',
-                product_id: id,
-                product_name: updates.name || id,
-                approved_by: updates.approvedByName || updates.approvedBy || 'Admin',
-            };
-            const { error: txErr } = await supabaseAdmin.from('transactions').insert(extendedLog);
-            if (txErr) {
-                // Retry with base fields only
-                await supabaseAdmin.from('transactions').insert(logEntry).catch(() => {});
-            }
-        }
-
-        return Response.json({ success: true, data: result });
-    } catch (err) {
-        console.error('[products PATCH] Exception:', err.message);
-        return Response.json({ success: false, message: err.message || 'Server error' }, { status: 500 });
+        return Response.json({ success: true, data: convertKeys(data) });
+    } catch (error) {
+        console.error('[products PATCH]', error.message);
+        return Response.json({ success: false, message: error.message || 'Gagal memperbarui produk' }, { status: 500 });
     }
 }

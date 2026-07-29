@@ -2,7 +2,8 @@
 export const runtime = 'nodejs';
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { getExplorerTxUrl, normalizeExplorerUrl, STORE_WALLET } from '@/lib/contractConfig';
+import { getTaggedVariantStocks } from '@/lib/productVariants';
 
 /**
  * PUBLIC API — Katalog Produk Kopi CoffeeChain
@@ -81,6 +82,11 @@ export async function GET(request) {
             const weightArr = Array.isArray(rawWeight)
                 ? rawWeight
                 : (rawWeight !== null && rawWeight !== undefined ? [Number(rawWeight)] : []);
+            const rawStockPerUnit = p.stock_per_unit ?? getTaggedVariantStocks(p.tags);
+            const stockPerUnit = Array.isArray(rawStockPerUnit)
+                && rawStockPerUnit.length === weightArr.length
+                ? rawStockPerUnit.map(Number)
+                : [];
             return {
                 id:             p.id,
                 name:           p.name,
@@ -94,6 +100,7 @@ export async function GET(request) {
                 image:          p.image,
                 tags:           p.tags,
                 stock:          p.stock ?? 0,
+                stockPerUnit,
                 rating:         p.rating ?? 4.5,
                 // Real paid order count from orders table (matches dashboard penjualan)
                 // Falls back to seeded static value if no orders exist yet
@@ -102,7 +109,7 @@ export async function GET(request) {
                 txSignature:    trace.tx_signature || null,
                 explorerUrl:    trace.tx_signature ? getExplorerTxUrl(trace.tx_signature) : (normalizeExplorerUrl(trace.explorer_url) || null),
                 traceStatus:    trace.status || null,
-                paymentWallet:  p.payment_wallet,
+                paymentWallet:  STORE_WALLET,
                 submittedByName: p.submitted_by_name,
                 createdAt:      p.created_at,
             };

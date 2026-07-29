@@ -7,30 +7,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
-// ---------------------------------------------------------------------------
-// Dummy data — shown only when DB has no history yet
-// ---------------------------------------------------------------------------
-const DUMMY_REQUESTS = [
-    {
-        id: 'dummy-req-001',
-        productId: 'dummy-prod-001',
-        productName: 'Arabika Gayo Special Reserve',
-        origin: 'Aceh Tengah',
-        variety: 'Arabika',
-        grade: 'Specialty',
-        roast: 'Medium Roast',
-        stock: 80,
-        submittedByName: 'Pak Slamet Riyadi',
-        submittedByRole: 'farmer',
-        submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'published',
-        approvedByName: 'Admin Koperasi Gayo',
-        approvedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        type: 'add',
-        note: 'Produk unggulan petani binaan koperasi — kopi single origin Grade Specialty dengan catatan rasa fruity & floral.',
-    },
-];
-
 const STATUS_CONFIG = {
     pending:   { label: 'Menunggu', color: '#F5A623', bg: 'rgba(245,166,35,0.12)' },
     published: { label: 'Disetujui', color: '#4CAF50', bg: 'rgba(76,175,80,0.12)' },
@@ -40,7 +16,7 @@ const STATUS_CONFIG = {
 // ---------------------------------------------------------------------------
 export default function RequestLog() {
     const { user, getToken } = useAuth();
-    const canApprove = user?.role === 'developer' || user?.role === 'koperasi';
+    const canApprove = ['developer', 'admin', 'koperasi'].includes(user?.role);
 
     const [pending,    setPending]   = useState([]);
     const [history,    setHistory]   = useState([]);
@@ -54,23 +30,21 @@ export default function RequestLog() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const [pendRes, allRes, txRes] = await Promise.all([
-                fetch('/api/products?status=pending'),
-                fetch('/api/products'),
-                fetch('/api/transactions'),
+            const token = await getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const [pendRes, allRes] = await Promise.all([
+                fetch('/api/products?status=pending_certification', { headers, cache: 'no-store' }),
+                fetch('/api/products', { headers, cache: 'no-store' }),
             ]);
             const pendData = await pendRes.json();
             const allData  = await allRes.json();
-            const txData   = await txRes.json();
 
             setPending(pendData.data || []);
 
-            const approvalTx      = (txData.data  || []).filter(t => t.type === 'product_approval');
             const approvedProducts = (allData.data || []).filter(p =>
                 p.status === 'published' || p.status === 'rejected'
             );
             const histItems = approvedProducts.map(p => {
-                const matchTx = approvalTx.find(t => t.productId === p.id || t.productName === p.name);
                 return {
                     id:              p.id,
                     productId:       p.id,
@@ -84,51 +58,23 @@ export default function RequestLog() {
                     submittedByRole: p.submittedByRole || 'farmer',
                     submittedAt:     p.submittedAt || p.createdAt || null,
                     status:          p.status,
-                    approvedByName:  p.approvedByName || matchTx?.approvedBy || '—',
-                    approvedAt:      p.approvedAt     || matchTx?.createdAt  || null,
+                    approvedByName:  p.approvedByName || '—',
+                    approvedAt:      p.approvedAt || null,
                     rejectedReason:  p.rejectedReason || null,
                     type: 'add',
                 };
             });
 
-            const merged = histItems.length === 0
-                ? [...DUMMY_REQUESTS, ...histItems]
-                : [...histItems, ...DUMMY_REQUESTS.filter(d => !histItems.find(h => h.id === d.id))];
-
-            setHistory(merged.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)));
+            setHistory(histItems.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)));
         } catch { /* offline */ }
         setLoading(false);
-    }, []);
+    }, [getToken]);
 
     useEffect(() => { load(); }, [load]);
 
     // ── approve / reject ───────────────────────────────────────────────────
-    async function handleApprove(product) {
-        setApproving(`approve-${product.id}`);
-        setMsg(null);
-        try {
-            const token = await getToken();
-            const res  = await fetch('/api/products', {
-                method:  'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify({
-                    id:            product.id,
-                    status:        'published',
-                    approvedBy:    user?.id   || 'admin',
-                    approvedByName: user?.name || user?.email || 'Admin',
-                    approvedAt:    new Date().toISOString(),
-                }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setMsg({ type: 'ok', text: `Produk "${product.name}" dari ${product.submittedByName || 'petani'} telah disetujui!` });
-                load();
-            } else setMsg({ type: 'err', text: data.message });
-        } catch { setMsg({ type: 'err', text: 'Gagal menyetujui' }); }
-        setApproving(null);
+    function handleApprove(product) {
+        window.location.assign(`/coffee-register?productId=${encodeURIComponent(product.id)}`);
     }
 
     async function handleReject(product) {
@@ -302,7 +248,7 @@ export default function RequestLog() {
                                     <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                                         <button onClick={() => handleApprove(p)} disabled={!!approving}
                                             style={{ padding: '9px 20px', background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-light))', color: '#fff', border: 'none', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: approving ? 0.6 : 1 }}>
-                                            {approving === `approve-${p.id}` ? 'Memproses...' : '✓ Setujui'}
+                                            Register Solana
                                         </button>
                                         <button onClick={() => handleReject(p)} disabled={!!approving}
                                             style={{ padding: '9px 20px', background: 'rgba(244,67,54,0.1)', color: '#f44336', border: '1px solid rgba(244,67,54,0.3)', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: approving ? 0.6 : 1 }}>

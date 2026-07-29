@@ -5,7 +5,7 @@ export const metadata = { title: 'Register Kopi Blockchain — CoffeeChain' };
 
 export default function CoffeeRegisterPage() {
     return (
-        <DashboardLayout publicRoute>
+        <DashboardLayout allowedRoles={['koperasi', 'developer', 'admin']}>
             <CoffeeRegisterContent />
         </DashboardLayout>
     );

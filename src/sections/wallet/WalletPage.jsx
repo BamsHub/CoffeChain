@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { connectPhantom, disconnectPhantom, getSolBalance, shortenAddress, isPhantomInstalled } from '@/lib/phantom';
-import { simulateCoffeeTransaction } from '@/lib/solana';
-import { getExplorerAddressUrl } from '@/lib/contractConfig';
+import { connectPhantom, disconnectPhantom, getSolBalance, shortenAddress, isPhantomInstalled, sendSolTransaction } from '@/lib/phantom';
+import { getExplorerAddressUrl, getExplorerTxUrl } from '@/lib/contractConfig';
 import styles from './WalletPage.module.css';
 
 const IconWallet = ({ size = 20 }) => (
@@ -129,17 +128,20 @@ export default function WalletPage() {
         if (!sendForm.to || !sendForm.amount) { alert('Isi alamat tujuan dan jumlah'); return; }
         setSending(true);
         try {
-            // Simulasi transaksi blockchain
-            const result = await simulateCoffeeTransaction(wallet.publicKey, 0, 0, 'Transfer SOL');
-            setSendResult({ success: true, signature: result.signature });
+            const signature = await sendSolTransaction(wallet.publicKey, sendForm.to, sendForm.amount);
+            const explorerUrl = getExplorerTxUrl(signature);
+            setSendResult({ success: true, signature, explorerUrl });
             setTxHistory(prev => [{
                 type: 'Keluar',
                 desc: `Transfer SOL ke ${sendForm.to.slice(0, 8)}...`,
                 amount: -Number(sendForm.amount),
-                hash: `0x${result.signature.slice(0, 4)}...${result.signature.slice(-4)}`,
+                hash: `${signature.slice(0, 8)}...${signature.slice(-8)}`,
+                explorerUrl,
                 time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                 status: 'Confirmed',
             }, ...prev]);
+            const balance = await getSolBalance(wallet.publicKey);
+            setWallet(current => ({ ...current, balance }));
             setSendForm({ to: '', amount: '' });
         } catch (err) { alert('Transaksi gagal: ' + err.message); }
         finally { setSending(false); }
@@ -259,7 +261,12 @@ export default function WalletPage() {
                                     <label>Jumlah (SOL) - Saldo: {wallet.balance.toFixed(4)} SOL</label>
                                     <input type="number" step="0.001" value={sendForm.amount} onChange={e => setSendForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" className={styles.sendInput} />
                                 </div>
-                                {sendResult && <div className={styles.sendSuccess}>Berhasil. Signature: <code>{sendResult.signature.slice(0, 20)}...</code></div>}
+                                {sendResult && (
+                                    <div className={styles.sendSuccess}>
+                                        Berhasil. Signature: <code>{sendResult.signature.slice(0, 20)}...</code>{' '}
+                                        <a href={sendResult.explorerUrl} target="_blank" rel="noopener noreferrer">Lihat Explorer</a>
+                                    </div>
+                                )}
                                 <button className={styles.sendBtn} onClick={handleSend} disabled={sending}>
                                     {sending ? 'Memproses...' : <><IconSend /> Kirim SOL</>}
                                 </button>
@@ -297,7 +304,12 @@ export default function WalletPage() {
                                         <div className={`${styles.txType} ${tx.type === 'Masuk' ? styles.incoming : styles.outgoing}`}>{tx.type === 'Masuk' ? <IconReceive /> : <IconSend />}</div>
                                         <div className={styles.txInfo}>
                                             <div className={styles.txDesc}>{tx.desc}</div>
-                                            <div className={styles.txMeta}><span className={styles.txHash}>{tx.hash}</span><span>{tx.time}</span></div>
+                                            <div className={styles.txMeta}>
+                                                {tx.explorerUrl
+                                                    ? <a className={styles.txHash} href={tx.explorerUrl} target="_blank" rel="noopener noreferrer">{tx.hash}</a>
+                                                    : <span className={styles.txHash}>{tx.hash}</span>}
+                                                <span>{tx.time}</span>
+                                            </div>
                                         </div>
                                         <div className={styles.txRight}>
                                             <div className={`${styles.txAmount} ${tx.amount >= 0 ? styles.amountIn : styles.amountOut}`}>

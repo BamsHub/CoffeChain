@@ -10,13 +10,14 @@ import {
     normalizeMidtransStatus,
 } from '@/lib/midtrans';
 import { ensureMidtransSolanaTrace } from '@/lib/midtransSolanaTrace';
+import { deductPaidOrderStock } from '@/lib/productStock';
 
 const RECONCILE_LIMIT = 25;
 
 async function requireAdmin(request) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
     const session = await verifyToken(token);
-    if (!session || !['koperasi', 'developer'].includes(session.role)) return null;
+    if (!session || !['koperasi', 'developer', 'admin'].includes(session.role)) return null;
     return session;
 }
 
@@ -42,29 +43,10 @@ async function fetchMidtransStatus(orderId) {
     return data;
 }
 
-async function deductPaidOrderStock(order) {
-    if (!order?.product_id) return null;
-    const { data: product, error } = await supabaseAdmin
-        .from('products')
-        .select('id, stock')
-        .eq('id', order.product_id)
-        .maybeSingle();
-
-    if (error || !product) return null;
-    const quantity = Number(order.quantity || 1);
-    const stockLeft = Math.max(0, Number(product.stock || 0) - quantity);
-    const { error: updateErr } = await supabaseAdmin
-        .from('products')
-        .update({ stock: stockLeft })
-        .eq('id', product.id);
-
-    return updateErr ? null : stockLeft;
-}
-
 async function getCandidates() {
     const { data, error } = await supabaseAdmin
         .from('orders')
-        .select('id, order_id, status, payment_method, tx_signature, coffee_id, paid_at, product_id, quantity, created_at')
+        .select('id, order_id, status, payment_method, tx_signature, coffee_id, paid_at, product_id, weight, quantity, created_at')
         .eq('payment_method', 'midtrans')
         .order('created_at', { ascending: false })
         .limit(100);
@@ -122,7 +104,7 @@ export async function POST(request) {
                 let trace = null;
                 if (normalizedStatus === 'paid') {
                     if (order.status !== 'paid') {
-                        stockLeft = await deductPaidOrderStock(order);
+                        stockLeft = (await deductPaidOrderStock(supabaseAdmin, order))?.stockLeft ?? null;
                     }
                     trace = await ensureMidtransSolanaTrace(order.order_id, midtransData);
                 }

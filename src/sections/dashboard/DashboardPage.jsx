@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import AddTransactionModal from '@/sections/dashboard/AddTransactionModal';
 import DashboardCalendar from '@/sections/dashboard/DashboardCalendar';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import styles from './DashboardPage.module.css';
 
@@ -18,8 +18,8 @@ const topFarmers = [
 ];
 
 export default function DashboardPage({ walletPublicKey }) {
+    const { getToken } = useAuth();
     const [mounted, setMounted] = useState(false);
-    const [showModal, setShowModal] = useState(false);
     const [transactions, setTransactions] = useState([]);
     const [selectedDate, setSelectedDate] = useState(null);
     const [loadingTx, setLoadingTx] = useState(true);
@@ -37,10 +37,12 @@ export default function DashboardPage({ walletPublicKey }) {
     const refreshData = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setLoadingTx(true);
         try {
+            const token = await getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const [txRes, orderRes, settingsRes] = await Promise.all([
-                fetch('/api/transactions?includeOrders=true'),
-                fetch('/api/orders'),
-                fetch('/api/dashboard-settings'),
+                fetch('/api/transactions?includeOrders=true', { headers, cache: 'no-store' }),
+                fetch('/api/orders', { headers, cache: 'no-store' }),
+                fetch('/api/dashboard-settings', { headers, cache: 'no-store' }),
             ]);
             const txData = await txRes.json();
             const orderData = await orderRes.json();
@@ -57,7 +59,7 @@ export default function DashboardPage({ walletPublicKey }) {
             }
         } catch { /* offline mode */ }
         finally { if (!silent) setLoadingTx(false); }
-    }, []);
+    }, [getToken]);
 
     useEffect(() => {
         refreshData();
@@ -101,12 +103,6 @@ export default function DashboardPage({ walletPublicKey }) {
             setSavingTarget(false);
             window.setTimeout(() => setTargetMessage(''), 2500);
         }
-    }
-
-    function handleTransactionAdded(newTx) {
-        setTransactions(prev => [{ ...newTx, source: 'transaction', weightUnit: 'kg' }, ...prev]);
-        setShowModal(false);
-        refreshData();
     }
 
     async function handleDeleteTx(id) {
@@ -238,10 +234,6 @@ export default function DashboardPage({ walletPublicKey }) {
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
                         {selectedDate ? selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : todayLabel}
                     </div>
-                    <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" /></svg>
-                        Tambahkan Transaksi
-                    </button>
                 </div>
             </div>
 
@@ -317,7 +309,6 @@ export default function DashboardPage({ walletPublicKey }) {
                 <div className={styles.cardHeader}>
                     <div><h3 className={styles.cardTitle}>Riwayat Aktivitas</h3><p className={styles.cardSubtitle}>Blockchain + pembelian produk • {periodTransactions.length} aktivitas • {periodPaidOrders.length} pembelian lunas • {periodLabel}</p></div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                        <button className={styles.btnPrimarySmall} onClick={() => setShowModal(true)}>+ Tambah</button>
                         <a href="/transactions" className={styles.seeAll}>Lihat Semua →</a>
                     </div>
                 </div>
@@ -369,14 +360,6 @@ export default function DashboardPage({ walletPublicKey }) {
                 </div>
             </div>
 
-            {/* Add Transaction Modal */}
-            {showModal && (
-                <AddTransactionModal
-                    onClose={() => setShowModal(false)}
-                    onSuccess={handleTransactionAdded}
-                    walletPublicKey={walletPublicKey}
-                />
-            )}
         </div>
     );
 }

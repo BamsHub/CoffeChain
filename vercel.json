@@ -7,6 +7,9 @@
     "src/app/api/coffee-trace/route.js": {
       "maxDuration": 60
     },
+    "src/app/api/admin/batch-onchain/route.js": {
+      "maxDuration": 60
+    },
     "src/app/api/midtrans/**": {
       "maxDuration": 30
     },

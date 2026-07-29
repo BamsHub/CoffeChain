@@ -1,15 +1,18 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { readDb, addItem, updateItem } from '@/lib/db';
 import { sbInsert, sbSelect, ordersToSnake } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
-import { getExplorerTxUrl } from '@/lib/contractConfig';
-
-function generateCoffeeId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let id = 'CF-';
-    for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
-    return id;
-}
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { STORE_WALLET, getExplorerTxUrl } from '@/lib/contractConfig';
+import { calculatePaymentPricing } from '@/lib/paymentPricing';
+import { verifyToken } from '@/lib/auth';
+import { canMakePayment } from '@/lib/paymentAccess';
+import { verifySolanaPaymentTransaction } from '@/lib/solanaPayment';
+import {
+    createVariantStockDeduction,
+    getAvailableVariantStock,
+    setTaggedVariantStocks,
+} from '@/lib/productVariants';
 
 /**
  * PUBLIC API — Buat Pesanan Kopi (Rupiah & Solana)
@@ -23,6 +26,21 @@ function generateCoffeeId() {
  */
 export async function POST(request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        const session = await verifyToken(token);
+        if (!session) {
+            return Response.json({
+                success: false,
+                message: 'Silakan login sebelum melakukan pembayaran',
+            }, { status: 401 });
+        }
+        if (!canMakePayment(session.role)) {
+            return Response.json({
+                success: false,
+                message: 'Akun ini tidak memiliki izin pembayaran',
+            }, { status: 403 });
+        }
+
         const body = await request.json();
         const {
             productId, weight, quantity = 1,
@@ -48,6 +66,12 @@ export async function POST(request) {
                 message: 'Phantom Wallet harus terhubung untuk pembayaran Solana',
             }, { status: 400 });
         }
+        if (isSolPayment && walletAddress === STORE_WALLET) {
+            return Response.json({
+                success: false,
+                message: 'Wallet pembeli sama dengan wallet penerima CoffeeChain. Gunakan wallet pembeli lain agar SOL benar-benar berpindah.',
+            }, { status: 409 });
+        }
 
         // Cari produk
         const db = await readDb('products');
@@ -55,23 +79,42 @@ export async function POST(request) {
         if (!product) {
             return Response.json({ success: false, message: 'Produk tidak ditemukan' }, { status: 404 });
         }
-
-        // Cek stok tersedia
-        const currentStock = product.stock ?? 0;
-        if (currentStock <= 0) {
-            return Response.json({ success: false, message: 'Stok produk habis' }, { status: 400 });
-        }
-        if (currentStock < quantity) {
+        if (product.status !== 'published' || !product.coffeeId) {
             return Response.json({
                 success: false,
-                message: `Stok tidak cukup. Tersedia: ${currentStock} unit`,
-            }, { status: 400 });
+                message: 'Produk belum memiliki sertifikat Solana dan belum dapat dibayar',
+            }, { status: 409 });
+        }
+
+        const normalizedQuantity = Math.floor(Number(quantity));
+        if (!Number.isInteger(normalizedQuantity) || normalizedQuantity < 1 || normalizedQuantity > 1_000) {
+            return Response.json({ success: false, message: 'Jumlah pembelian tidak valid' }, { status: 400 });
         }
 
         // Tentukan harga berdasarkan berat yang dipilih
-        const weightIdx = product.weight ? product.weight.indexOf(weight) : -1;
-        const pricePerUnit = weightIdx >= 0 ? product.pricePerUnit[weightIdx] : product.pricePerUnit?.[0] ?? 0;
-        const totalPrice = pricePerUnit * quantity;
+        const weightOptions = Array.isArray(product.weight) ? product.weight.map(Number) : [];
+        const selectedWeight = Number(weight);
+        const weightIdx = weightOptions.indexOf(selectedWeight);
+        if (weightIdx < 0) {
+            return Response.json({ success: false, message: 'Pilihan berat produk tidak valid' }, { status: 400 });
+        }
+        const currentStock = product.stock ?? 0;
+        const availableVariantStock = getAvailableVariantStock(product, weightIdx);
+        if (availableVariantStock < normalizedQuantity) {
+            return Response.json({
+                success: false,
+                message: `Stok kemasan ${selectedWeight}g tidak cukup. Tersedia: ${availableVariantStock} unit`,
+            }, { status: 400 });
+        }
+        const pricePerUnit = Number(product.pricePerUnit?.[weightIdx]);
+        if (!Number.isInteger(pricePerUnit) || pricePerUnit < 1_000) {
+            return Response.json({ success: false, message: 'Harga produk tidak valid' }, { status: 409 });
+        }
+        const pricing = calculatePaymentPricing({
+            unitPrice: pricePerUnit,
+            quantity: normalizedQuantity,
+        });
+        const totalPrice = pricing.totalPrice;
 
         // Hitung SOL equivalent (1 SOL = Rp 2.000.000 testnet demo)
         const solAmount = parseFloat((totalPrice / 2_000_000).toFixed(9));
@@ -87,26 +130,65 @@ export async function POST(request) {
         // Tentukan status order
         // transfer SOL + txSignature → paid
         // semua lainnya → pending
-        const isPaid = paymentMethod === 'transfer' && !!txSignature;
+        let verifiedSolPayment = null;
+        if (paymentMethod === 'transfer' && txSignature) {
+            const [ordersDb, supabaseOrders] = await Promise.all([
+                readDb('orders'),
+                sbSelect('orders'),
+            ]);
+            const reused = [
+                ...(ordersDb.items || []),
+                ...((supabaseOrders || []).map(row => ({
+                    txSignature: row.tx_signature,
+                    status: row.status,
+                }))),
+            ].find(order => order.txSignature === txSignature && order.status === 'paid');
+            if (reused) {
+                return Response.json({
+                    success: false,
+                    message: 'Tx signature sudah pernah digunakan untuk order lain',
+                }, { status: 409 });
+            }
+
+            verifiedSolPayment = await verifySolanaPaymentTransaction({
+                txSignature,
+                expectedLamports: Math.round(solAmount * LAMPORTS_PER_SOL),
+                receiverWallet: STORE_WALLET,
+                expectedSigner: walletAddress,
+            });
+            if (!verifiedSolPayment.ok) {
+                return Response.json({ success: false, message: verifiedSolPayment.message }, { status: 400 });
+            }
+        }
+
+        const isPaid = paymentMethod === 'transfer' && Boolean(verifiedSolPayment?.ok);
         const orderStatus = isPaid ? 'paid' : 'pending';
 
         const order = {
             id: uuidv4(),
             orderId,
-            userId: walletAddress ? `wallet-${walletAddress}` : `buyer-${buyerEmail}`,
+            userId: session.userId,
             userName: buyerName,
             buyerEmail,
             buyerPhone: buyerPhone || null,
             productId,
             productName: product.name,
-            weight: weight || product.weight?.[0],
-            quantity,
+            weight: selectedWeight,
+            quantity: normalizedQuantity,
             totalPrice,
+            subtotalPrice: pricing.subtotalPrice,
+            ppnRate: pricing.ppnRate,
+            ppnAmount: pricing.ppnAmount,
+            solanaTraceFee: pricing.solanaTraceFee,
             solAmount: isIdrPayment ? null : solAmount,
             paymentMethod,
             paymentCurrency: isIdrPayment ? 'IDR' : 'SOL',
             walletAddress: walletAddress || null,
-            txSignature: txSignature || null,
+            txSignature: isPaid ? txSignature : null,
+            solanaNetworkFeeLamports: verifiedSolPayment?.networkFeeLamports ?? null,
+            solanaTraceStatus: isPaid ? 'confirmed' : 'pending',
+            solanaTraceError: null,
+            solanaTracedAt: isPaid ? new Date().toISOString() : null,
             virtualAccount,
             status: orderStatus,
             source: isIdrPayment ? 'rupiah_payment' : 'phantom_wallet',
@@ -131,48 +213,24 @@ export async function POST(request) {
             await addItem('orders', order);
         }
 
-        let certifiedCoffeeId = product.coffeeId || null;
-        let certifiedExplorerUrl = txSignature ? getExplorerTxUrl(txSignature) : null;
-
-        if (isPaid && txSignature && !product.coffeeId) {
-            certifiedCoffeeId = generateCoffeeId();
-            try {
-                await addItem('coffee_traces', {
-                    id: uuidv4(),
-                    coffeeId: certifiedCoffeeId,
-                    name: product.name,
-                    origin: product.origin || null,
-                    variety: product.variety || null,
-                    grade: product.grade || null,
-                    weightKg: weight || product.weight?.[0] || null,
-                    farmerName: product.submittedByName || null,
-                    harvestDate: null,
-                    processMethod: 'Paid on-chain product certificate',
-                    roastLevel: product.roast || null,
-                    certification: 'CoffeeChain Paid On-Chain',
-                    description: product.description || null,
-                    txSignature,
-                    explorerUrl: certifiedExplorerUrl,
-                    status: 'verified',
-                    registeredBy: walletAddress || null,
-                    productId: product.id,
-                    paymentWallet: walletAddress || null,
-                    createdAt: new Date().toISOString(),
-                });
-            } catch (traceErr) {
-                console.warn('[order] Certificate trace insert failed:', traceErr?.message);
-            }
-        }
-
         // Kurangi stok setelah order berhasil dibuat
+        const stockUpdate = createVariantStockDeduction(product, weightIdx, normalizedQuantity);
         try {
-            await updateItem('products', product.id, {
-                stock: currentStock - quantity,
-                ...(certifiedCoffeeId && !product.coffeeId ? { coffeeId: certifiedCoffeeId, status: 'published', paymentWallet: walletAddress || null } : {}),
-            });
+            await updateItem('products', product.id, stockUpdate);
         } catch (stockErr) {
-            // Log but don't fail the order
-            console.error('[order] Stock update failed:', stockErr?.message);
+            if (stockUpdate.stock_per_unit && /stock_per_unit/i.test(stockErr?.message || '')) {
+                try {
+                    await updateItem('products', product.id, {
+                        stock: stockUpdate.stock,
+                        tags: setTaggedVariantStocks(product.tags, stockUpdate.stock_per_unit),
+                    });
+                } catch (compatibilityError) {
+                    console.error('[order] Compatibility stock update failed:', compatibilityError?.message);
+                }
+            } else {
+                // Log but don't fail the order
+                console.error('[order] Stock update failed:', stockErr?.message);
+            }
         }
 
         return Response.json({
@@ -187,18 +245,25 @@ export async function POST(request) {
                 productName: order.productName,
                 weight: order.weight,
                 quantity: order.quantity,
+                subtotalPrice: order.subtotalPrice,
+                ppnRate: order.ppnRate,
+                ppnAmount: order.ppnAmount,
+                solanaTraceFee: order.solanaTraceFee,
                 totalPrice: order.totalPrice,
                 solAmount: order.solAmount,
                 paymentMethod: order.paymentMethod,
                 paymentCurrency: order.paymentCurrency,
                 walletAddress: order.walletAddress,
                 txSignature: order.txSignature,
-                coffeeId: certifiedCoffeeId,
-                explorerUrl: certifiedExplorerUrl,
+                solanaNetworkFeeLamports: order.solanaNetworkFeeLamports,
+                solanaTraceStatus: order.solanaTraceStatus,
+                coffeeId: product.coffeeId || null,
+                explorerUrl: order.txSignature ? getExplorerTxUrl(order.txSignature) : null,
                 virtualAccount: order.virtualAccount,
                 status: order.status,
                 expiresAt: order.expiresAt,
-                stockLeft: currentStock - quantity,
+                stockLeft: Math.max(0, currentStock - normalizedQuantity),
+                variantStockLeft: availableVariantStock - normalizedQuantity,
             },
         }, {
             status: 201,
@@ -215,7 +280,7 @@ export async function OPTIONS() {
         headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }
     });
 }

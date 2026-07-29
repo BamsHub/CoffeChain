@@ -9,6 +9,7 @@ export function transactionsToCamel(row) {
     return {
         id: row.id,
         hash: row.hash,
+        txSignature: row.tx_signature || (typeof row.hash === 'string' && row.hash.length >= 80 ? row.hash : null),
         farmer: row.farmer,
         location: row.location || row.product_name || row.note,
         weight: isAuditTx ? null : row.weight,
@@ -22,6 +23,9 @@ export function transactionsToCamel(row) {
         walletTo: row.wallet_to,
         note: row.note,
         type,
+        farmerId: row.farmer_id || null,
+        createdBy: row.created_by || row.farmer_id || null,
+        approvedBy: row.approved_by || null,
         productId: row.product_id,
         productName: row.product_name,
         source: 'transaction',
@@ -46,6 +50,7 @@ export function transactionsToSnake(t) {
         wallet_to: t.walletTo,
         note: t.note,
         type: t.type,
+        farmer_id: t.farmerId || t.createdBy || null,
         product_id: t.productId,
         product_name: t.productName,
     };
@@ -91,13 +96,38 @@ export function orderToFeedItem(order) {
         block: '—',
         source: 'order',
         paymentMethod: order.paymentMethod,
+        ownerId: order.userId,
     };
 }
 
-/** Gabungkan transaksi blockchain + pembelian lunas, urut terbaru dulu */
+export function traceToFeedItem(trace) {
+    return {
+        id: `trace-${trace.id}`,
+        hash: trace.txSignature || trace.id,
+        txSignature: trace.txSignature || null,
+        farmer: trace.farmerName || 'CoffeeChain',
+        location: trace.origin || trace.name || '—',
+        weight: trace.weightKg || 0,
+        weightUnit: 'kg',
+        variety: trace.name || trace.variety || 'Sertifikat Kopi',
+        grade: trace.grade,
+        amount: null,
+        status: trace.txSignature ? 'Confirmed' : (trace.status || 'Pending'),
+        timestamp: trace.createdAt,
+        block: '—',
+        source: 'trace',
+        type: 'inventory_certificate',
+        productId: trace.productId,
+        productName: trace.name,
+        coffeeId: trace.coffeeId,
+        explorerUrl: trace.explorerUrl,
+        ownerId: trace.farmerId || trace.registeredBy || null,
+    };
+}
+
+/** Gabungkan transaksi blockchain + seluruh status pembelian, urut terbaru dulu */
 export function buildUnifiedFeed(transactions, orders) {
-    const paidOrders = (orders || []).filter(o => o.status === 'paid');
-    const orderItems = paidOrders.map(orderToFeedItem);
+    const orderItems = (orders || []).map(orderToFeedItem);
     const txItems = (transactions || []).map(t => ({
         ...t,
         source: t.source || 'transaction',
@@ -116,10 +146,40 @@ export function buildUnifiedFeed(transactions, orders) {
     );
 }
 
-export async function getTransactionFeed({ includeOrders = false } = {}) {
-    const transactions = await getBlockchainTransactions();
-    if (!includeOrders) return transactions;
+export async function getTransactionFeed({ includeOrders = false, includeTraces = false, userId = null } = {}) {
+    const allTransactions = await getBlockchainTransactions();
+    let ownedProductIds = new Set();
+    if (userId) {
+        const productsDb = await readDb('products');
+        ownedProductIds = new Set((productsDb.items || [])
+            .filter(product => product.submittedBy === userId)
+            .map(product => product.id)
+            .filter(Boolean));
+    }
 
-    const orders = await getOrders();
-    return buildUnifiedFeed(transactions, orders);
+    const transactions = userId
+        ? allTransactions.filter(item => (
+            item.farmerId === userId
+            || item.createdBy === userId
+            || ownedProductIds.has(item.productId)
+        ))
+        : allTransactions;
+    if (!includeOrders && !includeTraces) return transactions;
+
+    const orders = includeOrders ? await getOrders(userId) : [];
+    const feed = buildUnifiedFeed(transactions, orders);
+    if (!includeTraces) return feed;
+
+    const tracesDb = await readDb('coffee_traces');
+    const visibleTraces = userId
+        ? (tracesDb.items || []).filter(trace => (
+            trace.farmerId === userId
+            || trace.registeredBy === userId
+            || ownedProductIds.has(trace.productId)
+        ))
+        : (tracesDb.items || []);
+    const traceItems = visibleTraces.map(traceToFeedItem);
+    return [...feed, ...traceItems].sort(
+        (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0),
+    );
 }

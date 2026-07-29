@@ -44,9 +44,9 @@ const defaultDeveloperGuides = [
     {
         title: '2. Alur Integrasi Midtrans Payment Gateway',
         items: [
-            'Pemicu Snap: Ketika pembeli mengklik "Beli Sekarang" di landing page dan memilih metode IDR Bank Transfer/QRIS, backend memicu request Snap ke Midtrans.',
+            'Pemicu Snap: Ketika pembeli mengklik "Beli" di landing page dan memilih metode IDR Bank Transfer/QRIS, backend memicu request Snap ke Midtrans.',
             'Endpoint Webhook: Endpoint `/api/midtrans/notification` menerima callback realtime dari Midtrans untuk mengupdate status pembayaran (settlement/pending/expired).',
-            'Status Check: Tombol "Cek Status Midtrans" memanggil `/api/midtrans/status` untuk mencocokkan status order.',
+            'Status Check: Akun pemilik order yang sudah login dapat memanggil `/api/midtrans/status` untuk mencocokkan status order; JWT dan kepemilikan order selalu diverifikasi.',
             'Auto Blockchain Write: Ketika pembayaran berstatus "Paid", backend otomatis mengirimkan memo transaksi ke Solana Testnet dan menyimpan `tx_signature` pada order database.',
         ],
     },
@@ -125,7 +125,7 @@ export async function POST(request) {
         const token = request.headers.get('Authorization')?.replace('Bearer ', '');
         const session = await verifyToken(token);
 
-        if (!session || (session.role !== 'developer' && session.role !== 'koperasi')) {
+        if (!session || !['developer', 'admin', 'koperasi'].includes(session.role)) {
             return Response.json({ success: false, message: 'Unauthorized: Hanya admin/koperasi yang dapat merubah dokumentasi' }, { status: 403 });
         }
 

@@ -1,0 +1,358 @@
+.shell {
+    position: relative;
+    min-height: 520px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    padding: clamp(28px, 6vw, 64px) 18px;
+    isolation: isolate;
+}
+
+.fullPage {
+    min-height: 100vh;
+    color: #e8f5e0;
+    background:
+        radial-gradient(circle at 18% 20%, rgba(126, 212, 74, 0.12), transparent 30%),
+        radial-gradient(circle at 82% 74%, rgba(153, 69, 255, 0.12), transparent 32%),
+        #030d06;
+    font-family: Inter, system-ui, sans-serif;
+}
+
+.glow {
+    position: absolute;
+    z-index: -1;
+    width: min(70vw, 520px);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(126, 212, 74, 0.13), rgba(153, 69, 255, 0.05) 48%, transparent 72%);
+    filter: blur(10px);
+    animation: receiptGlow 3.2s ease-in-out infinite;
+}
+
+.card {
+    width: min(560px, 100%);
+    padding: 0;
+    gap: 0;
+    border: 1px solid rgba(126, 212, 74, 0.24);
+    border-radius: 24px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+        rgba(7, 20, 10, 0.92);
+    box-shadow:
+        0 28px 90px rgba(0, 0, 0, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    text-align: center;
+    backdrop-filter: blur(16px);
+}
+
+.cardContent {
+    padding: clamp(28px, 5vw, 44px);
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #9be66f;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    border-color: rgba(126, 212, 74, 0.24);
+    background: rgba(126, 212, 74, 0.06);
+}
+
+.liveDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #7ed44a;
+    box-shadow: 0 0 0 0 rgba(126, 212, 74, 0.5);
+    animation: receiptPing 1.6s ease-out infinite;
+}
+
+.visual {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    margin: 24px auto 20px;
+    display: grid;
+    place-items: center;
+}
+
+.orbit {
+    position: absolute;
+    border-radius: 999px;
+    border: 1px solid rgba(126, 212, 74, 0.28);
+}
+
+.orbitOuter {
+    inset: 0;
+    border-top-color: #7ed44a;
+    border-right-color: rgba(179, 136, 255, 0.72);
+    animation: receiptOrbit 3.2s linear infinite;
+}
+
+.orbitInner {
+    inset: 17px;
+    border-bottom-color: #b388ff;
+    animation: receiptOrbit 2.4s linear infinite reverse;
+}
+
+.node {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #b388ff;
+    box-shadow: 0 0 15px rgba(179, 136, 255, 0.9);
+}
+
+.nodeOne {
+    top: 9px;
+    left: 61px;
+}
+
+.nodeTwo {
+    right: 13px;
+    bottom: 30px;
+    background: #7ed44a;
+    box-shadow: 0 0 15px rgba(126, 212, 74, 0.9);
+}
+
+.nodeThree {
+    left: 17px;
+    bottom: 27px;
+}
+
+.bean {
+    width: 54px;
+    height: 70px;
+    display: grid;
+    place-items: center;
+    border-radius: 52% 48% 48% 52% / 58% 58% 42% 42%;
+    background: linear-gradient(145deg, #8be153, #427c25);
+    box-shadow:
+        0 14px 32px rgba(126, 212, 74, 0.24),
+        inset -8px -8px 18px rgba(16, 56, 15, 0.28),
+        inset 5px 5px 13px rgba(255, 255, 255, 0.16);
+    transform: rotate(18deg);
+    animation: receiptFloat 2.4s ease-in-out infinite;
+}
+
+.bean span {
+    width: 3px;
+    height: 48px;
+    border-radius: 999px;
+    background: rgba(3, 13, 6, 0.48);
+    transform: rotate(8deg);
+    box-shadow: 6px 0 10px rgba(255, 255, 255, 0.08);
+}
+
+.title {
+    margin: 0;
+    color: #f2f9ee;
+    font-size: clamp(27px, 5vw, 38px);
+    line-height: 1.08;
+    letter-spacing: -0.8px;
+}
+
+.description {
+    max-width: 430px;
+    margin: 12px auto 0;
+    color: rgba(232, 245, 224, 0.64);
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.progressTrack {
+    position: relative;
+    height: 5px;
+    margin: 26px 0 24px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.progressTrack [data-slot="progress-indicator"] {
+    width: 42%;
+    background: linear-gradient(90deg, transparent, #7ed44a 42%, #b388ff 78%, transparent);
+    filter: drop-shadow(0 0 7px rgba(126, 212, 74, 0.5));
+    animation: receiptSweep 1.9s ease-in-out infinite;
+}
+
+.steps {
+    display: grid;
+    gap: 10px;
+    text-align: left;
+}
+
+.step {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 12px;
+    color: rgba(232, 245, 224, 0.62);
+    background: rgba(255, 255, 255, 0.025);
+    font-size: 12px;
+    animation: receiptStep 3s ease-in-out infinite;
+}
+
+.step > span:nth-child(2) {
+    flex: 1;
+}
+
+.stepPulse {
+    width: 28px;
+    height: 6px;
+    flex: 0 0 28px;
+    border-radius: 999px;
+    background: rgba(126, 212, 74, 0.2);
+}
+
+.step:nth-child(2) {
+    animation-delay: 1s;
+}
+
+.step:nth-child(3) {
+    animation-delay: 2s;
+}
+
+.stepDot {
+    width: 23px;
+    height: 23px;
+    display: grid;
+    flex: 0 0 23px;
+    place-items: center;
+    border-radius: 999px;
+    color: #aee98c;
+    background: rgba(126, 212, 74, 0.11);
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.securityNote {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 22px;
+    color: rgba(232, 245, 224, 0.42);
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+@keyframes receiptOrbit {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes receiptFloat {
+    0%,
+    100% {
+        transform: translateY(0) rotate(18deg);
+    }
+
+    50% {
+        transform: translateY(-7px) rotate(18deg);
+    }
+}
+
+@keyframes receiptGlow {
+    0%,
+    100% {
+        opacity: 0.72;
+        transform: scale(0.92);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.06);
+    }
+}
+
+@keyframes receiptPing {
+    0% {
+        box-shadow: 0 0 0 0 rgba(126, 212, 74, 0.52);
+    }
+
+    75%,
+    100% {
+        box-shadow: 0 0 0 8px rgba(126, 212, 74, 0);
+    }
+}
+
+@keyframes receiptSweep {
+    from {
+        transform: translateX(-120%);
+    }
+
+    to {
+        transform: translateX(340%);
+    }
+}
+
+@keyframes receiptStep {
+    0%,
+    24%,
+    100% {
+        color: rgba(232, 245, 224, 0.5);
+        border-color: rgba(255, 255, 255, 0.065);
+        transform: translateX(0);
+    }
+
+    10% {
+        color: #e8f5e0;
+        border-color: rgba(126, 212, 74, 0.28);
+        transform: translateX(3px);
+    }
+}
+
+@media (max-width: 520px) {
+    .shell {
+        min-height: 480px;
+        padding-inline: 0;
+    }
+
+    .fullPage {
+        padding-inline: 16px;
+    }
+
+    .card {
+        padding: 28px 20px;
+        border-radius: 20px;
+    }
+
+    .visual {
+        width: 116px;
+        height: 116px;
+    }
+
+    .nodeOne {
+        left: 53px;
+    }
+
+    .description {
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glow,
+    .liveDot,
+    .orbitOuter,
+    .orbitInner,
+    .bean,
+    .progressSweep,
+    .step {
+        animation: none;
+    }
+
+    .progressTrack [data-slot="progress-indicator"] {
+        transform: translateX(70%) !important;
+    }
+}

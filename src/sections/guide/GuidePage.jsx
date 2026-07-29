@@ -5,9 +5,10 @@ import { ArrowRight, CheckCircle2, FileText, LogIn, MailCheck, MessageSquareWarn
 import { useAuth } from '@/context/AuthContext';
 
 const registerSteps = [
-    { icon: UserPlus, title: 'Isi data petani', text: 'Masukkan nama, email, wilayah, dan password minimal 8 karakter pada formulir pendaftaran.' },
-    { icon: MailCheck, title: 'Verifikasi email', text: 'Buka tautan verifikasi yang dikirim ke email agar akun petani aktif.' },
-    { icon: LogIn, title: 'Masuk ke CoffeeChain', text: 'Gunakan akun yang sudah aktif untuk mengakses dashboard dan layanan petani.' },
+    { icon: UserPlus, title: 'Isi identitas petani', text: 'Pilih kategori petani, isi komunitas bila ada, serta provinsi, kabupaten/kota, dan kecamatan kebun.' },
+    { icon: MailCheck, title: 'Verifikasi email', text: 'Buka tautan publik CoffeeChain yang dikirim ke email. Tahap ini memverifikasi email, bukan langsung menyetujui identitas petani.' },
+    { icon: LogIn, title: 'Hubungkan wallet', text: 'Masuk ke CoffeeChain, buka Profil, lalu hubungkan Phantom Wallet untuk melengkapi checklist.' },
+    { icon: UserPlus, title: 'Tunggu review petani', text: 'Koperasi/admin memeriksa identitas, komunitas, wilayah, dan wallet. Pencatatan produksi terbuka setelah status Verified.' },
 ];
 
 const ticketSteps = [

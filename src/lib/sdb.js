@@ -78,6 +78,10 @@ export function ordersToSnake(o) {
         weight: o.weight,
         quantity: o.quantity || 1,
         total_price: o.totalPrice,
+        subtotal_price: o.subtotalPrice,
+        ppn_rate: o.ppnRate,
+        ppn_amount: o.ppnAmount,
+        solana_trace_fee: o.solanaTraceFee,
         buyer_email: o.buyerEmail,
         buyer_phone: o.buyerPhone,
         sol_amount: o.solAmount,
@@ -86,6 +90,12 @@ export function ordersToSnake(o) {
         wallet_address: o.walletAddress,
         virtual_account: o.virtualAccount,
         tx_signature: o.txSignature,
+        solana_network_fee_lamports: o.solanaNetworkFeeLamports,
+        solana_trace_status: o.solanaTraceStatus,
+        solana_trace_error: o.solanaTraceError,
+        solana_trace_lock_id: o.solanaTraceLockId,
+        solana_trace_started_at: o.solanaTraceStartedAt,
+        solana_traced_at: o.solanaTracedAt,
         coffee_id: o.coffeeId,
         status: o.status || 'pending',
         source: o.source,
@@ -113,6 +123,10 @@ export function ordersToCamel(o) {
         weight: o.weight,
         quantity: o.quantity,
         totalPrice: o.total_price,
+        subtotalPrice: o.subtotal_price,
+        ppnRate: o.ppn_rate,
+        ppnAmount: o.ppn_amount,
+        solanaTraceFee: o.solana_trace_fee,
         buyerEmail: o.buyer_email,
         buyerPhone: o.buyer_phone,
         solAmount: o.sol_amount,
@@ -121,6 +135,12 @@ export function ordersToCamel(o) {
         walletAddress: o.wallet_address,
         virtualAccount: o.virtual_account,
         txSignature: o.tx_signature,
+        solanaNetworkFeeLamports: o.solana_network_fee_lamports,
+        solanaTraceStatus: o.solana_trace_status,
+        solanaTraceError: o.solana_trace_error,
+        solanaTraceLockId: o.solana_trace_lock_id,
+        solanaTraceStartedAt: o.solana_trace_started_at,
+        solanaTracedAt: o.solana_traced_at,
         coffeeId: o.coffee_id,
         status: o.status,
         source: o.source,
@@ -145,6 +165,13 @@ export function usersToCamel(u) {
         password: u.password,
         role: u.role,
         region: u.region,
+        farmerCategory: u.farmer_category,
+        farmerCommunityName: u.farmer_community_name,
+        province: u.province,
+        regency: u.regency,
+        district: u.district,
+        village: u.village,
+        farmerDeclarationAt: u.farmer_declaration_at,
         wallet: u.wallet,
         avatar: u.avatar,
         bio: u.bio,
@@ -153,6 +180,13 @@ export function usersToCamel(u) {
         language: u.language,
         photoBase64: u.photo_base64,
         active: u.active,
+        emailVerified: u.email_verified,
+        emailVerifiedAt: u.email_verified_at,
+        farmerVerificationStatus: u.farmer_verification_status,
+        farmerVerificationNotes: u.farmer_verification_notes,
+        farmerVerifiedBy: u.farmer_verified_by,
+        farmerVerifiedByName: u.farmer_verified_by_name,
+        farmerVerifiedAt: u.farmer_verified_at,
         createdAt: u.created_at,
         lastLogin: u.last_login,
     };
@@ -166,6 +200,13 @@ export function usersToSnake(u) {
     if (u.password !== undefined) s.password = u.password;
     if (u.role !== undefined) s.role = u.role;
     if (u.region !== undefined) s.region = u.region;
+    if (u.farmerCategory !== undefined) s.farmer_category = u.farmerCategory;
+    if (u.farmerCommunityName !== undefined) s.farmer_community_name = u.farmerCommunityName;
+    if (u.province !== undefined) s.province = u.province;
+    if (u.regency !== undefined) s.regency = u.regency;
+    if (u.district !== undefined) s.district = u.district;
+    if (u.village !== undefined) s.village = u.village;
+    if (u.farmerDeclarationAt !== undefined) s.farmer_declaration_at = u.farmerDeclarationAt;
     if (u.wallet !== undefined) s.wallet = u.wallet;
     if (u.avatar !== undefined) s.avatar = u.avatar;
     if (u.bio !== undefined) s.bio = u.bio;
@@ -174,6 +215,13 @@ export function usersToSnake(u) {
     if (u.language !== undefined) s.language = u.language;
     if (u.photoBase64 !== undefined) s.photo_base64 = u.photoBase64;
     if (u.active !== undefined) s.active = u.active;
+    if (u.emailVerified !== undefined) s.email_verified = u.emailVerified;
+    if (u.emailVerifiedAt !== undefined) s.email_verified_at = u.emailVerifiedAt;
+    if (u.farmerVerificationStatus !== undefined) s.farmer_verification_status = u.farmerVerificationStatus;
+    if (u.farmerVerificationNotes !== undefined) s.farmer_verification_notes = u.farmerVerificationNotes;
+    if (u.farmerVerifiedBy !== undefined) s.farmer_verified_by = u.farmerVerifiedBy;
+    if (u.farmerVerifiedByName !== undefined) s.farmer_verified_by_name = u.farmerVerifiedByName;
+    if (u.farmerVerifiedAt !== undefined) s.farmer_verified_at = u.farmerVerifiedAt;
     if (u.lastLogin !== undefined) s.last_login = u.lastLogin;
     return s;
 }

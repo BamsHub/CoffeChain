@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 import { readDb, addItem } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
+import { getPublicAppUrl } from '@/lib/publicAppUrl';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -11,6 +12,12 @@ function isDuplicateAuthError(error) {
 
 function isMissingColumnError(error) {
     return /column|schema cache|email_verified/i.test(error?.message || '');
+}
+
+const FARMER_CATEGORIES = new Set(['individual', 'farmer_group', 'cooperative_member']);
+
+function cleanText(value, maxLength = 120) {
+    return String(value || '').trim().replace(/\s+/g, ' ').slice(0, maxLength);
 }
 
 async function findAuthUserByEmail(email) {
@@ -25,7 +32,23 @@ async function insertAppUser(user) {
     } catch (error) {
         if (!isMissingColumnError(error)) throw error;
 
-        const { emailVerified, emailVerifiedAt, ...fallbackUser } = user;
+        const fallbackUser = { ...user };
+        for (const key of [
+            'farmerCategory',
+            'farmerCommunityName',
+            'province',
+            'regency',
+            'district',
+            'village',
+            'farmerDeclarationAt',
+            'emailVerified',
+            'emailVerifiedAt',
+            'farmerVerificationStatus',
+            'farmerVerificationNotes',
+            'farmerVerifiedBy',
+            'farmerVerifiedByName',
+            'farmerVerifiedAt',
+        ]) delete fallbackUser[key];
         return addItem('users', fallbackUser);
     }
 }
@@ -53,10 +76,24 @@ export async function POST(request) {
     let createdAuthUserId = null;
     try {
         const body = await request.json();
-        const { name, email, password, region } = body;
+        const {
+            name,
+            email,
+            password,
+            farmerCategory,
+            communityName,
+            province,
+            regency,
+            district,
+            village,
+            farmerDeclaration,
+        } = body;
 
-        if (!name || !email || !password) {
-            return Response.json({ success: false, message: 'Nama, email, dan password wajib diisi' }, { status: 400 });
+        if (!name || !email || !password || !farmerCategory || !province || !regency || !district) {
+            return Response.json({
+                success: false,
+                message: 'Nama, email, kategori petani, provinsi, kabupaten/kota, kecamatan, dan password wajib diisi.',
+            }, { status: 400 });
         }
 
         if (password.length < 8) {
@@ -68,9 +105,34 @@ export async function POST(request) {
             return Response.json({ success: false, message: 'Format email tidak valid' }, { status: 400 });
         }
 
+        if (!FARMER_CATEGORIES.has(farmerCategory)) {
+            return Response.json({ success: false, message: 'Kategori petani tidak valid.' }, { status: 400 });
+        }
+        if (farmerDeclaration !== true) {
+            return Response.json({
+                success: false,
+                message: 'Pendaftaran ini khusus petani atau anggota organisasi petani kopi. Konfirmasi pernyataan petani wajib dicentang.',
+            }, { status: 400 });
+        }
+
+        const cleanCommunityName = cleanText(communityName);
+        if (farmerCategory !== 'individual' && cleanCommunityName.length < 3) {
+            return Response.json({
+                success: false,
+                message: 'Nama kelompok tani, komunitas, atau koperasi wajib diisi.',
+            }, { status: 400 });
+        }
+
         const normalizedEmail = email.toLowerCase().trim();
-        const cleanName = name.trim();
-        const cleanRegion = region?.trim() || '';
+        const cleanName = cleanText(name);
+        const cleanProvince = cleanText(province);
+        const cleanRegency = cleanText(regency);
+        const cleanDistrict = cleanText(district);
+        const cleanVillage = cleanText(village);
+        const cleanRegion = [cleanVillage, cleanDistrict, cleanRegency, cleanProvince]
+            .filter(Boolean)
+            .join(', ');
+        const declarationAt = new Date().toISOString();
 
         // Cek email sudah ada di tabel aplikasi
         const db = await readDb('users');
@@ -87,6 +149,15 @@ export async function POST(request) {
                 name: cleanName,
                 role: 'farmer',
                 region: cleanRegion,
+                farmerCategory,
+                farmerCommunityName: cleanCommunityName || null,
+                province: cleanProvince,
+                regency: cleanRegency,
+                district: cleanDistrict,
+                village: cleanVillage || null,
+                farmerDeclarationAt: declarationAt,
+                emailVerified: false,
+                farmerVerificationStatus: 'pending',
             },
         });
 
@@ -111,6 +182,13 @@ export async function POST(request) {
             password: await hashPassword(password),
             role: 'farmer',
             region: cleanRegion,
+            farmerCategory,
+            farmerCommunityName: cleanCommunityName || null,
+            province: cleanProvince,
+            regency: cleanRegency,
+            district: cleanDistrict,
+            village: cleanVillage || null,
+            farmerDeclarationAt: declarationAt,
             wallet: '',
             avatar: cleanName.substring(0, 2).toUpperCase(),
             createdAt: new Date().toISOString(),
@@ -118,6 +196,11 @@ export async function POST(request) {
             active: false,        // Aktif setelah verifikasi email
             emailVerified: false,
             emailVerifiedAt: null,
+            farmerVerificationStatus: 'pending',
+            farmerVerificationNotes: null,
+            farmerVerifiedBy: null,
+            farmerVerifiedByName: null,
+            farmerVerifiedAt: null,
         };
 
         await insertAppUser(newUser);
@@ -136,16 +219,14 @@ export async function POST(request) {
         });
 
         // Kirim email verifikasi
-        const host = request.headers.get('host') || 'coffe-chain.vercel.app';
-        const proto = request.headers.get('x-forwarded-proto') || 'https';
-        const dynamicAppUrl = `${proto}://${host}`;
+        const publicAppUrl = getPublicAppUrl(request);
 
         try {
-            await sendVerificationEmail(normalizedEmail, cleanName, verifyToken, dynamicAppUrl);
+            await sendVerificationEmail(normalizedEmail, cleanName, verifyToken, publicAppUrl);
         } catch (emailErr) {
             console.error('Email send error:', emailErr);
             // Tetap berhasil daftar, tetapi sertakan link verifikasi langsung agar tidak stuck
-            const verificationLink = `${dynamicAppUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+            const verificationLink = `${publicAppUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
             const { password: _, ...safeUser } = newUser;
             return Response.json({
                 success: true,
@@ -160,7 +241,7 @@ export async function POST(request) {
         return Response.json({
             success: true,
             emailSent: true,
-            message: `Akun berhasil dibuat! Email verifikasi dikirim ke ${normalizedEmail}`,
+            message: `Akun petani berhasil dibuat. Email verifikasi dikirim ke ${normalizedEmail}. Setelah email selesai, hubungkan wallet dan tunggu review koperasi/admin.`,
             user: safeUser,
         }, { status: 201 });
 

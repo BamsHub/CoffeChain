@@ -1,18 +1,18 @@
 // Konfigurasi Smart Contract & Wallet CoffeeChain
 // ================================================
 
-// Farmer Wallet (shared) — semua pembayaran masuk ke sini
-// Wallet Testnet milik @BamsProject
-export const FARMER_WALLET = "E5NKiUEJGX8qh9PMxPpA9XWzuiGR9MvEErMtCr5KjiUs";
-
-// Store wallet = farmer wallet (1 wallet untuk semua petani)
-export const STORE_WALLET = FARMER_WALLET;
+// CAUTION: Wallet server ini adalah identitas tetap untuk pencatat sertifikat
+// inventory dan pembayar network fee registrasi trace on-chain. Jangan diganti
+// tanpa rotasi wallet yang disetujui pemilik repository. Alur payment gateway
+// checkout terpisah dari proses sertifikasi inventory ini.
+export const PINNED_MEMO_SIGNER_PUBLIC = "8erURhHZgSvoFeXAJSDWzk2JDEiLsWeKq11zpiPs7AhJ";
+export const FARMER_WALLET = PINNED_MEMO_SIGNER_PUBLIC;
+export const STORE_WALLET = PINNED_MEMO_SIGNER_PUBLIC;
 
 // Solana Memo Program ID (built-in, tidak perlu deploy)
 export const MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
-// Memo Signer Public Key (server-side, untuk register kopi ke blockchain)
-export const MEMO_SIGNER_PUBLIC = "5NgY9MPpHiUAZz8GmerbfzSdKeXf91FAXUGEm9t6S2h3";
+export const MEMO_SIGNER_PUBLIC = PINNED_MEMO_SIGNER_PUBLIC;
 
 // Smart Contract (belum di-deploy, placeholder)
 export const IS_CONTRACT_DEPLOYED = false;

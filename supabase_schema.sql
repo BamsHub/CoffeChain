@@ -15,6 +15,14 @@ CREATE TABLE IF NOT EXISTS users (
   password TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'farmer',
   region TEXT,
+  farmer_category TEXT DEFAULT 'legacy'
+    CHECK (farmer_category IN ('legacy', 'individual', 'farmer_group', 'cooperative_member')),
+  farmer_community_name TEXT,
+  province TEXT,
+  regency TEXT,
+  district TEXT,
+  village TEXT,
+  farmer_declaration_at TIMESTAMPTZ,
   wallet TEXT,
   avatar TEXT,
   bio TEXT,
@@ -25,12 +33,33 @@ CREATE TABLE IF NOT EXISTS users (
   active BOOLEAN DEFAULT true,
   email_verified BOOLEAN DEFAULT true,
   email_verified_at TIMESTAMPTZ,
+  farmer_verification_status TEXT DEFAULT 'pending'
+    CHECK (farmer_verification_status IN ('pending', 'verified', 'rejected')),
+  farmer_verification_notes TEXT,
+  farmer_verified_by TEXT,
+  farmer_verified_by_name TEXT,
+  farmer_verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_login TIMESTAMPTZ
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified    BOOLEAN DEFAULT true;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verification_status TEXT DEFAULT 'pending';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verification_notes TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_by TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_by_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_category TEXT DEFAULT 'legacy';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_community_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS province TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS regency TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS district TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS village TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_declaration_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_users_farmer_verification_status
+  ON users(farmer_verification_status)
+  WHERE role = 'farmer';
 
 CREATE TABLE IF NOT EXISTS verification_tokens (
   id TEXT PRIMARY KEY,
@@ -54,6 +83,7 @@ CREATE TABLE IF NOT EXISTS products (
   roast TEXT,
   weight JSONB,
   price_per_unit JSONB,
+  stock_per_unit JSONB,
   description TEXT,
   image TEXT,
   tags JSONB,
@@ -104,6 +134,10 @@ CREATE TABLE IF NOT EXISTS orders (
   weight INTEGER,
   quantity INTEGER DEFAULT 1,
   total_price BIGINT,
+  subtotal_price BIGINT,
+  ppn_rate NUMERIC(6,5) DEFAULT 0,
+  ppn_amount BIGINT DEFAULT 0,
+  solana_trace_fee BIGINT DEFAULT 0,
   payment_method TEXT,
   buyer_email TEXT,
   buyer_phone TEXT,
@@ -120,6 +154,12 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_phone TEXT,
   virtual_account TEXT,
   tx_signature TEXT,
+  solana_network_fee_lamports BIGINT,
+  solana_trace_status TEXT DEFAULT 'pending',
+  solana_trace_error TEXT,
+  solana_trace_lock_id TEXT,
+  solana_trace_started_at TIMESTAMPTZ,
+  solana_traced_at TIMESTAMPTZ,
   status TEXT DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   expires_at TIMESTAMPTZ,
@@ -129,6 +169,10 @@ CREATE TABLE IF NOT EXISTS orders (
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS buyer_email       TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS buyer_phone       TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS sol_amount        NUMERIC;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal_price    BIGINT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ppn_rate          NUMERIC(6,5) DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ppn_amount        BIGINT DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_fee  BIGINT DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_currency  TEXT DEFAULT 'IDR';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS wallet_address    TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS coffee_id         TEXT;
@@ -139,6 +183,20 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_city     TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_province TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_postal   TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_phone    TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_network_fee_lamports BIGINT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_status TEXT DEFAULT 'pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_error TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_lock_id TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_trace_started_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS solana_traced_at TIMESTAMPTZ;
+UPDATE orders
+SET
+  subtotal_price = COALESCE(subtotal_price, total_price),
+  solana_trace_status = CASE
+    WHEN tx_signature IS NOT NULL THEN 'confirmed'
+    ELSE COALESCE(solana_trace_status, 'pending')
+  END
+WHERE subtotal_price IS NULL OR solana_trace_status IS NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status   ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_coffee_id ON orders(coffee_id);

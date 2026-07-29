@@ -36,6 +36,26 @@ export function getPaidAtForStatus(normalizedStatus, midtransData = {}) {
     return new Date().toISOString();
 }
 
+export function assertMidtransGrossAmount(expectedGrossAmount, midtransData = {}) {
+    const expected = Number(expectedGrossAmount);
+    const actual = Number(midtransData.gross_amount);
+
+    if (!Number.isFinite(expected) || expected <= 0) {
+        throw new Error('Total order lokal tidak valid');
+    }
+    if (!Number.isFinite(actual)) {
+        throw new Error('Gross amount Midtrans tidak tersedia');
+    }
+    if (Math.round(actual) !== Math.round(expected)) {
+        throw new Error(
+            `Nominal Midtrans tidak cocok: dibayar Rp ${Math.round(actual).toLocaleString('id-ID')}, `
+            + `tagihan Rp ${Math.round(expected).toLocaleString('id-ID')}`,
+        );
+    }
+
+    return true;
+}
+
 export function buildMidtransPaymentProof(orderId, midtransData = {}) {
     const proof = {
         orderId,

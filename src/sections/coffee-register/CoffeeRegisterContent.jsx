@@ -1,15 +1,15 @@
 'use client';
 /**
  * CoffeeRegisterContent — Unified Register Kopi + Request Log
- * Alur: Kelola Produk → status blockchain per produk → klik → Phantom sign → Solana
+ * Alur: Kelola Produk → status blockchain per produk → server wallet → Solana
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
     isPhantomInstalled, connectPhantom, disconnectPhantom,
-    getSolBalance, shortenAddress, sendMemoWithPhantom,
+    getSolBalance, shortenAddress,
 } from '@/lib/phantom';
-import { getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
+import { STORE_WALLET, normalizeExplorerUrl } from '@/lib/contractConfig';
 import QRButton, { BlockchainQRCard } from '@/components/BlockchainQR/BlockchainQR';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
@@ -76,6 +76,8 @@ export default function CoffeeRegisterContent() {
     const [regMsg, setRegMsg]             = useState(null);
     const [previewOpen, setPreviewOpen]   = useState(false);
     const [detailProduct, setDetailProduct] = useState(null);
+    const [certificationAudit, setCertificationAudit] = useState(null);
+    const [certificationAuditLoading, setCertificationAuditLoading] = useState(false);
 
     /* ── Log search ── */
     const [logSearch, setLogSearch]       = useState('');
@@ -83,6 +85,8 @@ export default function CoffeeRegisterContent() {
     /* ── Batch on-chain (server wallet) ── */
     const [batchLoading, setBatchLoading] = useState(false);
     const [batchResult, setBatchResult]   = useState(null);
+    const [batchAudit, setBatchAudit]     = useState(null);
+    const requestedProductOpenedRef       = useRef(false);
 
     /* ── Auto-connect Phantom ── */
     useEffect(() => {
@@ -97,24 +101,33 @@ export default function CoffeeRegisterContent() {
             } catch { }
         };
         tryAuto();
-        if (window.solana) {
-            window.solana.on('accountChanged', (newKey) => {
-                if (newKey) setWalletPK(newKey.toString());
-                else { setWalletPK(null); setWalletBal(0); }
-            });
-        }
+        const provider = window.solana;
+        const handleAccountChanged = (newKey) => {
+            if (newKey) setWalletPK(newKey.toString());
+            else { setWalletPK(null); setWalletBal(0); }
+        };
+        provider?.on?.('accountChanged', handleAccountChanged);
+        return () => provider?.removeListener?.('accountChanged', handleAccountChanged);
     }, []);
 
     /* ── Load data ── */
     const loadProducts = useCallback(async () => {
         setLoadingProd(true);
         try {
-            const res = await fetch('/api/products');
+            const token = await getToken();
+            const res = await fetch('/api/products', {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                cache: 'no-store',
+            });
             const d = await res.json();
-            if (d.success) setProducts(d.data || []);
-        } catch { }
+            if (!res.ok || !d.success) throw new Error(d.message || 'Gagal memuat antrean Register Kopi');
+            setProducts(d.data || []);
+        } catch (error) {
+            setProducts([]);
+            setRegMsg({ type: 'error', text: error.message || 'Gagal memuat antrean Register Kopi' });
+        }
         setLoadingProd(false);
-    }, []);
+    }, [getToken]);
 
     const loadTraces = useCallback(async () => {
         setLoadingTrace(true);
@@ -131,16 +144,32 @@ export default function CoffeeRegisterContent() {
             const token = await getToken();
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const [batchRes, logRes] = await Promise.all([
-                fetch('/api/production-batches', { headers }),
-                fetch('/api/production-stages', { headers }),
+                fetch('/api/production-batches?scope=review', { headers, cache: 'no-store' }),
+                fetch('/api/production-stages?scope=review', { headers, cache: 'no-store' }),
             ]);
             const [batchData, logData] = await Promise.all([batchRes.json(), logRes.json()]);
             if (batchData.success) setProductionBatches(batchData.data || []);
             if (logData.success) setProductionLogs(logData.data || []);
         } catch { }
-    }, []);
+    }, [getToken]);
 
-    useEffect(() => { loadProducts(); loadTraces(); loadProductionAudit(); }, [loadProducts, loadTraces, loadProductionAudit]);
+    const loadOnchainAudit = useCallback(async () => {
+        try {
+            const token = await getToken();
+            if (!token || !['koperasi', 'developer', 'admin'].includes(user?.role)) return;
+            const res = await fetch('/api/admin/batch-onchain', {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: 'no-store',
+            });
+            const data = await res.json();
+            if (data.success) setBatchAudit(data);
+            else setBatchAudit({ success: false, remaining: null, message: data.message });
+        } catch (error) {
+            setBatchAudit({ success: false, remaining: null, message: error.message });
+        }
+    }, [getToken, user?.role]);
+
+    useEffect(() => { loadProducts(); loadTraces(); loadProductionAudit(); loadOnchainAudit(); }, [loadProducts, loadTraces, loadProductionAudit, loadOnchainAudit]);
 
     /* ── Phantom Wallet Handlers ── */
     async function handleConnect() {
@@ -159,7 +188,7 @@ export default function CoffeeRegisterContent() {
     }
 
     /* ── Open Register Modal ── */
-    function openRegister(product) {
+    const openRegister = useCallback((product) => {
         setRegProduct(product);
         setRegForm({
             farmerName: product.submittedByName || user?.name || '',
@@ -169,13 +198,68 @@ export default function CoffeeRegisterContent() {
         });
         setRegMsg(null);
         setPreviewOpen(false);
-    }
+        setCertificationAudit(null);
+        setCertificationAuditLoading(true);
 
-    /* ── Submit: Phantom sign → Solana → save to DB ── */
+        const token = getToken();
+        fetch(`/api/certification-audit?productId=${encodeURIComponent(product.id)}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            cache: 'no-store',
+        })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'Audit sertifikasi gagal');
+                setCertificationAudit(data.data);
+            })
+            .catch(error => {
+                setCertificationAudit({
+                    eligible: false,
+                    criteria: [],
+                    error: error.message,
+                });
+            })
+            .finally(() => setCertificationAuditLoading(false));
+    }, [getToken, user?.name]);
+
+    useEffect(() => {
+        if (requestedProductOpenedRef.current || typeof window === 'undefined' || !products.length) return;
+
+        const requestedProductId = new URLSearchParams(window.location.search).get('productId');
+        if (!requestedProductId) return;
+
+        requestedProductOpenedRef.current = true;
+        const requestedProduct = products.find(product => (
+            product.id === requestedProductId
+            && !product.coffeeId
+            && product.status === 'pending_certification'
+        ));
+        if (requestedProduct) {
+            openRegister(requestedProduct);
+            return;
+        }
+        setRegMsg({
+            type: 'error',
+            text: 'Produk belum berada di antrean sertifikasi. Pastikan petani sudah mengajukan ulang Tahap 6.',
+        });
+    }, [openRegister, products]);
+
+    /* ── Submit: server wallet sign → Solana → save to DB ── */
     async function handleRegister(e) {
-        e.preventDefault();
+        e?.preventDefault();
         if (!regProduct) return;
-        if (!walletPK) { alert('Hubungkan Phantom Wallet terlebih dahulu!'); return; }
+        if (certificationAuditLoading || certificationAudit?.eligible !== true) {
+            setRegMsg({
+                type: 'error',
+                text: certificationAuditLoading
+                    ? 'Audit sertifikasi masih berjalan. Tunggu hingga seluruh kriteria diperiksa.'
+                    : 'Produk belum lolos seluruh kriteria sertifikasi. Perbaiki item yang masih gagal.',
+            });
+            return;
+        }
+        if (e) {
+            setPreviewOpen(true);
+            return;
+        }
 
         setSubmitting(true); setRegMsg(null);
         try {
@@ -193,8 +277,8 @@ export default function CoffeeRegisterContent() {
                 roastLevel: regForm.roastLevel,
                 certification: regForm.certification,
                 description: regProduct.description || '',
-                registeredBy: user?.id || walletPK,
-                paymentWallet: walletPK,
+                registeredBy: user?.id || STORE_WALLET,
+                paymentWallet: STORE_WALLET,
             };
 
             setRegMsg({ type: 'info', text: 'Memindahkan foto dan metadata produk ke IPFS...' });
@@ -211,20 +295,7 @@ export default function CoffeeRegisterContent() {
                 throw new Error(proofData.message || 'Gagal membuat bukti IPFS');
             }
 
-            setRegMsg({ type: 'info', text: 'Menunggu tanda tangan Phantom Wallet... Konfirmasi di popup Phantom Anda.' });
-
-            let phantomTxSignature;
-            try {
-                phantomTxSignature = await sendMemoWithPhantom(walletPK, proofData.proof.memo);
-            } catch (phantomErr) {
-                if (phantomErr.message?.includes('rejected') || phantomErr.code === 4001) {
-                    setRegMsg({ type: 'error', text: 'Transaksi dibatalkan oleh pengguna.' });
-                    setSubmitting(false); return;
-                }
-                throw phantomErr;
-            }
-
-            setRegMsg({ type: 'info', text: 'TX diterima Solana! Menyimpan data trace ke database...' });
+            setRegMsg({ type: 'info', text: 'Server wallet sedang menulis bukti Memo ke Solana Testnet...' });
 
             const res = await fetch('/api/coffee-trace', {
                 method: 'POST',
@@ -234,27 +305,28 @@ export default function CoffeeRegisterContent() {
                 },
                 body: JSON.stringify({
                     ...tracePayload,
-                    phantomTxSignature,
-                    phantomWalletAddress: walletPK,
                     offchainProof: proofData.proof,
                 }),
             });
             const data = await res.json();
 
             if (data.success) {
+                setPreviewOpen(false);
                 setRegMsg({
                     type: 'success',
                     text: `"${regProduct.name}" berhasil terdaftar di Solana Blockchain!`,
                     coffeeId:    data.data?.coffeeId,
-                    txSig:       phantomTxSignature,
-                    explorerUrl: getExplorerTxUrl(phantomTxSignature),
+                    txSig:       data.data?.txSignature,
+                    explorerUrl: data.data?.explorerUrl,
                 });
                 await Promise.all([loadProducts(), loadTraces()]);
                 setTimeout(() => { setRegProduct(null); setRegMsg(null); }, 4500);
             } else {
+                setPreviewOpen(false);
                 setRegMsg({ type: 'error', text: data.message || 'Gagal simpan ke DB' });
             }
         } catch (err) {
+            setPreviewOpen(false);
             setRegMsg({ type: 'error', text: err.message || 'Terjadi kesalahan' });
         }
         setSubmitting(false);
@@ -304,29 +376,62 @@ export default function CoffeeRegisterContent() {
 
     /* ── Batch on-chain via server wallet ── */
     async function handleBatchOnchain() {
-        if (!window.confirm(`On-chain ${unregistered.length} produk menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
+        const expectedTotal = batchAudit?.remaining ?? unregistered.length;
+        if (!window.confirm(`Tulis ulang ${expectedTotal} data yang belum valid ke Solana Testnet menggunakan Server Wallet? Proses ini membutuhkan beberapa menit.`)) return;
         setBatchLoading(true); setBatchResult(null);
         try {
             const token = await getToken();
-            const res = await fetch('/api/admin/batch-onchain', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify({}),
+            if (!token) throw new Error('Sesi login tidak ditemukan');
+
+            let remaining = expectedTotal;
+            let succeeded = 0;
+            const results = [];
+            for (let round = 0; round < 50 && remaining > 0; round += 1) {
+                setBatchResult({
+                    success: true,
+                    message: `Backfill berjalan: ${succeeded} berhasil, sekitar ${remaining} data tersisa...`,
+                    results,
+                });
+                const res = await fetch('/api/admin/batch-onchain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ limit: 3 }),
+                });
+                const data = await res.json();
+                results.push(...(data.results || []));
+                succeeded += Number(data.succeeded || 0);
+                remaining = Number.isFinite(Number(data.remaining)) ? Number(data.remaining) : remaining;
+
+                if (!res.ok || Number(data.failed || 0) > 0) {
+                    throw new Error(data.message || 'Sebagian data gagal ditulis ke Solana');
+                }
+                if (!data.processed) break;
+            }
+
+            setBatchResult({
+                success: remaining === 0,
+                message: remaining === 0
+                    ? `Selesai! ${succeeded} data berhasil dicatat permanen di Solana Testnet.`
+                    : `${succeeded} data berhasil, tetapi masih ada ${remaining} data yang perlu diproses.`,
+                results,
             });
-            const data = await res.json();
-            setBatchResult(data);
-            if (data.success) { await Promise.all([loadProducts(), loadTraces()]); }
+            await Promise.all([loadProducts(), loadTraces(), loadOnchainAudit()]);
         } catch (err) {
-            setBatchResult({ success: false, message: err.message });
+            setBatchResult(current => ({
+                success: false,
+                message: err.message,
+                results: current?.results || [],
+            }));
+            await loadOnchainAudit();
         }
         setBatchLoading(false);
     }
 
     /* ── Derived data ── */
-    const unregistered    = products.filter(p => !p.coffeeId && p.status !== 'rejected');
+    const unregistered    = products.filter(p => !p.coffeeId && p.status === 'pending_certification');
     const registered      = products.filter(p => !!p.coffeeId);
     const filteredTraces  = traces.filter(t => {
         const q = logSearch.toLowerCase();
@@ -351,7 +456,7 @@ export default function CoffeeRegisterContent() {
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
                 <div>
                     <h1 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, color: 'var(--color-text,#E8F5E0)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <IcoShield /> Review & Register Kopi
+                        <IcoShield /> Persetujuan Produk & Register Kopi
                     </h1>
                     <p style={{ fontSize: 13, color: 'rgba(232,245,224,0.45)' }}>
                         Periksa deskripsi dan foto IPFS Tahap 1-6, lalu kirim hash traceability ke <strong style={{ color: '#9945FF' }}>Solana Testnet</strong>
@@ -393,7 +498,7 @@ export default function CoffeeRegisterContent() {
             <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
                 {[
                     { label: 'Total Produk',    value: products.length,    color: 'rgba(232,245,224,0.7)' },
-                    { label: 'Belum di-Chain',  value: unregistered.length, color: '#FFB300' },
+                    { label: 'Audit Belum Valid', value: batchAudit?.remaining ?? unregistered.length, color: '#FFB300' },
                     { label: 'Sudah di-Chain',  value: registered.length,  color: '#7ED44A' },
                     { label: 'Total Trace',     value: traces.length,      color: '#b388ff' },
                 ].map(s => (
@@ -403,6 +508,55 @@ export default function CoffeeRegisterContent() {
                     </div>
                 ))}
             </div>
+
+            {['koperasi', 'developer', 'admin'].includes(user?.role) && (
+                <div style={{ ...S.card, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', borderColor: batchAudit?.remaining > 0 ? 'rgba(255,179,0,0.35)' : 'rgba(76,175,80,0.3)' }}>
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#E8F5E0', marginBottom: 4 }}>
+                            Audit Solana Testnet
+                        </div>
+                        <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.55)' }}>
+                            {batchAudit?.remaining == null
+                                ? (batchAudit?.message || 'Memeriksa signature di RPC Solana...')
+                                : `${batchAudit.remaining} data belum memiliki signature yang benar-benar terkonfirmasi di Testnet.`}
+                            {batchAudit?.wallet && ` Wallet ${shortenAddress(batchAudit.wallet.signer)}: ${Number(batchAudit.wallet.balanceSol || 0).toFixed(4)} SOL.`}
+                        </div>
+                        {batchAudit?.counts && (
+                            <div style={{ marginTop: 5, fontSize: 11, color: 'rgba(232,245,224,0.4)' }}>
+                                Trace {batchAudit.counts.coffee_traces || 0} · Produk {batchAudit.counts.products || 0} · Transaksi {batchAudit.counts.transactions || 0} · Order lunas {batchAudit.counts.orders || 0}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleBatchOnchain}
+                        disabled={batchLoading || !batchAudit?.remaining || batchAudit?.wallet?.ready === false}
+                        style={{ ...S.btnP, opacity: batchLoading || !batchAudit?.remaining || batchAudit?.wallet?.ready === false ? 0.55 : 1 }}
+                    >
+                        {batchLoading ? <><IcoSpin /> Menulis ke Solana...</> : 'Perbaiki Semua Data On-Chain'}
+                    </button>
+                </div>
+            )}
+
+            {batchResult && (
+                <div style={{ padding:'12px 14px', borderRadius:10, marginBottom:18, fontSize:13, fontWeight:600,
+                    background: batchResult.success ? 'rgba(76,175,80,0.1)' : 'rgba(244,67,54,0.1)',
+                    border: `1px solid ${batchResult.success ? 'rgba(76,175,80,0.3)' : 'rgba(244,67,54,0.3)'}`,
+                    color: batchResult.success ? '#4CAF50' : '#f44336',
+                }}>
+                    {batchResult.message}
+                    {batchResult.results?.length > 0 && (
+                        <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
+                            {batchResult.results.slice(-10).map((result, index) => (
+                                <div key={`${result.source}-${result.id}-${index}`} style={{ fontSize:11, color: result.status === 'success' ? '#7ED44A' : '#f44336' }}>
+                                    {result.source}: {result.name} {result.status === 'success' ? '✓' : `(${result.error || 'gagal'})`}
+                                    {result.explorerUrl && <a href={result.explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color:'#b388ff', marginLeft:6 }}>Explorer</a>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ── TABS ── */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid rgba(74,124,40,0.15)' }}>
@@ -425,12 +579,10 @@ export default function CoffeeRegisterContent() {
             {/* ══ TAB: PRODUCTS ══ */}
             {tab === 'products' && (
                 <div>
-                    {!walletPK && (
-                        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(153,69,255,0.08)', border: '1px solid rgba(153,69,255,0.25)', fontSize: 13, color: 'rgba(232,245,224,0.6)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <IcoPhantom />
-                            Hubungkan <strong style={{ color: '#9945FF' }}>Phantom Wallet</strong> untuk mendaftarkan produk ke Solana.
-                        </div>
-                    )}
+                    <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(126,212,74,0.08)', border: '1px solid rgba(126,212,74,0.25)', fontSize: 13, color: 'rgba(232,245,224,0.6)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <IcoWallet />
+                        Biaya transaksi trace inventory dan sertifikat dibayar oleh server wallet Testnet <strong style={{ color: '#7ED44A' }}>{shortenAddress(STORE_WALLET, 8)}</strong>. Proses ini bukan payment gateway atau pembayaran checkout.
+                    </div>
                     {loadingProd ? (
                         <div style={{ textAlign: 'center', padding: 48, color: 'rgba(232,245,224,0.3)' }}>Memuat produk...</div>
                     ) : (
@@ -483,7 +635,7 @@ export default function CoffeeRegisterContent() {
                                                 </div>
                                                 <button onClick={(e) => { e.stopPropagation(); openRegister(p); }}
                                                     style={{ ...S.btnG, width: '100%', justifyContent: 'center', padding: '9px', fontSize: 12 }}>
-                                                    <IcoShield /> Review & Kirim ke Solana
+                                                    <IcoShield /> Setujui & Kirim ke Solana
                                                 </button>
                                                 <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
                                                     style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '8px', fontSize: 12, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', border: '1px solid rgba(126,212,74,0.25)', fontWeight: 700 }}>
@@ -630,6 +782,11 @@ export default function CoffeeRegisterContent() {
                             ))}
                         </div>
 
+                        <CertificationChecklist
+                            audit={certificationAudit}
+                            loading={certificationAuditLoading}
+                        />
+
                         <PipelineAuditPanel
                             batch={findProductBatch(regProduct, productionBatches)}
                             logs={getProductStageLogs(regProduct, productionBatches, productionLogs)}
@@ -705,38 +862,31 @@ export default function CoffeeRegisterContent() {
                                     <label style={S.lbl}>Sertifikasi (opsional)</label>
                                     <input style={S.inp} value={regForm.certification} onChange={e => setRegForm(f => ({ ...f, certification: e.target.value }))} placeholder="Organic, Fair Trade, dll." />
                                 </div>
-                                <div style={{ padding: '10px 13px', borderRadius: 8, background: 'rgba(153,69,255,0.07)', border: '1px solid rgba(153,69,255,0.2)', fontSize: 12, color: 'rgba(232,245,224,0.55)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <IcoPhantom />
-                                    Gas fee ~0.000005 SOL dari <strong style={{ color: '#9945FF' }}>wallet Phantom Anda</strong>
-                                    {walletPK && <span style={{ marginLeft: 'auto', color: '#7ED44A', fontWeight: 700 }}>{walletBal.toFixed(4)} SOL</span>}
+                                <div style={{ padding: '10px 13px', borderRadius: 8, background: 'rgba(126,212,74,0.07)', border: '1px solid rgba(126,212,74,0.2)', fontSize: 12, color: 'rgba(232,245,224,0.55)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <IcoWallet />
+                                    Gas fee Memo dibayar otomatis oleh <strong style={{ color: '#7ED44A' }}>server wallet Testnet</strong>
                                 </div>
                                 <button type="button" onClick={() => setPreviewOpen(true)}
                                     style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', fontWeight: 700, border: '1px solid rgba(126,212,74,0.25)', borderRadius: 9, cursor: 'pointer', padding: '10px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                                     <IcoEye /> Lihat Semua Data
                                 </button>
-                                {walletPK ? (
-                                    <button type="submit" disabled={submitting} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting ? 0.7 : 1 }}>
-                                        {submitting ? <><IcoSpin /> Menunggu Phantom...</> : <><IcoPhantom /> Sign & Kirim ke Solana</>}
-                                    </button>
-                                ) : (
-                                    <button type="button" onClick={handleConnect} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14 }}>
-                                        <IcoPhantom /> Hubungkan Phantom untuk Lanjutkan
-                                    </button>
-                                )}
+                                <button type="submit" disabled={submitting || certificationAuditLoading || certificationAudit?.eligible !== true} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting || certificationAuditLoading || certificationAudit?.eligible !== true ? 0.55 : 1 }}>
+                                    {submitting ? <><IcoSpin /> Menulis Memo...</> : <><IcoEye /> Periksa & Ajukan Sertifikat</>}
+                                </button>
                             </form>
                         )}
 
                         {previewOpen && (
-                            <div className="cr-overlay" style={{ zIndex: 360, padding: 12 }} onClick={() => setPreviewOpen(false)}>
+                            <div className="cr-overlay" style={{ zIndex: 360, padding: 12 }} onClick={() => { if (!submitting) setPreviewOpen(false); }}>
                                 <div className="cr-modal" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
                                         <div>
                                             <div style={{ fontSize: 18, fontWeight: 800, color: '#E8F5E0', display: 'flex', alignItems: 'center', gap: 8 }}>
                                                 <IcoEye /> Preview Data Register
                                             </div>
-                                            <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 3 }}>Periksa data sebelum tanda tangan Phantom.</div>
+                                            <div style={{ fontSize: 12, color: 'rgba(232,245,224,0.45)', marginTop: 3 }}>Periksa data sebelum server wallet menulis Memo.</div>
                                         </div>
-                                        <button type="button" onClick={() => setPreviewOpen(false)}
+                                        <button type="button" disabled={submitting} onClick={() => setPreviewOpen(false)}
                                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: 'rgba(232,245,224,0.7)', cursor: 'pointer' }}>
                                             <IcoClose />
                                         </button>
@@ -763,6 +913,7 @@ export default function CoffeeRegisterContent() {
                                                 ['Stok', `${regProduct.stock ?? 0} unit`],
                                                 ['Ukuran', Array.isArray(regProduct.weight) ? regProduct.weight.map(w => `${w}g`).join(', ') : '-'],
                                                 ['Harga', Array.isArray(regProduct.pricePerUnit) ? regProduct.pricePerUnit.map(v => `Rp ${Number(v || 0).toLocaleString('id-ID')}`).join(', ') : '-'],
+                                                ['Stok per Ukuran', Array.isArray(regProduct.stockPerUnit) ? regProduct.stockPerUnit.map((stock, index) => `${regProduct.weight?.[index] || '-'}g: ${stock} unit`).join(', ') : `${regProduct.stock ?? 0} unit total`],
                                                 ['Nama Petani', regForm.farmerName || '-'],
                                                 ['Tanggal Panen', regForm.harvestDate || '-'],
                                                 ['Metode Proses', regForm.processMethod],
@@ -784,8 +935,11 @@ export default function CoffeeRegisterContent() {
                                         </div>
                                     )}
 
-                                    <button type="button" onClick={() => setPreviewOpen(false)} style={{ ...S.btnG, marginTop: 16, width: '100%', justifyContent: 'center' }}>
-                                        Data Sudah Sesuai
+                                    <div style={{ marginTop: 14, padding: '11px 13px', borderRadius: 10, background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)', color: 'rgba(255,236,193,0.82)', fontSize: 12, lineHeight: 1.55 }}>
+                                        Pastikan seluruh data sudah benar. Setelah signature sertifikat tersimpan, signature tersebut tidak akan diganti.
+                                    </div>
+                                    <button type="button" disabled={submitting || certificationAuditLoading || certificationAudit?.eligible !== true} onClick={() => handleRegister()} style={{ ...S.btnG, marginTop: 12, width: '100%', justifyContent: 'center', opacity: submitting || certificationAuditLoading || certificationAudit?.eligible !== true ? 0.55 : 1 }}>
+                                        {submitting ? <><IcoSpin /> Menulis ke Solana...</> : <><IcoShield /> Data Benar, Setujui & Kirim ke Solana</>}
                                     </button>
                                 </div>
                             </div>
@@ -822,7 +976,7 @@ export default function CoffeeRegisterContent() {
                             {!detailProduct.coffeeId && (
                                 <button type="button" onClick={() => { openRegister(detailProduct); setDetailProduct(null); }}
                                     style={{ ...S.btnG, flex: '1 1 220px', justifyContent: 'center' }}>
-                                    <IcoShield /> Review & Kirim ke Solana
+                                    <IcoShield /> Setujui & Kirim ke Solana
                                 </button>
                             )}
                             {!detailProduct.coffeeId && (
@@ -997,6 +1151,69 @@ function ProductDetailView({ product, batch, logs = [] }) {
                         );
                     })}
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function CertificationChecklist({ audit, loading }) {
+    const eligible = audit?.eligible === true;
+    return (
+        <div style={{
+            marginBottom: 18,
+            padding: 14,
+            borderRadius: 11,
+            background: eligible ? 'rgba(76,175,80,0.07)' : 'rgba(255,152,0,0.07)',
+            border: `1px solid ${eligible ? 'rgba(76,175,80,0.28)' : 'rgba(255,152,0,0.28)'}`,
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                <div>
+                    <div style={{ color: '#E8F5E0', fontSize: 14, fontWeight: 900 }}>Checklist Kelayakan Sertifikasi</div>
+                    <div style={{ color: 'rgba(232,245,224,0.5)', fontSize: 11, marginTop: 2 }}>
+                        Seluruh kontrol wajib lulus sebelum server membuat transaksi Solana.
+                    </div>
+                </div>
+                <span style={{
+                    borderRadius: 999,
+                    padding: '4px 9px',
+                    color: eligible ? '#7ED44A' : '#FFB300',
+                    background: eligible ? 'rgba(76,175,80,0.12)' : 'rgba(255,152,0,0.12)',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    whiteSpace: 'nowrap',
+                }}>
+                    {loading ? 'Memeriksa...' : eligible ? 'LAYAK' : 'BELUM LAYAK'}
+                </span>
+            </div>
+
+            {audit?.error && (
+                <div style={{ color: '#ff8a80', fontSize: 12 }}>{audit.error}</div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 8 }}>
+                {(audit?.criteria || []).map(item => (
+                    <div key={item.id} style={{
+                        display: 'flex',
+                        gap: 8,
+                        padding: 9,
+                        borderRadius: 8,
+                        background: 'rgba(0,0,0,0.12)',
+                        border: `1px solid ${item.passed ? 'rgba(126,212,74,0.18)' : 'rgba(244,67,54,0.2)'}`,
+                    }}>
+                        <span style={{
+                            color: item.passed ? '#7ED44A' : '#ff8a80',
+                            fontSize: 10,
+                            fontWeight: 900,
+                            paddingTop: 1,
+                        }}>
+                            {item.passed ? 'OK' : 'FAIL'}
+                        </span>
+                        <div>
+                            <div style={{ color: '#E8F5E0', fontSize: 11, fontWeight: 800 }}>{item.label}</div>
+                            <div style={{ color: 'rgba(232,245,224,0.46)', fontSize: 10, lineHeight: 1.4, marginTop: 2 }}>{item.detail}</div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

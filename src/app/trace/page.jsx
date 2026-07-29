@@ -208,7 +208,7 @@ function TraceContent() {
     const [allProducts, setAllProducts] = useState([]);
 
     useEffect(() => {
-        fetch('/api/products')
+        fetch('/api/public/products')
             .then(r => r.json())
             .then(d => { if (d.success) setAllProducts(d.data.filter(p => p.status === 'published')); })
             .catch(() => {});

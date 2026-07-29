@@ -49,7 +49,7 @@ export async function POST(req) {
         if (batchError || !batch) {
             return NextResponse.json({ success: false, message: 'Batch pipeline tidak ditemukan' }, { status: 404 });
         }
-        if (session.role === 'farmer' && batch.farmer_id !== session.userId) {
+        if (batch.farmer_id !== session.userId) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
         let rejectedProduct = false;
@@ -78,7 +78,7 @@ export async function POST(req) {
         }
 
         const ownerId = batch.farmer_id || session.userId;
-        const ownerRole = batch.farmer_id ? 'farmer' : session.role;
+        const ownerRole = session.role;
         const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
         const fileName = `farmer-${ownerId}-production-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const buffer = Buffer.from(await file.arrayBuffer());

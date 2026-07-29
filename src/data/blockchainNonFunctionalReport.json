@@ -1,0 +1,178 @@
+{
+  "generatedAt": "2026-07-29T03:59:34.300Z",
+  "startedAt": "2026-07-29T03:59:28.787Z",
+  "network": "solana-testnet",
+  "rpcUrl": "https://api.testnet.solana.com",
+  "writeConfirmationSample": {
+    "scope": "Three historical CoffeeChain Memo transactions; this sample is not network TPS.",
+    "transactions": 3,
+    "successes": 3,
+    "latencySeconds": {
+      "min": 0.54,
+      "average": 0.68,
+      "max": 0.95
+    },
+    "exactTransactions": [
+      {
+        "signature": "3FtXy9rbLUazdwXBs9BmwzdUamHY6p7gLysy8UWVrC3WRV3Y3vUNgYiUxam31fBuuVJ9DUsXEiBUAmEcMsVFizSG",
+        "slot": 415689756,
+        "found": false,
+        "confirmedSuccess": false,
+        "blockTime": null,
+        "feeLamports": null,
+        "feeSol": null,
+        "computeUnitsConsumed": null,
+        "rpcLookupMs": 168.2,
+        "historicalConfirmationSeconds": 0.95
+      },
+      {
+        "signature": "5sUAUGPbDvfLwZpK4zE4sbEmf8STJWdhkiyHoS6JMJzuXpHFK6MTF2tkQVwT7KpxM1iyZue2Vv3Pun8Gz5biAJJL",
+        "slot": 415689763,
+        "found": false,
+        "confirmedSuccess": false,
+        "blockTime": null,
+        "feeLamports": null,
+        "feeSol": null,
+        "computeUnitsConsumed": null,
+        "rpcLookupMs": 24.92,
+        "historicalConfirmationSeconds": 0.56
+      },
+      {
+        "signature": "4iTPFpiPdhcrW6a4sCJvZizb15s3sTh6hgTYT54qB36stDfmb8d7XFbCqt43982zQ6o6vn1Vn9sQx3u4JnN1fmgj",
+        "slot": 415689770,
+        "found": false,
+        "confirmedSuccess": false,
+        "blockTime": null,
+        "feeLamports": null,
+        "feeSol": null,
+        "computeUnitsConsumed": null,
+        "rpcLookupMs": 21.91,
+        "historicalConfirmationSeconds": 0.54
+      }
+    ]
+  },
+  "readRpcLoadTest": {
+    "scope": "Read-only JSON-RPC getLatestBlockhash load test; not Solana write TPS.",
+    "requests": 12,
+    "concurrency": 2,
+    "successes": 12,
+    "failures": 0,
+    "errorRatePercent": 0,
+    "elapsedSeconds": 0.148,
+    "throughputRequestsPerSecond": 81.16,
+    "latencyMs": {
+      "min": 18.91,
+      "average": 24.3,
+      "p50": 20,
+      "p95": 66.57,
+      "p99": 66.57,
+      "max": 66.57
+    },
+    "errors": []
+  },
+  "securityChecks": [
+    {
+      "control": "Preflight enabled",
+      "passed": true,
+      "evidence": "sendRawTransaction rejects invalid transactions during preflight."
+    },
+    {
+      "control": "Confirmation required before persistence",
+      "passed": true,
+      "evidence": "The server waits for confirmed/finalized transaction status."
+    },
+    {
+      "control": "Pinned signer verification",
+      "passed": true,
+      "evidence": "Stored certification signatures must include the configured server signer."
+    },
+    {
+      "control": "SOL amount and receiver verification",
+      "passed": true,
+      "evidence": "Payment verification checks sender, receiver, and exact lamport amount."
+    },
+    {
+      "control": "On-chain immutability guard",
+      "passed": true,
+      "evidence": "An existing confirmed certificate signature is verified and reused, not overwritten."
+    }
+  ],
+  "dependencyAudit": {
+    "checkedAt": "2026-07-29T03:59:28.790Z",
+    "completed": true,
+    "scope": "Production dependencies",
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 3,
+      "high": 3,
+      "critical": 0,
+      "total": 6
+    },
+    "affectedPackages": [
+      {
+        "name": "@solana/web3.js",
+        "severity": "moderate",
+        "direct": true
+      },
+      {
+        "name": "jayson",
+        "severity": "moderate",
+        "direct": false
+      },
+      {
+        "name": "next",
+        "severity": "high",
+        "direct": true
+      },
+      {
+        "name": "postcss",
+        "severity": "high",
+        "direct": false
+      },
+      {
+        "name": "sharp",
+        "severity": "high",
+        "direct": false
+      },
+      {
+        "name": "uuid",
+        "severity": "moderate",
+        "direct": false
+      }
+    ],
+    "interpretation": "An advisory scan is not a penetration test; High or Critical findings must not be reported as zero."
+  },
+  "feeAudit": {
+    "source": "Historical wallet balance delta in perf_results.json",
+    "verifiedTransactionCount": 0,
+    "averageTotalFeeLamports": 5200,
+    "averageTotalFeeSol": 0.0000052,
+    "historicalConfiguration": {
+      "signatures": 1,
+      "baseFeeLamports": 5000,
+      "computeUnitLimit": 200000,
+      "microLamportsPerCu": 1000,
+      "priorityFeeLamports": 200,
+      "expectedTotalLamports": 5200
+    },
+    "optimizedImplementation": {
+      "method": "Simulate transaction, add 10% CU safety margin, then use confirmed meta.fee as the final amount.",
+      "fallbackComputeUnitLimit": 200000,
+      "minimumComputeUnitLimit": 10000,
+      "microLamportsPerCu": 1000
+    },
+    "formula": "priority fee = ceil(CU limit x microLamports per CU / 1,000,000); total = base fee + priority fee"
+  },
+  "bottleneckFindings": [
+    "High p95-to-median spread indicates RPC/network latency variability.",
+    "Transaction confirmation is slower than a read-only RPC call and dominates end-to-end blockchain response time."
+  ],
+  "limitations": [
+    "Read RPC throughput is not equivalent to Solana write TPS.",
+    "The write sample contains only three transactions and must not be generalized to the full network.",
+    "IPFS, Supabase, browser rendering, and multi-user end-to-end load require separate scenarios.",
+    "Testnet measurements can change with RPC provider and network conditions.",
+    "Static controls and npm advisory scanning are not substitutes for penetration testing or a smart-contract audit."
+  ]
+}

@@ -4,5 +4,9 @@ import FarmersPage from '@/sections/farmers/FarmersPage';
 export const metadata = { title: 'Petani — CoffeeChain' };
 
 export default function Farmers() {
-    return <DashboardLayout><FarmersPage /></DashboardLayout>;
+    return (
+        <DashboardLayout allowedRoles={['koperasi', 'developer', 'admin']}>
+            <FarmersPage />
+        </DashboardLayout>
+    );
 }

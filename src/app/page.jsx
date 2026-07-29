@@ -3,7 +3,9 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { STORE_WALLET, SOLANA_NETWORK, getExplorerTxUrl, normalizeExplorerUrl } from '@/lib/contractConfig';
-import { useAuth } from '@/context/AuthContext';
+import { calculatePaymentPricing } from '@/lib/paymentPricing';
+import { canMakePayment } from '@/lib/paymentAccess';
+import { ROLE_LABELS, useAuth } from '@/context/AuthContext';
 
 const QRButton = dynamic(() => import('@/components/BlockchainQR/BlockchainQR'), {
     ssr: false,
@@ -103,7 +105,7 @@ const BEST_SELLERS = [
 ];
 
 export default function LandingPage() {
-    const { logout } = useAuth();
+    const { user, getToken, loading: authLoading, logout } = useAuth();
     const [products, setProducts] = useState([]);
     const [stats, setStats] = useState({ farmers: 0, transactions: 0, products: 0 });
     const [activeCard, setActiveCard] = useState(0);
@@ -140,13 +142,13 @@ export default function LandingPage() {
     const [catalogSort, setCatalogSort] = useState('newest');
 
     /* ── Admin Session State (untuk floating admin bar) ── */
-    const [adminUser, setAdminUser] = useState(null);
 
     /* ── Phantom Wallet State ── */
     const [walletPublicKey, setWalletPublicKey] = useState(null);
     const [walletBalance, setWalletBalance] = useState(0);
     const [walletConnecting, setWalletConnecting] = useState(false);
     const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
     /* ── Theme State ── */
     const [theme, setTheme] = useState('dark');
@@ -176,7 +178,7 @@ export default function LandingPage() {
     function getSupportReply(message) {
         const text = message.toLowerCase();
         if (/(bayar|pembayaran|midtrans|phantom|qris|transfer)/.test(text)) {
-            return { text: 'Pembayaran tersedia melalui Midtrans untuk Rupiah atau Phantom untuk SOL. Pilih produk lalu tekan Beli Sekarang untuk melihat metode yang tersedia.' };
+            return { text: 'Pembayaran tersedia melalui Midtrans untuk Rupiah atau Phantom untuk SOL. Pilih produk lalu tekan Beli untuk melihat metode yang tersedia.' };
         }
         if (/(qr|sertifikat|sertifikasi|trace|solana)/.test(text)) {
             return { text: 'Tekan tombol QR pada produk berstatus On-Chain untuk membuka sertifikasi. Anda juga dapat memakai halaman Trace Kopi untuk memeriksa Coffee ID.' };
@@ -219,23 +221,7 @@ export default function LandingPage() {
 
     /* ── Check admin/developer session from localStorage ── */
     useEffect(() => {
-        // Load Midtrans Snap immediately on mount to prevent race conditions
         loadMidtransSnap();
-        const idleId = onIdle(() => {
-            const token = localStorage.getItem('cc_token');
-            if (!token) return;
-            fetch('/api/auth/me', {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success && ['admin', 'developer', 'koperasi'].includes(data.user?.role)) {
-                        setAdminUser(data.user);
-                    }
-                })
-                .catch(() => { /* ignore */ });
-        });
-        return () => cancelIdle(idleId);
     }, []);
 
     /* ── Load Midtrans Snap.js ── */
@@ -285,18 +271,18 @@ export default function LandingPage() {
         const controller = new AbortController();
         async function load() {
             try {
-                const [prodRes, farmerRes, txRes] = await Promise.all([
+                const [prodRes, farmerRes] = await Promise.all([
                     fetch('/api/public/products', { signal: controller.signal }),
                     fetch('/api/farmers', { signal: controller.signal }),
-                    fetch('/api/transactions', { signal: controller.signal }),
                 ]);
                 const prodData = await prodRes.json();
                 const farmerData = await farmerRes.json();
-                const txData = await txRes.json();
                 if (prodData.success) setProducts(prodData.data);
                 setStats({
                     farmers: farmerData.success ? farmerData.data?.length : 0,
-                    transactions: txData.success ? txData.data?.length : 0,
+                    transactions: prodData.success
+                        ? prodData.data.reduce((total, product) => total + Number(product.sold || 0), 0)
+                        : 0,
                     products: prodData.success ? prodData.total : 0,
                 });
             } catch { }
@@ -353,7 +339,7 @@ export default function LandingPage() {
     async function handleLandingLogout() {
         if (!window.confirm('Anda yakin ingin keluar?')) return;
         await logout();
-        setAdminUser(null);
+        setProfileMenuOpen(false);
     }
 
     /* ── Phantom Wallet Functions ── */
@@ -390,10 +376,34 @@ export default function LandingPage() {
     async function handleOrder(e) {
         e.preventDefault();
         if (!selectedProduct) return;
+        if (authLoading) {
+            alert('Sesi akun masih diperiksa. Coba lagi sebentar.');
+            return;
+        }
+        if (!user) {
+            window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
+            return;
+        }
+        if (!canMakePayment(user.role)) {
+            alert('Sesi akun ini tidak memiliki izin pembayaran.');
+            return;
+        }
+        const sessionToken = getToken();
+        if (!sessionToken) {
+            window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
+            return;
+        }
         const pm = orderForm.paymentMethod;
         const isSolMethod = pm === 'transfer' || pm === 'qr';
         if (isSolMethod && !walletPublicKey) {
             alert('Hubungkan Phantom Wallet terlebih dahulu untuk pembayaran Solana!');
+            return;
+        }
+        if (isSolMethod && walletPublicKey === STORE_WALLET) {
+            alert(
+                'Wallet Phantom yang terhubung sama dengan wallet penerima CoffeeChain. '
+                + 'Gunakan wallet pembeli lain agar pembayaran SOL benar-benar masuk ke merchant wallet.',
+            );
             return;
         }
         // Bank/E-wallet validation
@@ -423,7 +433,10 @@ export default function LandingPage() {
             try {
                 const res = await fetch('/api/midtrans/create-transaction', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${sessionToken}`,
+                    },
                     body: JSON.stringify({
                         productId: selectedProduct.id,
                         weight: orderForm.weight || selectedProduct.weight?.[0],
@@ -540,7 +553,7 @@ export default function LandingPage() {
 
         setOrdering(true);
         let txSignature = null;
-        const targetWallet = selectedProduct.paymentWallet || STORE_WALLET;
+        const targetWallet = STORE_WALLET;
 
         try {
             if (pm === 'transfer') {
@@ -553,7 +566,10 @@ export default function LandingPage() {
             }
             const res = await fetch('/api/public/order', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sessionToken}`,
+                },
                 body: JSON.stringify({
                     productId: selectedProduct.id,
                     weight: orderForm.weight || selectedProduct.weight?.[0],
@@ -627,7 +643,10 @@ export default function LandingPage() {
                                     solanaIntervalRef.current = null;
                                     const confirmRes = await fetch(`/api/public/order/${encodeURIComponent(capturedOrderId)}`, {
                                         method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            Authorization: `Bearer ${sessionToken}`,
+                                        },
                                         body: JSON.stringify({ txSignature: newSig }),
                                     });
                                     const confirmData = await confirmRes.json().catch(() => null);
@@ -675,7 +694,12 @@ export default function LandingPage() {
         if (!orderId) return;
         if (!silent) setCheckingMidtrans(true);
         try {
-            const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, { cache: 'no-store' });
+            const sessionToken = getToken();
+            if (!sessionToken) throw new Error('Silakan login kembali untuk mengecek status pembayaran');
+            const res = await fetch(`/api/midtrans/status?orderId=${encodeURIComponent(orderId)}`, {
+                cache: 'no-store',
+                headers: { Authorization: `Bearer ${sessionToken}` },
+            });
             const data = await res.json();
             if (!data.success) throw new Error(data.message || 'Gagal mengecek status Midtrans');
 
@@ -768,10 +792,27 @@ export default function LandingPage() {
     }
 
     function openOrder(product, defaultPayment = 'midtrans') {
+        if (authLoading) {
+            alert('Sesi akun masih diperiksa. Coba lagi sebentar.');
+            return;
+        }
+        if (!user) {
+            window.location.assign(`/login?next=${encodeURIComponent('/#products')}`);
+            return;
+        }
+        if (!canMakePayment(user.role)) {
+            alert('Sesi akun ini tidak memiliki izin pembayaran.');
+            return;
+        }
         loadMidtransSnap(); // Lazy-load Midtrans SDK on first order
         if (solanaIntervalRef.current) { clearInterval(solanaIntervalRef.current); solanaIntervalRef.current = null; }
         setSelectedProduct(product);
-        setOrderForm({ buyerName: '', buyerEmail: '', buyerPhone: '', quantity: 1, weight: product.weight?.[0] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: '' });
+        const hasVariantStock = Array.isArray(product.stockPerUnit) && product.stockPerUnit.length === product.weight?.length;
+        const firstAvailableIndex = hasVariantStock
+            ? product.stockPerUnit.findIndex(stock => Number(stock) > 0)
+            : 0;
+        const defaultWeightIndex = firstAvailableIndex >= 0 ? firstAvailableIndex : 0;
+        setOrderForm({ buyerName: user.name || '', buyerEmail: user.email || '', buyerPhone: user.phone || '', quantity: 1, weight: product.weight?.[defaultWeightIndex] || '', paymentMethod: defaultPayment, bankName: 'BCA', accountNumber: '', ewalletApp: 'GoPay', ewalletPhone: '', recipientName: user.name || '', shippingAddress: '', shippingCity: '', shippingProvince: '', shippingPostal: '', shippingPhone: user.phone || '' });
         setOrderResult(null);
         setQrDataUrl(null);
         setQrConfirm({ loading: false, done: false, error: null });
@@ -782,7 +823,16 @@ export default function LandingPage() {
 
     const weightIdx = selectedProduct && orderForm.weight ? (selectedProduct.weight?.indexOf(orderForm.weight) ?? 0) : 0;
     const unitPrice = selectedProduct?.pricePerUnit?.[weightIdx] ?? 0;
-    const totalPrice = unitPrice * orderForm.quantity;
+    const hasSelectedVariantStock = Array.isArray(selectedProduct?.stockPerUnit)
+        && selectedProduct.stockPerUnit.length === selectedProduct.weight?.length;
+    const selectedVariantStock = hasSelectedVariantStock
+        ? (Number(selectedProduct.stockPerUnit[weightIdx]) || 0)
+        : (Number(selectedProduct?.stock) || 0);
+    const landingRoleInfo = user ? (ROLE_LABELS[user.role] || ROLE_LABELS.farmer) : null;
+    const landingProfileName = user?.name?.split(' ')[0] || 'Guest';
+    const isReviewerAccount = ['admin', 'developer', 'koperasi'].includes(user?.role);
+    const pricing = calculatePaymentPricing({ unitPrice, quantity: orderForm.quantity });
+    const totalPrice = pricing.totalPrice;
     const solAmount = rupiahToSol(totalPrice);
 
     return (
@@ -922,13 +972,49 @@ export default function LandingPage() {
                             {walletConnecting ? 'Menghubungkan...' : 'Phantom Wallet'}
                         </button>
                     )}
-                    <Link href="/login" className="cc-btn-outline" onClick={() => setMobileMenu(false)} style={{ padding:'9px 14px', fontSize:13 }}>
-                        <IconLock /> Masuk
-                    </Link>
-                    {adminUser && (
-                        <button onClick={handleLandingLogout} style={{ padding:'9px 14px', fontSize:13, borderRadius:12, background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', color:'#f87171', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
-                            <IconClose /> Keluar
-                        </button>
+                    {!authLoading && !user && (
+                        <Link href="/login" className="cc-btn-outline" onClick={() => setMobileMenu(false)} style={{ padding:'9px 14px', fontSize:13 }}>
+                            <IconLock /> Masuk
+                        </Link>
+                    )}
+                    {!authLoading && user && (
+                        <div style={{ position:'relative' }}>
+                            <button
+                                type="button"
+                                aria-haspopup="menu"
+                                aria-expanded={profileMenuOpen}
+                                onClick={() => setProfileMenuOpen(open => !open)}
+                                style={{ padding:'7px 10px', fontSize:13, borderRadius:12, background:'rgba(132,224,104,0.1)', border:'1px solid rgba(132,224,104,0.28)', color:'var(--cc-text)', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:9, maxWidth:210 }}
+                            >
+                                <span style={{ width:30, height:30, borderRadius:'50%', display:'grid', placeItems:'center', flexShrink:0, overflow:'hidden', background:landingRoleInfo?.bg, border:`1px solid ${landingRoleInfo?.color || '#84e068'}44`, color:landingRoleInfo?.color || '#84e068', fontWeight:900 }}>
+                                    {user.photoBase64
+                                        ? <img src={user.photoBase64} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                        : (user.avatar || 'BK')}
+                                </span>
+                                <span style={{ minWidth:0, textAlign:'left' }}>
+                                    <span style={{ display:'block', maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight:800 }}>{landingProfileName}</span>
+                                    <span style={{ display:'block', color:landingRoleInfo?.color || 'var(--cc-text-muted)', fontSize:10, marginTop:1 }}>{landingRoleInfo?.label || 'Guest'}</span>
+                                </span>
+                                <span aria-hidden="true" style={{ color:'var(--cc-text-muted)', transform: profileMenuOpen ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>⌄</span>
+                            </button>
+                            {profileMenuOpen && (
+                                <div role="menu" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, width:230, padding:8, borderRadius:13, background:'var(--cc-dropdown-bg)', border:'1px solid var(--cc-divider)', boxShadow:'0 22px 55px rgba(0,0,0,.5)', zIndex:220 }}>
+                                    <div style={{ padding:'8px 10px 10px', borderBottom:'1px solid var(--cc-divider)', marginBottom:7 }}>
+                                        <div style={{ color:'var(--cc-text)', fontSize:13, fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name || 'Profil CoffeeChain'}</div>
+                                        <div style={{ color:'var(--cc-text-muted)', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:2 }}>{user.email}</div>
+                                        <span style={{ display:'inline-flex', marginTop:7, padding:'3px 8px', borderRadius:999, background:landingRoleInfo?.bg, color:landingRoleInfo?.color, fontSize:10, fontWeight:800 }}>
+                                            {landingRoleInfo?.label}
+                                        </span>
+                                    </div>
+                                    <Link role="menuitem" href="/dashboard" onClick={() => { setProfileMenuOpen(false); setMobileMenu(false); }} style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:9, color:'var(--cc-text)', textDecoration:'none', fontSize:13, fontWeight:700, background:'rgba(132,224,104,.08)' }}>
+                                        <IconPackage /> Masuk ke Dashboard
+                                    </Link>
+                                    <button role="menuitem" type="button" onClick={handleLandingLogout} style={{ width:'100%', marginTop:6, padding:'9px 10px', borderRadius:9, background:'rgba(248,113,113,.08)', border:'1px solid rgba(248,113,113,.18)', color:'#f87171', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:13, fontWeight:700 }}>
+                                        <IconClose /> Keluar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -941,7 +1027,7 @@ export default function LandingPage() {
             </nav>
 
             {/* ── ADMIN BAR ── */}
-            {adminUser && (
+            {isReviewerAccount && (
                 <div style={{ position:'relative', zIndex:30, background:'rgba(17,17,19,0.98)', backdropFilter:'blur(16px)', borderBottom:'1px solid rgba(132,224,104,0.2)', padding:'0 clamp(16px,3vw,32px)' }}>
                     <div style={{ maxWidth:1200, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'flex-end', height:44, gap:8, flexWrap:'wrap' }}>
                         <Link href="/dashboard" style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background:'rgba(132,224,104,0.12)', border:'1px solid rgba(132,224,104,0.25)', color:'var(--cc-text-highlight)', fontSize:12, fontWeight:600, textDecoration:'none' }}>
@@ -1241,7 +1327,7 @@ export default function LandingPage() {
                                             </div>
                                         ) : (
                                             <button onClick={e => { e.stopPropagation(); openOrder(p, 'midtrans'); }} className="cc-btn-green" style={{ width:'100%', padding:'10px', fontSize:13, justifyContent:'center', boxShadow:'0 0 12px rgba(132,224,104,0.15)' }}>
-                                                <IconCart /> Beli Sekarang
+                                                <IconCart /> Beli
                                             </button>
                                         )}
                                     </div>
@@ -1398,7 +1484,7 @@ export default function LandingPage() {
                         2026 CoffeeChain · Blockchain Industri Kopi Indonesia · Powered by Solana
                     </p>
                     <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
-                        {[['/', 'Beranda'], ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/guide', 'Panduan'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
+                        {[['/', 'Beranda'], user ? ['/dashboard', 'Dashboard'] : ['/login', 'Masuk'], ['#products', 'Produk'], ['/trace', 'Trace Kopi'], ['/guide', 'Panduan'], ['/documentation', 'Dokumentasi']].map(([href, label]) => (
                             <a key={label} href={href} style={{ color:'#2d4a2d', fontSize:12, textDecoration:'none', transition:'color 0.2s' }}
                                 onMouseEnter={e => e.currentTarget.style.color='#84e068'}
                                 onMouseLeave={e => e.currentTarget.style.color='#2d4a2d'}
@@ -1491,6 +1577,9 @@ export default function LandingPage() {
                                         ['ID Pesanan', orderResult.orderId],
                                         ['Produk', orderResult.productName],
                                         ['Berat × Qty', `${orderResult.weight}g × ${orderResult.quantity}`],
+                                        ['Subtotal', `Rp ${(orderResult.subtotalPrice ?? orderResult.totalPrice)?.toLocaleString('id-ID')}`],
+                                        ['Biaya trace Solana', `Rp ${(orderResult.solanaTraceFee || 0).toLocaleString('id-ID')}`],
+                                        [`PPN Indonesia ${Number(orderResult.ppnRate || 0) * 100}%`, `Rp ${(orderResult.ppnAmount || 0).toLocaleString('id-ID')}`],
                                         ['Total (IDR)', `Rp ${orderResult.totalPrice?.toLocaleString('id-ID')}`],
                                         ...(orderResult.solAmount != null ? [['Total (SOL)', `${orderResult.solAmount?.toFixed(6)} SOL`]] : []),
                                         ['Metode', orderResult.paymentMethod === 'qr' ? 'Solana Pay QR'
@@ -1744,15 +1833,15 @@ export default function LandingPage() {
                                             <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:6 }}>Ukuran Berat</label>
                                             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                                                 {selectedProduct.weight
-                                                    .map((w, i) => ({ w, i, price: selectedProduct.pricePerUnit?.[i] ?? 0 }))
+                                                    .map((w, i) => ({ w, i, price: selectedProduct.pricePerUnit?.[i] ?? 0, variantStock: hasSelectedVariantStock ? (Number(selectedProduct.stockPerUnit[i]) || 0) : (Number(selectedProduct.stock) || 0) }))
                                                     .filter(({ w, price }) => w >= 50 && w <= 5000 && price <= 10_000_000)
-                                                    .map(({ w, i, price }) => (
-                                                    <button key={w} type="button" onClick={() => setOrderForm(f => ({ ...f, weight: w }))}
-                                                        style={{ padding:'8px 14px', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:600,
+                                                    .map(({ w, i, price, variantStock }) => (
+                                                    <button key={w} type="button" disabled={variantStock <= 0} onClick={() => setOrderForm(f => ({ ...f, weight: w, quantity: Math.min(f.quantity, variantStock) || 1 }))}
+                                                        style={{ padding:'8px 14px', borderRadius:10, cursor:variantStock > 0 ? 'pointer' : 'not-allowed', fontSize:12, fontWeight:600, opacity: variantStock > 0 ? 1 : 0.48,
                                                             background: orderForm.weight === w ? 'rgba(132,224,104,0.15)' : 'var(--cc-input-bg)',
                                                             border:`1px solid ${orderForm.weight === w ? 'rgba(132,224,104,0.5)' : 'var(--cc-input-border)'}`,
                                                             color: orderForm.weight === w ? 'var(--cc-text-highlight)' : 'var(--cc-text-muted)' }}>
-                                                        {w}g<br /><span style={{ fontSize:10, opacity:0.7 }}>Rp {price?.toLocaleString('id-ID')}</span>
+                                                        {w}g<br /><span style={{ fontSize:10, opacity:0.8 }}>Rp {price?.toLocaleString('id-ID')} · {variantStock} unit</span>
                                                     </button>
                                                 ))}
                                             </div>
@@ -1760,9 +1849,9 @@ export default function LandingPage() {
                                     )}
 
                                     <div>
-                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Jumlah (max: {selectedProduct.stock ?? 0})</label>
-                                        <input type="number" min={1} max={selectedProduct.stock ?? 50} value={orderForm.quantity}
-                                            onChange={e => setOrderForm(f => ({ ...f, quantity: Math.min(parseInt(e.target.value)||1, selectedProduct.stock??999) }))}
+                                        <label style={{ fontSize:12, color:'var(--cc-text-muted)', display:'block', marginBottom:5 }}>Jumlah kemasan {orderForm.weight}g (maks: {selectedVariantStock})</label>
+                                        <input type="number" min={1} max={selectedVariantStock || 1} value={orderForm.quantity}
+                                            onChange={e => setOrderForm(f => ({ ...f, quantity: Math.min(parseInt(e.target.value)||1, selectedVariantStock || 1) }))}
                                             className="cc-inp" />
                                     </div>
 
@@ -1796,7 +1885,19 @@ export default function LandingPage() {
                                     {/* Price Summary */}
                                     <div style={{ background:'var(--cc-img-bg)', borderRadius:12, padding:'14px 16px', border:'1px solid var(--cc-divider)' }}>
                                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Total Pembayaran</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Subtotal</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text)' }}>Rp {pricing.subtotalPrice.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>Biaya trace Solana</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text)' }}>Rp {pricing.solanaTraceFee.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)' }}>PPN Indonesia {pricing.ppnPercent}%</span>
+                                            <span style={{ fontSize:12, color:'var(--cc-text)' }}>Rp {pricing.ppnAmount.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, paddingTop:8, borderTop:'1px solid var(--cc-divider)' }}>
+                                            <span style={{ fontSize:12, color:'var(--cc-text-muted)', fontWeight:700 }}>Total Pembayaran</span>
                                             <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:18, fontWeight:700, color:'var(--cc-text-highlight)' }}>Rp {totalPrice.toLocaleString('id-ID')}</span>
                                         </div>
                                         {orderForm.paymentMethod === 'transfer' && (
@@ -1826,9 +1927,7 @@ export default function LandingPage() {
                                                 style={{ width:'100%', justifyContent:'center', padding:'14px', fontSize:14, opacity:disabled?0.6:1, cursor:disabled?'not-allowed':'pointer' }}>
                                                 {ordering ? <><span className="cc-spinner" /> Memproses...</>
                                                     : needsWallet ? <><IconPhantomLogo size={16} /> Connect Phantom dulu</>
-                                                    : pm === 'midtrans' ? <><IconMidtrans size={18} /> Bayar dengan Midtrans</>
-                                                    : <><IconPhantomLogo size={16} /> Transfer {solAmount.toFixed(4)} SOL via Phantom</>
-                                                }
+                                                    : <><IconCart /> Beli</>}
                                             </button>
                                         );
                                     })()}
@@ -1938,7 +2037,7 @@ export default function LandingPage() {
                             <button className="cc-btn-outline" onClick={() => setDetailModal(false)} style={{ padding:'12px', justifyContent:'center' }}>Kembali</button>
                             <button className="cc-btn-green" onClick={() => { setDetailModal(false); if ((selectedDetailProduct.stock ?? 0) > 0) openOrder(selectedDetailProduct); }}
                                 disabled={(selectedDetailProduct.stock ?? 0) <= 0} style={{ padding:'12px', justifyContent:'center', opacity:(selectedDetailProduct.stock ?? 0) <= 0 ? 0.5 : 1 }}>
-                                {(selectedDetailProduct.stock ?? 0) <= 0 ? 'Stok Habis' : 'Beli Sekarang'}
+                                {(selectedDetailProduct.stock ?? 0) <= 0 ? 'Stok Habis' : 'Beli'}
                             </button>
                         </div>
                     </div>

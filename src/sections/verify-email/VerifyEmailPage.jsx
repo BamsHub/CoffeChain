@@ -11,6 +11,7 @@ function VerifyEmailContent() {
 
     const [status, setStatus] = useState('loading'); // loading | success | error | expired | no-token
     const [message, setMessage] = useState('');
+    const [verificationData, setVerificationData] = useState(null);
 
     useEffect(() => {
         if (!token) {
@@ -24,6 +25,7 @@ function VerifyEmailContent() {
                 if (data.success) {
                     setStatus('success');
                     setMessage(data.message);
+                    setVerificationData(data);
                 } else if (res.status === 410) {
                     setStatus('expired');
                     setMessage(data.message);
@@ -80,9 +82,39 @@ function VerifyEmailContent() {
             <p className={styles.desc}>{MESSAGES[status]}</p>
 
             {status === 'success' && (
-                <Link href="/login" className={styles.btn} style={{ background: 'linear-gradient(135deg,#4A7C28,#7ED44A)' }}>
-                     Masuk & Login Ulang
-                </Link>
+                <>
+                    {verificationData?.farmerVerificationStatus && (
+                        <div className={styles.farmerStatus}>
+                            <span>Status verifikasi petani</span>
+                            <strong>Menunggu review koperasi / admin</strong>
+                            <small>Email selesai bukan berarti identitas petani otomatis disetujui.</small>
+                        </div>
+                    )}
+                    {!!verificationData?.checklist?.length && (
+                        <div className={styles.checklist}>
+                            <h3>Kelengkapan sementara</h3>
+                            {verificationData.checklist.map(item => (
+                                <div className={styles.checkRow} key={item.id}>
+                                    <b className={item.passed ? styles.pass : styles.pending}>
+                                        {item.passed ? 'OK' : 'BELUM'}
+                                    </b>
+                                    <span><strong>{item.label}</strong><small>{item.detail}</small></span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {!!verificationData?.nextSteps?.length && (
+                        <div className={styles.nextSteps}>
+                            <h3>Langkah berikutnya</h3>
+                            {verificationData.nextSteps.map((step, index) => (
+                                <div key={step}><b>{index + 1}</b><span>{step}</span></div>
+                            ))}
+                        </div>
+                    )}
+                    <Link href="/login" className={styles.btn} style={{ background: 'linear-gradient(135deg,#4A7C28,#7ED44A)' }}>
+                        Masuk dan Lengkapi Profil
+                    </Link>
+                </>
             )}
             {(status === 'error' || status === 'expired' || status === 'no-token') && (
                 <div className={styles.actions}>

@@ -2,7 +2,11 @@ import nodemailer from 'nodemailer';
 
 function getAppUrl(appUrl) {
     if (appUrl) return appUrl.replace(/\/$/, '');
-    return (process.env.NEXT_PUBLIC_APP_URL || 'https://coffe-chain.vercel.app').replace(/\/$/, '');
+    return (
+        process.env.APP_URL
+        || process.env.NEXT_PUBLIC_APP_URL
+        || 'https://coffe-chain.vercel.app'
+    ).replace(/\/$/, '');
 }
 
 function getFromAddress() {
@@ -31,9 +35,10 @@ function buildVerificationMessage(toEmail, name, token, appUrl) {
             `Halo ${safeName},`,
             '',
             'Terima kasih sudah mendaftar di CoffeeChain.',
-            'Klik link berikut untuk mengaktifkan akun Anda:',
+            'Klik link berikut untuk memverifikasi email Anda:',
             verifyUrl,
             '',
+            'Setelah email terverifikasi, lengkapi wallet Solana dan tunggu review identitas petani oleh koperasi/admin.',
             'Link ini berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini.',
         ].join('\n'),
         html: `
@@ -41,8 +46,9 @@ function buildVerificationMessage(toEmail, name, token, appUrl) {
                 <div style="max-width:520px;margin:0 auto;background:#0e1a0e;border:1px solid rgba(126,212,74,.28);border-radius:14px;padding:24px">
                     <h1 style="font-size:22px;margin:0 0 10px;color:#7ED44A">Verifikasi Email CoffeeChain</h1>
                     <p style="line-height:1.6;color:#CFE6C8">Halo <strong>${safeHtmlName}</strong>, terima kasih sudah mendaftar di CoffeeChain.</p>
-                    <p style="line-height:1.6;color:#CFE6C8">Klik tombol di bawah untuk mengaktifkan akun Anda.</p>
+                    <p style="line-height:1.6;color:#CFE6C8">Klik tombol di bawah untuk memverifikasi email Anda.</p>
                     <a href="${verifyUrl}" style="display:inline-block;margin:12px 0 18px;background:#4A7C28;color:#fff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px">Verifikasi Email</a>
+                    <p style="font-size:12px;line-height:1.6;color:#9DB89A">Setelah email selesai, masuk ke CoffeeChain, hubungkan wallet Solana pada Profil, lalu tunggu review identitas petani oleh koperasi/admin.</p>
                     <p style="font-size:12px;line-height:1.6;color:#9DB89A">Jika tombol tidak bisa dibuka, salin link ini:</p>
                     <p style="font-size:12px;line-height:1.6;color:#7ED44A;word-break:break-all">${verifyUrl}</p>
                     <p style="font-size:12px;line-height:1.6;color:#9DB89A">Link berlaku 24 jam.</p>

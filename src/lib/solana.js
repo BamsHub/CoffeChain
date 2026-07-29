@@ -76,7 +76,6 @@ export function createCoffeeTransactionInstruction(
         data,
     });
 }
-
 /**
  * Verify Batch on-chain
  * Operator koperasi memverifikasi batch kopi sudah diterima
@@ -92,22 +91,4 @@ export function createVerifyBatchInstruction(operatorPublicKey, batchId) {
         ],
         data,
     });
-}
-
-/**
- * Simulasi kirim transaksi ke blockchain Solana Testnet
- * Untuk production, gunakan sendCoffeeTransaction() yang sesungguhnya
- */
-export async function simulateCoffeeTransaction(farmerPubKey, weightKg, pricePerKg, variety) {
-    // Simulasi delay seperti transaksi blockchain nyata
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const fakeSignature = Array(64).fill(0).map(() =>
-        Math.floor(Math.random() * 16).toString(16)
-    ).join('');
-    return {
-        signature: fakeSignature,
-        blockTime: Math.floor(Date.now() / 1000),
-        slot: 18293040 + Math.floor(Math.random() * 1000),
-        confirmationStatus: 'confirmed',
-    };
 }
