@@ -1,6 +1,7 @@
 export const runtime = 'nodejs';
 import { readDb } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
+import { getPublicAppUrl } from '@/lib/publicAppUrl';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -68,15 +69,13 @@ export async function POST(request) {
             throw new Error(`Gagal menyimpan token verifikasi: ${insertTokenErr.message}`);
         }
 
-        const host = request.headers.get('host') || 'coffe-chain.vercel.app';
-        const proto = request.headers.get('x-forwarded-proto') || 'https';
-        const dynamicAppUrl = `${proto}://${host}`;
+        const publicAppUrl = getPublicAppUrl(request);
 
         try {
-            await sendVerificationEmail(normalizedEmail, user.name, verifyToken, dynamicAppUrl);
+            await sendVerificationEmail(normalizedEmail, user.name, verifyToken, publicAppUrl);
         } catch (emailErr) {
             console.error('Email send error:', emailErr);
-            const verificationLink = `${dynamicAppUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+            const verificationLink = `${publicAppUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`;
             return Response.json({
                 success: true,
                 emailSent: false,

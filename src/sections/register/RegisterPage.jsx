@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './RegisterPage.module.css';
 
@@ -15,7 +14,19 @@ const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
 }));
 
 export default function RegisterPage() {
-    const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', region: '' });
+    const [form, setForm] = useState({
+        name: '',
+        email: '',
+        farmerCategory: 'individual',
+        communityName: '',
+        province: '',
+        regency: '',
+        district: '',
+        village: '',
+        farmerDeclaration: false,
+        password: '',
+        confirmPassword: '',
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -26,8 +37,6 @@ export default function RegisterPage() {
     const [showPass, setShowPass] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [mounted, setMounted] = useState(false);
-    const router = useRouter();
-
     useEffect(() => { setMounted(true); }, []);
 
     function update(key, val) {
@@ -45,8 +54,25 @@ export default function RegisterPage() {
 
     async function handleSubmit(e) {
         e.preventDefault();
-        if (!form.name || !form.email || !form.password || !form.confirmPassword) {
-            setError('Semua kolom wajib diisi kecuali wilayah');
+        if (
+            !form.name
+            || !form.email
+            || !form.farmerCategory
+            || !form.province
+            || !form.regency
+            || !form.district
+            || !form.password
+            || !form.confirmPassword
+        ) {
+            setError('Lengkapi identitas, kategori petani, wilayah, email, dan password.');
+            return;
+        }
+        if (form.farmerCategory !== 'individual' && form.communityName.trim().length < 3) {
+            setError('Nama kelompok tani, komunitas, atau koperasi wajib diisi.');
+            return;
+        }
+        if (!form.farmerDeclaration) {
+            setError('Konfirmasi bahwa pendaftaran ini benar untuk akun petani kopi.');
             return;
         }
         if (form.password.length < 8) {
@@ -68,7 +94,13 @@ export default function RegisterPage() {
                     name: form.name,
                     email: form.email,
                     password: form.password,
-                    region: form.region,
+                    farmerCategory: form.farmerCategory,
+                    communityName: form.communityName,
+                    province: form.province,
+                    regency: form.regency,
+                    district: form.district,
+                    village: form.village,
+                    farmerDeclaration: form.farmerDeclaration,
                 }),
             });
             const data = await res.json();
@@ -110,6 +142,30 @@ export default function RegisterPage() {
                             </>
                         )}
                     </p>
+                    <div className={styles.applicantSummary}>
+                        <span>Akun yang dibuat</span>
+                        <strong>Petani Kopi — {registerResult?.user?.farmerCategory === 'farmer_group'
+                            ? 'Anggota kelompok tani / komunitas'
+                            : registerResult?.user?.farmerCategory === 'cooperative_member'
+                                ? 'Anggota koperasi'
+                                : 'Petani individu / mandiri'}</strong>
+                        <small>{registerResult?.user?.farmerCommunityName || 'Petani independen'} · {registerResult?.user?.region}</small>
+                    </div>
+                    <div className={styles.verificationFlow}>
+                        <h3>Alur verifikasi akun petani</h3>
+                        <div className={`${styles.verificationStep} ${styles.stepDone}`}>
+                            <b>1</b><span><strong>Akun dibuat</strong><small>Identitas, kategori petani, komunitas, dan wilayah sudah dicatat.</small></span>
+                        </div>
+                        <div className={styles.verificationStep}>
+                            <b>2</b><span><strong>Verifikasi email</strong><small>Klik tautan publik CoffeeChain dari email ini.</small></span>
+                        </div>
+                        <div className={styles.verificationStep}>
+                            <b>3</b><span><strong>Hubungkan wallet Solana</strong><small>Setelah login, buka Profil dan hubungkan Phantom Wallet.</small></span>
+                        </div>
+                        <div className={styles.verificationStep}>
+                            <b>4</b><span><strong>Review koperasi / admin</strong><small>Reviewer memeriksa identitas, afiliasi, wilayah, dan wallet sebelum produksi dibuka.</small></span>
+                        </div>
+                    </div>
                     {registerResult?.message && (
                         <p className={styles.successHint} style={{ color: emailSent ? undefined : '#F5A623' }}>
                             {registerResult.message}
@@ -239,7 +295,7 @@ export default function RegisterPage() {
             <div className={styles.chainLeft}>
                 {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className={styles.chainBlock} style={{ animationDelay: `${i * 0.3}s` }}>
-                        <span>#{(18293040 + i).toLocaleString()}</span>
+                        <span>#{(18293040 + i).toLocaleString('en-US')}</span>
                     </div>
                 ))}
             </div>
@@ -257,6 +313,13 @@ export default function RegisterPage() {
                 </div>
 
                 <div className={styles.divider}><span>BUAT AKUN BARU</span></div>
+                <div className={styles.accountNotice}>
+                    <strong>Form khusus akun petani kopi</strong>
+                    <span>
+                        Akun koperasi, admin, dan developer tidak dibuat melalui halaman ini.
+                        Pemohon wajib menjelaskan status petani, afiliasi, dan lokasi kebunnya.
+                    </span>
+                </div>
 
                 <form className={styles.form} onSubmit={handleSubmit}>
                     {/* Nama */}
@@ -295,22 +358,98 @@ export default function RegisterPage() {
                         </div>
                     </div>
 
-                    {/* Wilayah */}
+                    {/* Kategori petani */}
                     <div className={styles.field}>
                         <label className={styles.fieldLabel}>
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="2" /></svg>
-                            Wilayah / Daerah
-                            <span className={styles.optional}> (opsional)</span>
+                            Status Petani <span className={styles.required}>*</span>
+                        </label>
+                        <div className={styles.inputWrapper}>
+                            <select
+                                value={form.farmerCategory}
+                                onChange={e => update('farmerCategory', e.target.value)}
+                                className={styles.input}
+                            >
+                                <option value="individual">Petani individu / mandiri</option>
+                                <option value="farmer_group">Anggota kelompok tani / komunitas</option>
+                                <option value="cooperative_member">Anggota koperasi</option>
+                            </select>
+                        </div>
+                        <p className={styles.hint}>Semua pilihan di atas tetap dibuat sebagai role Petani, bukan reviewer.</p>
+                    </div>
+
+                    {/* Komunitas */}
+                    <div className={styles.field}>
+                        <label className={styles.fieldLabel}>
+                            Nama Kelompok / Komunitas / Koperasi
+                            {form.farmerCategory === 'individual'
+                                ? <span className={styles.optional}> (jika ada)</span>
+                                : <span className={styles.required}>*</span>}
                         </label>
                         <div className={styles.inputWrapper}>
                             <input
                                 type="text"
-                                value={form.region}
-                                onChange={e => update('region', e.target.value)}
+                                value={form.communityName}
+                                onChange={e => update('communityName', e.target.value)}
                                 className={styles.input}
-                                placeholder="Contoh: Gayo, Aceh"
-                                autoComplete="address-level2"
+                                placeholder={form.farmerCategory === 'individual'
+                                    ? 'Kosongkan jika benar-benar independen'
+                                    : 'Contoh: Kelompok Tani Gayo Sejahtera'}
+                                autoComplete="organization"
                             />
+                        </div>
+                    </div>
+
+                    {/* Lokasi terstruktur */}
+                    <div className={styles.locationSection}>
+                        <div className={styles.locationHeading}>
+                            <strong>Lokasi kebun / kegiatan tani</strong>
+                            <span>Data ini dipakai reviewer untuk memastikan asal petani.</span>
+                        </div>
+                        <div className={styles.fieldGrid}>
+                            <div className={styles.field}>
+                                <label className={styles.fieldLabel}>Provinsi <span className={styles.required}>*</span></label>
+                                <input
+                                    type="text"
+                                    value={form.province}
+                                    onChange={e => update('province', e.target.value)}
+                                    className={styles.input}
+                                    placeholder="Aceh"
+                                    autoComplete="address-level1"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <label className={styles.fieldLabel}>Kabupaten / Kota <span className={styles.required}>*</span></label>
+                                <input
+                                    type="text"
+                                    value={form.regency}
+                                    onChange={e => update('regency', e.target.value)}
+                                    className={styles.input}
+                                    placeholder="Aceh Tengah"
+                                    autoComplete="address-level2"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <label className={styles.fieldLabel}>Kecamatan <span className={styles.required}>*</span></label>
+                                <input
+                                    type="text"
+                                    value={form.district}
+                                    onChange={e => update('district', e.target.value)}
+                                    className={styles.input}
+                                    placeholder="Bebesen"
+                                    autoComplete="address-level3"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <label className={styles.fieldLabel}>Desa / Kampung <span className={styles.optional}>(opsional)</span></label>
+                                <input
+                                    type="text"
+                                    value={form.village}
+                                    onChange={e => update('village', e.target.value)}
+                                    className={styles.input}
+                                    placeholder="Blang Gele"
+                                    autoComplete="address-level4"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -375,6 +514,18 @@ export default function RegisterPage() {
                     </div>
 
                     {/* Error */}
+                    <label className={styles.declaration}>
+                        <input
+                            type="checkbox"
+                            checked={form.farmerDeclaration}
+                            onChange={e => update('farmerDeclaration', e.target.checked)}
+                        />
+                        <span>
+                            Saya menyatakan bahwa data ini digunakan untuk akun <strong>petani/pelaku produksi kopi</strong>
+                            dan bersedia diverifikasi oleh koperasi atau admin CoffeeChain.
+                        </span>
+                    </label>
+
                     {error && (
                         <div className={styles.errorBox}>
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" /><path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>

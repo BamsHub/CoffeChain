@@ -4,6 +4,7 @@ import {
     buildFarmerVerificationChecklist,
     normalizeFarmerVerificationStatus,
 } from '@/lib/farmerVerification';
+import { getFarmerAuthUser, mergeFarmerIdentity } from '@/lib/farmerIdentityStore';
 
 export async function getFarmerProductionEligibility(session) {
     if (!session || session.role !== 'farmer') {
@@ -16,13 +17,16 @@ export async function getFarmerProductionEligibility(session) {
     }
 
     const supabase = getSupabaseAdmin();
-    const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', session.userId)
-        .maybeSingle();
+    const [{ data: userRow, error }, authUser] = await Promise.all([
+        supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.userId)
+            .maybeSingle(),
+        getFarmerAuthUser(session.userId),
+    ]);
 
-    if (error || !user) {
+    if (error || !userRow) {
         return {
             eligible: false,
             status: FARMER_VERIFICATION_STATUS.PENDING,
@@ -31,6 +35,7 @@ export async function getFarmerProductionEligibility(session) {
         };
     }
 
+    const user = mergeFarmerIdentity(userRow, authUser);
     const status = normalizeFarmerVerificationStatus(user);
     const checklist = buildFarmerVerificationChecklist(user);
     const eligible = status === FARMER_VERIFICATION_STATUS.VERIFIED
@@ -44,6 +49,6 @@ export async function getFarmerProductionEligibility(session) {
             ? null
             : status === FARMER_VERIFICATION_STATUS.REJECTED
                 ? `Verifikasi petani ditolak: ${user.farmer_verification_notes || 'hubungi koperasi.'}`
-                : 'Akun petani harus lolos verifikasi email, identitas, wilayah, dan wallet sebelum mencatat produksi.',
+                : 'Akun petani harus lolos verifikasi email, identitas, kategori/komunitas, wilayah, dan wallet sebelum mencatat produksi.',
     };
 }

@@ -4,6 +4,7 @@ import {
     buildFarmerVerificationChecklist,
     normalizeFarmerVerificationStatus,
 } from '@/lib/farmerVerification';
+import { getFarmerAuthUser, mergeFarmerIdentity } from '@/lib/farmerIdentityStore';
 
 export const PRODUCTION_STAGES = [
     { id: 1, name: 'Panen & Sortasi' },
@@ -106,12 +107,15 @@ export async function getProductionCertificationAudit(productId) {
     const ownerId = product.submitted_by || batch?.farmer_id || null;
     let owner = null;
     if (ownerId) {
-        const { data } = await supabaseAdmin
-            .from('users')
-            .select('*')
-            .eq('id', ownerId)
-            .maybeSingle();
-        owner = data || null;
+        const [{ data }, authUser] = await Promise.all([
+            supabaseAdmin
+                .from('users')
+                .select('*')
+                .eq('id', ownerId)
+                .maybeSingle(),
+            getFarmerAuthUser(ownerId),
+        ]);
+        owner = data ? mergeFarmerIdentity(data, authUser) : null;
     }
 
     const stageNumbers = logs.map(log => Number(log.stage));
@@ -153,7 +157,7 @@ export async function getProductionCertificationAudit(productId) {
                 ? 'Pipeline dicatat oleh akun operasional non-petani.'
                 : ownerVerified
                     ? `${owner?.name || product.submitted_by_name} telah lolos verifikasi akun.`
-                    : 'Email, identitas, wilayah, dan wallet petani harus lolos review.',
+                    : 'Email, identitas, kategori/komunitas, wilayah, dan wallet petani harus lolos review.',
         ),
         criterion(
             'batch',

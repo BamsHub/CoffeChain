@@ -1,6 +1,8 @@
 export const runtime = 'nodejs';
 import { updateItem } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase';
+import { buildFarmerVerificationChecklist, normalizeFarmerVerificationStatus } from '@/lib/farmerVerification';
+import { mergeFarmerIdentity, updateFarmerAuthMetadata } from '@/lib/farmerIdentityStore';
 
 function isMissingColumnError(error) {
     return /column|schema cache|email_verified/i.test(error?.message || '');
@@ -39,28 +41,49 @@ export async function GET(request) {
 
         // Aktifkan akun user
         const verifiedAt = new Date().toISOString();
+        let updatedUser;
         try {
-            await updateItem('users', record.user_id, {
+            updatedUser = await updateItem('users', record.user_id, {
                 active: true,
                 emailVerified: true,
                 emailVerifiedAt: verifiedAt,
             });
         } catch (error) {
             if (!isMissingColumnError(error)) throw error;
-            await updateItem('users', record.user_id, { active: true });
+            updatedUser = await updateItem('users', record.user_id, { active: true });
         }
 
         await supabaseAdmin.auth.admin.updateUserById(record.user_id, {
             email_confirm: true,
-            user_metadata: { emailVerified: true, emailVerifiedAt: verifiedAt },
         });
+        const authUser = await updateFarmerAuthMetadata(record.user_id, {
+            emailVerified: true,
+            emailVerifiedAt: verifiedAt,
+        });
+        updatedUser = mergeFarmerIdentity(updatedUser, authUser);
 
         // Hapus token setelah digunakan
         await supabaseAdmin.from('verification_tokens').delete().eq('token', token);
 
         return Response.json({
             success: true,
-            message: 'Email berhasil diverifikasi! Akun Anda sudah aktif.',
+            message: updatedUser?.role === 'farmer'
+                ? 'Email berhasil diverifikasi. Akun dapat digunakan untuk login, tetapi status petani masih menunggu review koperasi/admin.'
+                : 'Email berhasil diverifikasi! Akun Anda sudah aktif.',
+            farmerVerificationStatus: updatedUser?.role === 'farmer'
+                ? normalizeFarmerVerificationStatus(updatedUser)
+                : null,
+            checklist: updatedUser?.role === 'farmer'
+                ? buildFarmerVerificationChecklist(updatedUser)
+                : [],
+            nextSteps: updatedUser?.role === 'farmer'
+                ? [
+                    'Login ke CoffeeChain.',
+                    'Buka Profil dan hubungkan Phantom Wallet.',
+                    'Tunggu koperasi/admin memeriksa identitas, komunitas, wilayah, dan wallet.',
+                    'Setelah status Verified, fitur pencatatan produksi akan terbuka.',
+                ]
+                : [],
         });
     } catch (err) {
         console.error('Verify email error:', err);

@@ -117,7 +117,7 @@ export default function FarmersPage() {
                 <div>
                     <h1 className={styles.pageTitle}>Verifikasi Petani</h1>
                     <p className={styles.pageSubtitle}>
-                        Verifikasi email, identitas, wilayah kebun, dan wallet sebelum petani mencatat produksi.
+                        Verifikasi status petani, komunitas, wilayah kebun, email, dan wallet sebelum produksi dibuka.
                     </p>
                 </div>
                 <button type="button" className={styles.refreshButton} onClick={loadFarmers} disabled={loading}>
@@ -171,6 +171,11 @@ export default function FarmersPage() {
                         </div>
 
                         <div className={styles.reviewMeta}>
+                            <div><span>Role akun</span><strong>Petani</strong></div>
+                            <div><span>Kategori</span><strong>{selected.farmerCategoryLabel || selected.type || '-'}</strong></div>
+                            <div><span>Komunitas / koperasi</span><strong>{selected.farmerCommunityName || 'Petani independen'}</strong></div>
+                            <div><span>Lokasi kebun</span><strong>{selected.region || '-'}</strong></div>
+                            <div><span>Deklarasi petani</span><strong>{selected.farmerDeclarationAt ? fmtDate(selected.farmerDeclarationAt) : selected.farmerCategory === 'legacy' ? 'Akun lama' : 'Belum tercatat'}</strong></div>
                             <div><span>Wallet</span><strong className={styles.mono}>{fmtWallet(selected.wallet)}</strong></div>
                             <div><span>Bergabung</span><strong>{selected.joined || '-'}</strong></div>
                             <div><span>Direview oleh</span><strong>{selected.verifiedByName || '-'}</strong></div>
@@ -239,7 +244,9 @@ export default function FarmersPage() {
                                 <div className={styles.statItemLabel}>Email Valid</div>
                             </div>
                             <div className={styles.statItem}>
-                                <div className={styles.statItemVal}>{farmer.verificationChecklist?.filter(item => item.passed).length || 0}/4</div>
+                                <div className={styles.statItemVal}>
+                                    {farmer.verificationChecklist?.filter(item => item.passed).length || 0}/{farmer.verificationChecklist?.length || 0}
+                                </div>
                                 <div className={styles.statItemLabel}>Kriteria</div>
                             </div>
                         </div>

@@ -165,6 +165,13 @@ export function usersToCamel(u) {
         password: u.password,
         role: u.role,
         region: u.region,
+        farmerCategory: u.farmer_category,
+        farmerCommunityName: u.farmer_community_name,
+        province: u.province,
+        regency: u.regency,
+        district: u.district,
+        village: u.village,
+        farmerDeclarationAt: u.farmer_declaration_at,
         wallet: u.wallet,
         avatar: u.avatar,
         bio: u.bio,
@@ -193,6 +200,13 @@ export function usersToSnake(u) {
     if (u.password !== undefined) s.password = u.password;
     if (u.role !== undefined) s.role = u.role;
     if (u.region !== undefined) s.region = u.region;
+    if (u.farmerCategory !== undefined) s.farmer_category = u.farmerCategory;
+    if (u.farmerCommunityName !== undefined) s.farmer_community_name = u.farmerCommunityName;
+    if (u.province !== undefined) s.province = u.province;
+    if (u.regency !== undefined) s.regency = u.regency;
+    if (u.district !== undefined) s.district = u.district;
+    if (u.village !== undefined) s.village = u.village;
+    if (u.farmerDeclarationAt !== undefined) s.farmer_declaration_at = u.farmerDeclarationAt;
     if (u.wallet !== undefined) s.wallet = u.wallet;
     if (u.avatar !== undefined) s.avatar = u.avatar;
     if (u.bio !== undefined) s.bio = u.bio;

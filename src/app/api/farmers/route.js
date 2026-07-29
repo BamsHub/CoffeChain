@@ -4,8 +4,17 @@ import { sbSelect, usersToCamel } from '@/lib/sdb';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
 import {
+    getFarmerAuthUser,
+    listFarmerAuthUsers,
+    mergeFarmerIdentity,
+    updateFarmerAuthMetadata,
+} from '@/lib/farmerIdentityStore';
+import {
     FARMER_VERIFICATION_STATUS,
+    FARMER_CATEGORY_LABELS,
     buildFarmerVerificationChecklist,
+    getFarmerCategory,
+    getFarmerLocation,
     normalizeFarmerVerificationStatus,
 } from '@/lib/farmerVerification';
 
@@ -14,6 +23,8 @@ function normalizeFarmer(row, source = 'farmers') {
     const verificationStatus = source === 'users'
         ? normalizeFarmerVerificationStatus(row)
         : String(row.verificationStatus || row.status || (active ? 'verified' : 'pending')).toLowerCase();
+    const farmerCategory = source === 'users' ? getFarmerCategory(row) : 'legacy';
+    const location = source === 'users' ? getFarmerLocation(row) : (row.region || row.location || '-');
     const status = verificationStatus === FARMER_VERIFICATION_STATUS.VERIFIED
         ? 'Verified'
         : verificationStatus === FARMER_VERIFICATION_STATUS.REJECTED
@@ -25,8 +36,16 @@ function normalizeFarmer(row, source = 'farmers') {
         name: row.name || row.email?.split('@')[0] || 'Petani',
         email: row.email || '',
         emailVerified: row.emailVerified ?? row.email_verified ?? null,
-        region: row.region || row.location || '-',
-        type: row.type || (source === 'users' ? 'Individu' : 'Petani'),
+        region: location || '-',
+        type: row.type || (source === 'users' ? FARMER_CATEGORY_LABELS[farmerCategory] : 'Petani'),
+        farmerCategory,
+        farmerCategoryLabel: FARMER_CATEGORY_LABELS[farmerCategory],
+        farmerCommunityName: row.farmerCommunityName || row.farmer_community_name || '',
+        province: row.province || '',
+        regency: row.regency || '',
+        district: row.district || '',
+        village: row.village || '',
+        farmerDeclarationAt: row.farmerDeclarationAt || row.farmer_declaration_at || null,
         members: Number(row.members) || 1,
         volume: Number(row.volume ?? row.total_harvest) || 0,
         earnings: Number(row.earnings) || 0,
@@ -55,12 +74,19 @@ function uniqueById(items) {
     });
 }
 
+function isMissingFarmerColumn(error) {
+    return /farmer_|schema cache|column/i.test(error?.message || '');
+}
+
 function publicFarmer(item) {
     return {
         id: item.id,
         name: item.name,
         region: item.region,
         type: item.type,
+        farmerCategory: item.farmerCategory,
+        farmerCategoryLabel: item.farmerCategoryLabel,
+        farmerCommunityName: item.farmerCommunityName,
         volume: item.volume,
         status: item.status,
         verificationStatus: item.verificationStatus,
@@ -79,13 +105,22 @@ export async function GET(request) {
         const session = await verifyToken(token);
         const canViewAll = session && ['koperasi', 'developer', 'admin'].includes(session.role);
 
-        const [farmersRows, userRows] = await Promise.all([
+        const [farmersRows, userRows, authUsers] = await Promise.all([
             sbSelect('farmers', {}),
             sbSelect('users', { role: 'farmer' }),
+            listFarmerAuthUsers(),
         ]);
 
         let farmers = [];
-        if (userRows) farmers.push(...userRows.map(row => normalizeFarmer(usersToCamel(row), 'users')));
+        if (userRows) {
+            farmers.push(...userRows.map(row => {
+                const appUser = usersToCamel(row);
+                return normalizeFarmer(
+                    mergeFarmerIdentity(appUser, authUsers.get(appUser.id)),
+                    'users',
+                );
+            }));
+        }
         if (farmersRows) farmers.push(...farmersRows.map(row => normalizeFarmer(row, 'farmers')));
 
         if (!farmersRows && !userRows) {
@@ -93,7 +128,12 @@ export async function GET(request) {
             const usersDb = await readDb('users');
             farmers = [
                 ...(farmersDb.items || []).map(row => normalizeFarmer(row, 'farmers')),
-                ...(usersDb.items || []).filter(row => row.role === 'farmer').map(row => normalizeFarmer(row, 'users')),
+                ...(usersDb.items || [])
+                    .filter(row => row.role === 'farmer')
+                    .map(row => normalizeFarmer(
+                        mergeFarmerIdentity(row, authUsers.get(row.id)),
+                        'users',
+                    )),
             ];
         }
 
@@ -127,10 +167,12 @@ export async function PATCH(request) {
         }
 
         const users = await readDb('users');
-        const farmer = users.items.find(item => item.id === id && item.role === 'farmer');
-        if (!farmer) {
+        const farmerRow = users.items.find(item => item.id === id && item.role === 'farmer');
+        if (!farmerRow) {
             return Response.json({ success: false, message: 'Akun petani tidak ditemukan' }, { status: 404 });
         }
+        const farmerAuth = await getFarmerAuthUser(id);
+        const farmer = mergeFarmerIdentity(farmerRow, farmerAuth);
 
         const actor = users.items.find(item => item.id === session.userId);
         const actorName = actor?.name || actor?.email || session.userId;
@@ -154,17 +196,26 @@ export async function PATCH(request) {
                 ? FARMER_VERIFICATION_STATUS.REJECTED
                 : FARMER_VERIFICATION_STATUS.PENDING;
         const now = new Date().toISOString();
-        const updated = await updateItem('users', id, {
+        const updates = {
             farmerVerificationStatus: status,
             farmerVerificationNotes: cleanNotes || null,
             farmerVerifiedBy: action === 'reset' ? null : session.userId,
             farmerVerifiedByName: action === 'reset' ? null : actorName,
             farmerVerifiedAt: action === 'reset' ? null : now,
-        });
+        };
+        let updated;
+        try {
+            updated = await updateItem('users', id, updates);
+        } catch (error) {
+            if (!isMissingFarmerColumn(error)) throw error;
+            updated = { ...farmerRow, ...updates };
+        }
+        const updatedAuth = await updateFarmerAuthMetadata(id, updates);
+        const mergedUpdated = mergeFarmerIdentity(updated, updatedAuth);
 
         return Response.json({
             success: true,
-            data: normalizeFarmer(updated, 'users'),
+            data: normalizeFarmer(mergedUpdated, 'users'),
             message: status === FARMER_VERIFICATION_STATUS.VERIFIED
                 ? 'Petani berhasil diverifikasi.'
                 : status === FARMER_VERIFICATION_STATUS.REJECTED

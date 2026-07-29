@@ -6,7 +6,14 @@ ALTER TABLE users
     ADD COLUMN IF NOT EXISTS farmer_verification_notes TEXT,
     ADD COLUMN IF NOT EXISTS farmer_verified_by TEXT,
     ADD COLUMN IF NOT EXISTS farmer_verified_by_name TEXT,
-    ADD COLUMN IF NOT EXISTS farmer_verified_at TIMESTAMPTZ;
+    ADD COLUMN IF NOT EXISTS farmer_verified_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS farmer_category TEXT DEFAULT 'legacy',
+    ADD COLUMN IF NOT EXISTS farmer_community_name TEXT,
+    ADD COLUMN IF NOT EXISTS province TEXT,
+    ADD COLUMN IF NOT EXISTS regency TEXT,
+    ADD COLUMN IF NOT EXISTS district TEXT,
+    ADD COLUMN IF NOT EXISTS village TEXT,
+    ADD COLUMN IF NOT EXISTS farmer_declaration_at TIMESTAMPTZ;
 
 ALTER TABLE users
     DROP CONSTRAINT IF EXISTS users_farmer_verification_status_check;
@@ -14,6 +21,13 @@ ALTER TABLE users
 ALTER TABLE users
     ADD CONSTRAINT users_farmer_verification_status_check
     CHECK (farmer_verification_status IN ('pending', 'verified', 'rejected'));
+
+ALTER TABLE users
+    DROP CONSTRAINT IF EXISTS users_farmer_category_check;
+
+ALTER TABLE users
+    ADD CONSTRAINT users_farmer_category_check
+    CHECK (farmer_category IN ('legacy', 'individual', 'farmer_group', 'cooperative_member'));
 
 -- Preserve existing active accounts. New farmer registrations are explicitly
 -- created with status "pending" by the registration API.

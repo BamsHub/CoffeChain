@@ -15,6 +15,14 @@ CREATE TABLE IF NOT EXISTS users (
   password TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'farmer',
   region TEXT,
+  farmer_category TEXT DEFAULT 'legacy'
+    CHECK (farmer_category IN ('legacy', 'individual', 'farmer_group', 'cooperative_member')),
+  farmer_community_name TEXT,
+  province TEXT,
+  regency TEXT,
+  district TEXT,
+  village TEXT,
+  farmer_declaration_at TIMESTAMPTZ,
   wallet TEXT,
   avatar TEXT,
   bio TEXT,
@@ -42,6 +50,13 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verification_notes TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_by TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_by_name TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_category TEXT DEFAULT 'legacy';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_community_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS province TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS regency TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS district TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS village TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_declaration_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_users_farmer_verification_status
   ON users(farmer_verification_status)
   WHERE role = 'farmer';

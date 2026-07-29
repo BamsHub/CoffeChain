@@ -30,7 +30,7 @@ const levelTwo = [
 ];
 
 const dataDictionary = [
-    ['users', 'Identitas dan hak akses pengguna', 'id, role, email_verified, farmer_verification_status, wallet'],
+    ['users', 'Identitas dan hak akses pengguna', 'id, role, farmer_category, farmer_community_name, province, regency, district, email_verified, farmer_verification_status, wallet'],
     ['production_batches', 'Header satu batch kopi', 'id, farmer_id, origin, variety, grade, current_stage'],
     ['production_stage_logs', 'Catatan enam tahap produksi', 'batch_id, stage, data, photo_url, logged_by, created_at'],
     ['ipfs_assets', 'Bukti foto terikat pemilik, batch, dan tahap', 'cid, ipfs_uri, gateway_url, owner_id, batch_id, stage'],
