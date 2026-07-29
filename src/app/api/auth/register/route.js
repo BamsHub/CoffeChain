@@ -25,7 +25,16 @@ async function insertAppUser(user) {
     } catch (error) {
         if (!isMissingColumnError(error)) throw error;
 
-        const { emailVerified, emailVerifiedAt, ...fallbackUser } = user;
+        const fallbackUser = { ...user };
+        for (const key of [
+            'emailVerified',
+            'emailVerifiedAt',
+            'farmerVerificationStatus',
+            'farmerVerificationNotes',
+            'farmerVerifiedBy',
+            'farmerVerifiedByName',
+            'farmerVerifiedAt',
+        ]) delete fallbackUser[key];
         return addItem('users', fallbackUser);
     }
 }
@@ -118,6 +127,11 @@ export async function POST(request) {
             active: false,        // Aktif setelah verifikasi email
             emailVerified: false,
             emailVerifiedAt: null,
+            farmerVerificationStatus: 'pending',
+            farmerVerificationNotes: null,
+            farmerVerifiedBy: null,
+            farmerVerifiedByName: null,
+            farmerVerifiedAt: null,
         };
 
         await insertAppUser(newUser);

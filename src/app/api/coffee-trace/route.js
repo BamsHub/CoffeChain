@@ -239,6 +239,7 @@ export async function POST(request) {
                     wallet: chainTx?.signer || PINNED_MEMO_SIGNER_PUBLIC,
                     networkFeeLamports: chainTx?.networkFeeLamports ?? null,
                     networkFeeSol: chainTx?.networkFeeSol ?? null,
+                    feeBreakdown: chainTx?.feeBreakdown ?? null,
                 },
             },
         }, { status: 201 });

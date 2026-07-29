@@ -76,6 +76,8 @@ export default function CoffeeRegisterContent() {
     const [regMsg, setRegMsg]             = useState(null);
     const [previewOpen, setPreviewOpen]   = useState(false);
     const [detailProduct, setDetailProduct] = useState(null);
+    const [certificationAudit, setCertificationAudit] = useState(null);
+    const [certificationAuditLoading, setCertificationAuditLoading] = useState(false);
 
     /* ── Log search ── */
     const [logSearch, setLogSearch]       = useState('');
@@ -196,7 +198,28 @@ export default function CoffeeRegisterContent() {
         });
         setRegMsg(null);
         setPreviewOpen(false);
-    }, [user?.name]);
+        setCertificationAudit(null);
+        setCertificationAuditLoading(true);
+
+        const token = getToken();
+        fetch(`/api/certification-audit?productId=${encodeURIComponent(product.id)}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            cache: 'no-store',
+        })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'Audit sertifikasi gagal');
+                setCertificationAudit(data.data);
+            })
+            .catch(error => {
+                setCertificationAudit({
+                    eligible: false,
+                    criteria: [],
+                    error: error.message,
+                });
+            })
+            .finally(() => setCertificationAuditLoading(false));
+    }, [getToken, user?.name]);
 
     useEffect(() => {
         if (requestedProductOpenedRef.current || typeof window === 'undefined' || !products.length) return;
@@ -224,6 +247,15 @@ export default function CoffeeRegisterContent() {
     async function handleRegister(e) {
         e?.preventDefault();
         if (!regProduct) return;
+        if (certificationAuditLoading || certificationAudit?.eligible !== true) {
+            setRegMsg({
+                type: 'error',
+                text: certificationAuditLoading
+                    ? 'Audit sertifikasi masih berjalan. Tunggu hingga seluruh kriteria diperiksa.'
+                    : 'Produk belum lolos seluruh kriteria sertifikasi. Perbaiki item yang masih gagal.',
+            });
+            return;
+        }
         if (e) {
             setPreviewOpen(true);
             return;
@@ -750,6 +782,11 @@ export default function CoffeeRegisterContent() {
                             ))}
                         </div>
 
+                        <CertificationChecklist
+                            audit={certificationAudit}
+                            loading={certificationAuditLoading}
+                        />
+
                         <PipelineAuditPanel
                             batch={findProductBatch(regProduct, productionBatches)}
                             logs={getProductStageLogs(regProduct, productionBatches, productionLogs)}
@@ -833,7 +870,7 @@ export default function CoffeeRegisterContent() {
                                     style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--color-text,#E8F5E0)', fontWeight: 700, border: '1px solid rgba(126,212,74,0.25)', borderRadius: 9, cursor: 'pointer', padding: '10px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                                     <IcoEye /> Lihat Semua Data
                                 </button>
-                                <button type="submit" disabled={submitting} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting ? 0.7 : 1 }}>
+                                <button type="submit" disabled={submitting || certificationAuditLoading || certificationAudit?.eligible !== true} style={{ ...S.btnP, justifyContent: 'center', padding: '12px', fontSize: 14, opacity: submitting || certificationAuditLoading || certificationAudit?.eligible !== true ? 0.55 : 1 }}>
                                     {submitting ? <><IcoSpin /> Menulis Memo...</> : <><IcoEye /> Periksa & Ajukan Sertifikat</>}
                                 </button>
                             </form>
@@ -901,7 +938,7 @@ export default function CoffeeRegisterContent() {
                                     <div style={{ marginTop: 14, padding: '11px 13px', borderRadius: 10, background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)', color: 'rgba(255,236,193,0.82)', fontSize: 12, lineHeight: 1.55 }}>
                                         Pastikan seluruh data sudah benar. Setelah signature sertifikat tersimpan, signature tersebut tidak akan diganti.
                                     </div>
-                                    <button type="button" disabled={submitting} onClick={() => handleRegister()} style={{ ...S.btnG, marginTop: 12, width: '100%', justifyContent: 'center', opacity: submitting ? 0.7 : 1 }}>
+                                    <button type="button" disabled={submitting || certificationAuditLoading || certificationAudit?.eligible !== true} onClick={() => handleRegister()} style={{ ...S.btnG, marginTop: 12, width: '100%', justifyContent: 'center', opacity: submitting || certificationAuditLoading || certificationAudit?.eligible !== true ? 0.55 : 1 }}>
                                         {submitting ? <><IcoSpin /> Menulis ke Solana...</> : <><IcoShield /> Data Benar, Setujui & Kirim ke Solana</>}
                                     </button>
                                 </div>
@@ -1114,6 +1151,69 @@ function ProductDetailView({ product, batch, logs = [] }) {
                         );
                     })}
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function CertificationChecklist({ audit, loading }) {
+    const eligible = audit?.eligible === true;
+    return (
+        <div style={{
+            marginBottom: 18,
+            padding: 14,
+            borderRadius: 11,
+            background: eligible ? 'rgba(76,175,80,0.07)' : 'rgba(255,152,0,0.07)',
+            border: `1px solid ${eligible ? 'rgba(76,175,80,0.28)' : 'rgba(255,152,0,0.28)'}`,
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                <div>
+                    <div style={{ color: '#E8F5E0', fontSize: 14, fontWeight: 900 }}>Checklist Kelayakan Sertifikasi</div>
+                    <div style={{ color: 'rgba(232,245,224,0.5)', fontSize: 11, marginTop: 2 }}>
+                        Seluruh kontrol wajib lulus sebelum server membuat transaksi Solana.
+                    </div>
+                </div>
+                <span style={{
+                    borderRadius: 999,
+                    padding: '4px 9px',
+                    color: eligible ? '#7ED44A' : '#FFB300',
+                    background: eligible ? 'rgba(76,175,80,0.12)' : 'rgba(255,152,0,0.12)',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    whiteSpace: 'nowrap',
+                }}>
+                    {loading ? 'Memeriksa...' : eligible ? 'LAYAK' : 'BELUM LAYAK'}
+                </span>
+            </div>
+
+            {audit?.error && (
+                <div style={{ color: '#ff8a80', fontSize: 12 }}>{audit.error}</div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 8 }}>
+                {(audit?.criteria || []).map(item => (
+                    <div key={item.id} style={{
+                        display: 'flex',
+                        gap: 8,
+                        padding: 9,
+                        borderRadius: 8,
+                        background: 'rgba(0,0,0,0.12)',
+                        border: `1px solid ${item.passed ? 'rgba(126,212,74,0.18)' : 'rgba(244,67,54,0.2)'}`,
+                    }}>
+                        <span style={{
+                            color: item.passed ? '#7ED44A' : '#ff8a80',
+                            fontSize: 10,
+                            fontWeight: 900,
+                            paddingTop: 1,
+                        }}>
+                            {item.passed ? 'OK' : 'FAIL'}
+                        </span>
+                        <div>
+                            <div style={{ color: '#E8F5E0', fontSize: 11, fontWeight: 800 }}>{item.label}</div>
+                            <div style={{ color: 'rgba(232,245,224,0.46)', fontSize: 10, lineHeight: 1.4, marginTop: 2 }}>{item.detail}</div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

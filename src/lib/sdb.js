@@ -173,6 +173,13 @@ export function usersToCamel(u) {
         language: u.language,
         photoBase64: u.photo_base64,
         active: u.active,
+        emailVerified: u.email_verified,
+        emailVerifiedAt: u.email_verified_at,
+        farmerVerificationStatus: u.farmer_verification_status,
+        farmerVerificationNotes: u.farmer_verification_notes,
+        farmerVerifiedBy: u.farmer_verified_by,
+        farmerVerifiedByName: u.farmer_verified_by_name,
+        farmerVerifiedAt: u.farmer_verified_at,
         createdAt: u.created_at,
         lastLogin: u.last_login,
     };
@@ -194,6 +201,13 @@ export function usersToSnake(u) {
     if (u.language !== undefined) s.language = u.language;
     if (u.photoBase64 !== undefined) s.photo_base64 = u.photoBase64;
     if (u.active !== undefined) s.active = u.active;
+    if (u.emailVerified !== undefined) s.email_verified = u.emailVerified;
+    if (u.emailVerifiedAt !== undefined) s.email_verified_at = u.emailVerifiedAt;
+    if (u.farmerVerificationStatus !== undefined) s.farmer_verification_status = u.farmerVerificationStatus;
+    if (u.farmerVerificationNotes !== undefined) s.farmer_verification_notes = u.farmerVerificationNotes;
+    if (u.farmerVerifiedBy !== undefined) s.farmer_verified_by = u.farmerVerifiedBy;
+    if (u.farmerVerifiedByName !== undefined) s.farmer_verified_by_name = u.farmerVerifiedByName;
+    if (u.farmerVerifiedAt !== undefined) s.farmer_verified_at = u.farmerVerifiedAt;
     if (u.lastLogin !== undefined) s.last_login = u.lastLogin;
     return s;
 }

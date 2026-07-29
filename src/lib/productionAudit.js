@@ -1,4 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import {
+    FARMER_VERIFICATION_STATUS,
+    buildFarmerVerificationChecklist,
+    normalizeFarmerVerificationStatus,
+} from '@/lib/farmerVerification';
 
 export const PRODUCTION_STAGES = [
     { id: 1, name: 'Panen & Sortasi' },
@@ -16,42 +21,39 @@ function isValidCid(cid) {
     );
 }
 
-export async function getCompleteProductionAudit(productId) {
-    const { data: batch, error: batchError } = await supabaseAdmin
-        .from('production_batches')
-        .select('*')
-        .eq('product_id', productId)
-        .maybeSingle();
-    if (batchError) throw new Error(batchError.message);
-    if (!batch) throw new Error('Produk belum terhubung ke batch pipeline produksi');
+function getEvidencePhotos(log) {
+    if (!log) return [];
+    const source = Array.isArray(log.data?.evidencePhotos) && log.data.evidencePhotos.length
+        ? log.data.evidencePhotos
+        : [log.data?.evidencePhoto || {}];
+    return source.filter(Boolean);
+}
 
-    const { data: logs, error: logsError } = await supabaseAdmin
-        .from('production_stage_logs')
-        .select('*')
-        .eq('batch_id', batch.id)
-        .order('stage', { ascending: true });
-    if (logsError) throw new Error(logsError.message);
+function validStageEvidence(log) {
+    const photos = getEvidencePhotos(log);
+    return Boolean(log?.photo_url)
+        && photos.length > 0
+        && photos.every(photo => (
+            isValidCid(photo.cid)
+            && photo.uri === `ipfs://${photo.cid}`
+            && Boolean(photo.gatewayUrl)
+        ));
+}
 
-    const pipeline = PRODUCTION_STAGES.map(stage => {
-        const log = (logs || []).find(item => Number(item.stage) === stage.id);
-        if (!log) throw new Error(`Tahap ${stage.id} (${stage.name}) belum diisi`);
-        const description = String(log.data?.description || log.data?.notes || '').trim();
-        const evidencePhotos = Array.isArray(log.data?.evidencePhotos) && log.data.evidencePhotos.length
-            ? log.data.evidencePhotos
-            : [log.data?.evidencePhoto || {}];
+function criterion(id, label, passed, detail) {
+    return { id, label, passed: Boolean(passed), detail };
+}
+
+function toPipeline(logs = []) {
+    return PRODUCTION_STAGES.map(stage => {
+        const log = logs.find(item => Number(item.stage) === stage.id);
+        if (!log) return null;
+        const evidencePhotos = getEvidencePhotos(log);
         const evidence = evidencePhotos[0] || {};
-        if (!description) throw new Error(`Deskripsi Tahap ${stage.id} (${stage.name}) belum diisi`);
-        if (!log.photo_url || evidencePhotos.some(photo => (
-            !isValidCid(photo.cid)
-            || photo.uri !== `ipfs://${photo.cid}`
-            || !photo.gatewayUrl
-        ))) {
-            throw new Error(`Foto IPFS Tahap ${stage.id} (${stage.name}) belum valid`);
-        }
         return {
             stage: stage.id,
             stageName: stage.name,
-            description,
+            description: String(log.data?.description || log.data?.notes || '').trim(),
             operator: log.data?.operator || log.logged_by_name || null,
             recordedAt: log.created_at,
             measurements: Object.fromEntries(Object.entries(log.data || {}).filter(([key, value]) => (
@@ -72,6 +74,161 @@ export async function getCompleteProductionAudit(productId) {
             })),
         };
     });
+}
 
-    return { batch, pipeline };
+export async function getProductionCertificationAudit(productId) {
+    const { data: product, error: productError } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .maybeSingle();
+    if (productError) throw new Error(productError.message);
+    if (!product) throw new Error('Produk tidak ditemukan');
+
+    const { data: batch, error: batchError } = await supabaseAdmin
+        .from('production_batches')
+        .select('*')
+        .eq('product_id', productId)
+        .maybeSingle();
+    if (batchError) throw new Error(batchError.message);
+
+    let logs = [];
+    if (batch) {
+        const { data, error } = await supabaseAdmin
+            .from('production_stage_logs')
+            .select('*')
+            .eq('batch_id', batch.id)
+            .order('stage', { ascending: true });
+        if (error) throw new Error(error.message);
+        logs = data || [];
+    }
+
+    const ownerId = product.submitted_by || batch?.farmer_id || null;
+    let owner = null;
+    if (ownerId) {
+        const { data } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', ownerId)
+            .maybeSingle();
+        owner = data || null;
+    }
+
+    const stageNumbers = logs.map(log => Number(log.stage));
+    const expectedStages = PRODUCTION_STAGES.map(stage => stage.id);
+    const completeSequence = stageNumbers.length === expectedStages.length
+        && expectedStages.every(stage => stageNumbers.filter(value => value === stage).length === 1);
+    const descriptionsComplete = completeSequence && logs.every(log => (
+        String(log.data?.description || log.data?.notes || '').trim().length > 0
+    ));
+    const evidenceComplete = completeSequence && logs.every(validStageEvidence);
+    const productMetadataComplete = [
+        product.name,
+        product.origin,
+        product.variety,
+        product.grade,
+        product.description,
+    ].every(value => String(value || '').trim().length > 0);
+    const variantsComplete = Array.isArray(product.weight)
+        && product.weight.length > 0
+        && Array.isArray(product.price_per_unit)
+        && product.price_per_unit.length === product.weight.length
+        && (!Array.isArray(product.stock_per_unit) || product.stock_per_unit.length === product.weight.length);
+
+    const ownerIsFarmer = owner?.role === 'farmer' || product.submitted_by_role === 'farmer';
+    const ownerStatus = owner ? normalizeFarmerVerificationStatus(owner) : null;
+    const ownerChecklist = owner ? buildFarmerVerificationChecklist(owner) : [];
+    const ownerVerified = !ownerIsFarmer || (
+        ownerStatus === FARMER_VERIFICATION_STATUS.VERIFIED
+        && ownerChecklist.length > 0
+        && ownerChecklist.every(item => item.passed)
+    );
+
+    const criteria = [
+        criterion(
+            'farmer',
+            'Petani terverifikasi',
+            ownerVerified,
+            !ownerIsFarmer
+                ? 'Pipeline dicatat oleh akun operasional non-petani.'
+                : ownerVerified
+                    ? `${owner?.name || product.submitted_by_name} telah lolos verifikasi akun.`
+                    : 'Email, identitas, wilayah, dan wallet petani harus lolos review.',
+        ),
+        criterion(
+            'batch',
+            'Produk terhubung ke batch',
+            Boolean(batch),
+            batch ? `Batch ${batch.name} ditemukan.` : 'Produk belum terhubung ke pipeline produksi.',
+        ),
+        criterion(
+            'sequence',
+            'Enam tahap berurutan dan unik',
+            completeSequence,
+            completeSequence
+                ? 'Tahap 1 sampai 6 tersedia tepat satu kali.'
+                : `Tahap tersedia: ${stageNumbers.length ? stageNumbers.join(', ') : 'belum ada'}.`,
+        ),
+        criterion(
+            'descriptions',
+            'Deskripsi setiap tahap lengkap',
+            descriptionsComplete,
+            descriptionsComplete
+                ? 'Seluruh tahap memiliki uraian proses.'
+                : 'Satu atau lebih tahap belum memiliki deskripsi.',
+        ),
+        criterion(
+            'ipfs',
+            'Bukti foto IPFS valid',
+            evidenceComplete,
+            evidenceComplete
+                ? 'CID, URI ipfs://, dan gateway tersedia pada seluruh tahap.'
+                : 'Satu atau lebih bukti foto belum memiliki CID/URI/gateway yang valid.',
+        ),
+        criterion(
+            'metadata',
+            'Metadata produk lengkap',
+            productMetadataComplete && variantsComplete,
+            productMetadataComplete && variantsComplete
+                ? 'Nama, asal, varietas, grade, deskripsi, varian, harga, dan stok konsisten.'
+                : 'Metadata atau jumlah varian produk belum lengkap/konsisten.',
+        ),
+        criterion(
+            'status',
+            'Status siap sertifikasi',
+            product.status === 'pending_certification' && !product.coffee_id,
+            product.status === 'pending_certification' && !product.coffee_id
+                ? 'Produk menunggu keputusan reviewer dan belum memiliki Coffee ID.'
+                : `Status saat ini: ${product.status || '-'}; Coffee ID: ${product.coffee_id || 'belum ada'}.`,
+        ),
+    ];
+
+    const pipeline = toPipeline(logs);
+    return {
+        eligible: criteria.every(item => item.passed),
+        criteria,
+        product,
+        batch,
+        logs,
+        pipeline,
+        owner: owner ? {
+            id: owner.id,
+            name: owner.name,
+            role: owner.role,
+            verificationStatus: ownerStatus,
+        } : null,
+    };
+}
+
+export async function getCompleteProductionAudit(productId) {
+    const audit = await getProductionCertificationAudit(productId);
+    const failed = audit.criteria.find(item => !item.passed);
+    if (failed) throw new Error(`${failed.label}: ${failed.detail}`);
+
+    return {
+        batch: audit.batch,
+        pipeline: audit.pipeline,
+        criteria: audit.criteria,
+        owner: audit.owner,
+    };
 }

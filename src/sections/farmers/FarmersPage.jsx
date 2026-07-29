@@ -1,119 +1,264 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import styles from './FarmersPage.module.css';
 
+const REVIEW_ROLES = new Set(['koperasi', 'developer', 'admin']);
+
 function fmtVolume(kg) {
-    if (!kg && kg !== 0) return '—';
-    return kg >= 1000 ? `${(kg / 1000).toFixed(1)} Ton` : `${kg} kg`;
+    if (!kg && kg !== 0) return '-';
+    return kg >= 1000 ? `${(kg / 1000).toFixed(1)} ton` : `${kg} kg`;
 }
-function fmtEarnings(rp) {
-    if (!rp && rp !== 0) return '—';
-    if (rp >= 1_000_000_000) return `Rp ${(rp / 1_000_000_000).toFixed(2)} M`;
-    if (rp >= 1_000_000)     return `Rp ${Math.round(rp / 1_000_000)} Jt`;
-    if (rp >= 1_000)         return `Rp ${Math.round(rp / 1_000)} rb`;
-    return `Rp ${rp}`;
+
+function fmtWallet(wallet) {
+    if (!wallet) return '-';
+    return wallet.length > 18 ? `${wallet.slice(0, 8)}...${wallet.slice(-6)}` : wallet;
 }
-function fmtWallet(w) {
-    if (!w) return '—';
-    return w.length > 14 ? `${w.slice(0, 6)}...${w.slice(-4)}` : w;
+
+function fmtDate(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? value
+        : new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+function statusLabel(status) {
+    if (status === 'verified') return 'Terverifikasi';
+    if (status === 'rejected') return 'Ditolak';
+    return 'Menunggu';
 }
 
 export default function FarmersPage() {
+    const { user, getToken } = useAuth();
+    const canReview = REVIEW_ROLES.has(user?.role);
     const [farmers, setFarmers] = useState([]);
+    const [selectedId, setSelectedId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+    const [notes, setNotes] = useState('');
+    const [message, setMessage] = useState(null);
+
+    const loadFarmers = useCallback(async () => {
+        setLoading(true);
+        try {
+            const token = getToken();
+            const response = await fetch(`/api/farmers${canReview ? '?includeInactive=true' : ''}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                cache: 'no-store',
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'Gagal memuat data petani');
+            setFarmers(data.data || []);
+        } catch (error) {
+            setMessage({ type: 'error', text: error.message });
+        } finally {
+            setLoading(false);
+        }
+    }, [canReview, getToken]);
 
     useEffect(() => {
-        const token = localStorage.getItem('cc_token');
-        fetch('/api/farmers', {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-            .then(r => r.json())
-            .then(d => setFarmers(d.data || []))
-            .catch(() => {})
-            .finally(() => setLoading(false));
-    }, []);
+        loadFarmers();
+    }, [loadFarmers]);
 
-    // Hitung 4 kartu stats dari data nyata
-    const thisMonth     = new Date().toISOString().slice(0, 7); // "YYYY-MM"
-    const totalPetani   = farmers.length;
-    const koperasiAktif = farmers.filter(f => f.type === 'Koperasi' && f.status === 'Verified').length;
-    const terverifikasi = farmers.filter(f => f.status === 'Verified').length;
-    const baruBulanIni  = farmers.filter(f => (f.joined || '').startsWith(thisMonth)).length;
+    const selected = farmers.find(farmer => farmer.id === selectedId) || null;
+    const stats = useMemo(() => {
+        const verified = farmers.filter(item => item.verificationStatus === 'verified').length;
+        const pending = farmers.filter(item => item.verificationStatus === 'pending').length;
+        const rejected = farmers.filter(item => item.verificationStatus === 'rejected').length;
+        return [
+            { label: 'Total Akun Petani', value: farmers.length, tone: 'primary' },
+            { label: 'Terverifikasi', value: verified, tone: 'success' },
+            { label: 'Menunggu Review', value: pending, tone: 'warning' },
+            { label: 'Ditolak', value: rejected, tone: 'danger' },
+        ];
+    }, [farmers]);
 
-    const stats = [
-        { label: 'Total Petani',   val: loading ? '...' : totalPetani.toLocaleString('id-ID'), color: '#4A7C28' },
-        { label: 'Koperasi Aktif', val: loading ? '...' : koperasiAktif.toLocaleString('id-ID'), color: '#F5A623' },
-        { label: 'Terverifikasi',  val: loading ? '...' : terverifikasi.toLocaleString('id-ID'), color: '#4CAF50' },
-        { label: 'Baru Bulan Ini', val: loading ? '...' : (baruBulanIni > 0 ? `+${baruBulanIni}` : '0'), color: '#00D4FF' },
-    ];
+    async function updateVerification(action) {
+        if (!selected || selected.source !== 'users') return;
+        if (action === 'reject' && !notes.trim()) {
+            setMessage({ type: 'error', text: 'Alasan penolakan wajib diisi.' });
+            return;
+        }
+
+        setSubmitting(true);
+        setMessage(null);
+        try {
+            const token = getToken();
+            const response = await fetch('/api/farmers', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ id: selected.id, action, notes }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                const failed = (data.checklist || []).filter(item => !item.passed).map(item => item.label);
+                throw new Error(failed.length
+                    ? `${data.message} Belum lulus: ${failed.join(', ')}.`
+                    : data.message || 'Gagal memperbarui status verifikasi');
+            }
+            setFarmers(current => current.map(item => item.id === data.data.id ? data.data : item));
+            setNotes('');
+            setMessage({ type: 'success', text: data.message });
+        } catch (error) {
+            setMessage({ type: 'error', text: error.message });
+        } finally {
+            setSubmitting(false);
+        }
+    }
 
     return (
         <div className={styles.page}>
             <div className={styles.pageHeader}>
                 <div>
-                    <h1 className={styles.pageTitle}>Data Petani & Koperasi</h1>
-                    <p className={styles.pageSubtitle}>Petani aktif yang terdaftar di CoffeeChain</p>
+                    <h1 className={styles.pageTitle}>Verifikasi Petani</h1>
+                    <p className={styles.pageSubtitle}>
+                        Verifikasi email, identitas, wilayah kebun, dan wallet sebelum petani mencatat produksi.
+                    </p>
                 </div>
+                <button type="button" className={styles.refreshButton} onClick={loadFarmers} disabled={loading}>
+                    {loading ? 'Memuat...' : 'Muat Ulang'}
+                </button>
             </div>
 
-            {/* Stats */}
+            {message && (
+                <div className={`${styles.message} ${message.type === 'error' ? styles.messageError : styles.messageSuccess}`}>
+                    {message.text}
+                </div>
+            )}
+
             <div className={styles.statsRow}>
-                {stats.map((s, i) => (
-                    <div key={i} className={styles.statCard}>
-                        <div className={styles.statVal} style={{ color: s.color }}>{s.val}</div>
-                        <div className={styles.statLabel}>{s.label}</div>
+                {stats.map(stat => (
+                    <div key={stat.label} className={styles.statCard}>
+                        <div className={`${styles.statVal} ${styles[stat.tone]}`}>{loading ? '...' : stat.value}</div>
+                        <div className={styles.statLabel}>{stat.label}</div>
                     </div>
                 ))}
             </div>
 
-            {/* Farmer Cards Grid */}
+            {selected && (
+                <section className={styles.reviewPanel} aria-label="Detail verifikasi petani">
+                    <div className={styles.reviewHeader}>
+                        <div>
+                            <span className={styles.eyebrow}>Audit identitas petani</span>
+                            <h2>{selected.name}</h2>
+                            <p>{selected.email || 'Akun legacy tanpa email'} · {selected.region}</p>
+                        </div>
+                        <span className={`${styles.statusBadge} ${styles[selected.verificationStatus]}`}>
+                            {statusLabel(selected.verificationStatus)}
+                        </span>
+                    </div>
+
+                    <div className={styles.reviewGrid}>
+                        <div className={styles.checklist}>
+                            {(selected.verificationChecklist || []).length ? selected.verificationChecklist.map(item => (
+                                <div key={item.id || item.label} className={`${styles.checkItem} ${item.passed ? styles.checkPassed : styles.checkFailed}`}>
+                                    <span className={styles.checkIcon}>{item.passed ? 'OK' : '!'}</span>
+                                    <div>
+                                        <strong>{item.label}</strong>
+                                        <p>{item.detail}</p>
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className={styles.readOnlyNotice}>
+                                    Data ini berasal dari tabel petani lama dan belum terhubung ke akun autentikasi.
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={styles.reviewMeta}>
+                            <div><span>Wallet</span><strong className={styles.mono}>{fmtWallet(selected.wallet)}</strong></div>
+                            <div><span>Bergabung</span><strong>{selected.joined || '-'}</strong></div>
+                            <div><span>Direview oleh</span><strong>{selected.verifiedByName || '-'}</strong></div>
+                            <div><span>Waktu review</span><strong>{fmtDate(selected.verifiedAt)}</strong></div>
+                            <div><span>Catatan</span><strong>{selected.verificationNotes || '-'}</strong></div>
+                        </div>
+                    </div>
+
+                    {canReview && selected.source === 'users' && (
+                        <div className={styles.reviewActions}>
+                            <textarea
+                                value={notes}
+                                onChange={event => setNotes(event.target.value)}
+                                placeholder="Catatan reviewer atau alasan penolakan"
+                                maxLength={1000}
+                                rows={3}
+                            />
+                            <div className={styles.actionButtons}>
+                                <button type="button" className={styles.resetButton} onClick={() => updateVerification('reset')} disabled={submitting}>
+                                    Set Pending
+                                </button>
+                                <button type="button" className={styles.rejectButton} onClick={() => updateVerification('reject')} disabled={submitting}>
+                                    Tolak
+                                </button>
+                                <button type="button" className={styles.verifyButton} onClick={() => updateVerification('verify')} disabled={submitting}>
+                                    Verifikasi Petani
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            )}
+
             <div className={styles.grid}>
                 {!loading && farmers.length === 0 && (
-                    <div className={styles.emptyState}>
-                        Belum ada petani aktif yang terdaftar.
-                    </div>
+                    <div className={styles.emptyState}>Belum ada data petani.</div>
                 )}
-                {farmers.map((f) => (
-                    <div key={f.id} className={styles.farmerCard}>
+                {farmers.map(farmer => (
+                    <article
+                        key={farmer.id}
+                        className={`${styles.farmerCard} ${selectedId === farmer.id ? styles.selectedCard : ''}`}
+                    >
                         <div className={styles.cardTop}>
-                            <div className={styles.avatar}>
-                                {(f.name || '??').substr(0, 2).toUpperCase()}
-                            </div>
+                            <div className={styles.avatar}>{(farmer.name || '??').slice(0, 2).toUpperCase()}</div>
                             <div className={styles.cardTopInfo}>
-                                <div className={styles.farmerName}>{f.name}</div>
-                                <div className={styles.farmerType}>{f.type} • {f.region}</div>
+                                <div className={styles.farmerName}>{farmer.name}</div>
+                                <div className={styles.farmerType}>{farmer.type} · {farmer.region}</div>
                             </div>
-                            <span className={`${styles.statusBadge} ${f.status === 'Verified' ? styles.verified : styles.pending}`}>
-                                {f.status === 'Verified' ? 'Verified' : 'Pending'}
+                            <span className={`${styles.statusBadge} ${styles[farmer.verificationStatus]}`}>
+                                {statusLabel(farmer.verificationStatus)}
                             </span>
                         </div>
 
                         <div className={styles.walletRow}>
-                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" /></svg>
-                            <span className={styles.walletAddr}>{fmtWallet(f.wallet)}</span>
+                            <span>Wallet</span>
+                            <span className={styles.walletAddr}>{fmtWallet(farmer.wallet)}</span>
                         </div>
 
                         <div className={styles.statsGrid}>
                             <div className={styles.statItem}>
-                                <div className={styles.statItemVal}>{fmtVolume(f.volume)}</div>
+                                <div className={styles.statItemVal}>{fmtVolume(farmer.volume)}</div>
                                 <div className={styles.statItemLabel}>Volume</div>
                             </div>
                             <div className={styles.statItem}>
-                                <div className={styles.statItemVal} style={{ color: '#4A7C28' }}>{fmtEarnings(f.earnings)}</div>
-                                <div className={styles.statItemLabel}>Pendapatan</div>
+                                <div className={styles.statItemVal}>{farmer.emailVerified === false ? 'Belum' : 'Ya'}</div>
+                                <div className={styles.statItemLabel}>Email Valid</div>
                             </div>
                             <div className={styles.statItem}>
-                                <div className={styles.statItemVal}>{f.rating ?? '—'} </div>
-                                <div className={styles.statItemLabel}>Rating</div>
+                                <div className={styles.statItemVal}>{farmer.verificationChecklist?.filter(item => item.passed).length || 0}/4</div>
+                                <div className={styles.statItemLabel}>Kriteria</div>
                             </div>
                         </div>
 
                         <div className={styles.cardFooter}>
-                            <span className={styles.joinDate}>Bergabung: {f.joined || '—'}</span>
-                            <button className={styles.detailBtn}>Lihat Detail →</button>
+                            <span className={styles.joinDate}>Bergabung: {farmer.joined || '-'}</span>
+                            <button
+                                type="button"
+                                className={styles.detailBtn}
+                                onClick={() => {
+                                    setSelectedId(current => current === farmer.id ? null : farmer.id);
+                                    setNotes('');
+                                    setMessage(null);
+                                }}
+                            >
+                                {selectedId === farmer.id ? 'Tutup' : 'Periksa'}
+                            </button>
                         </div>
-                    </div>
+                    </article>
                 ))}
             </div>
         </div>

@@ -8,6 +8,7 @@ import {
     isPipelineAccountRole,
     ownsPipelineBatch,
 } from '@/lib/productionAccess';
+import { getFarmerProductionEligibility } from '@/lib/farmerVerificationServer';
 
 export const runtime = 'nodejs';
 
@@ -118,6 +119,15 @@ export async function POST(req) {
         const session = await requireSession(req);
         if (!session) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+        const eligibility = await getFarmerProductionEligibility(session);
+        if (!eligibility.eligible) {
+            return NextResponse.json({
+                success: false,
+                message: eligibility.message,
+                verificationStatus: eligibility.status,
+                checklist: eligibility.checklist,
+            }, { status: 403 });
         }
 
         const body = await req.json();

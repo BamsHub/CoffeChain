@@ -14,6 +14,7 @@ import {
     setTaggedVariantStocks,
     validateProductVariants,
 } from '@/lib/productVariants';
+import { getFarmerProductionEligibility } from '@/lib/farmerVerificationServer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -155,6 +156,15 @@ export async function POST(req) {
         const session = await verifyToken(token);
         if (!session || !isPipelineAccountRole(session.role)) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+        const eligibility = await getFarmerProductionEligibility(session);
+        if (!eligibility.eligible) {
+            return NextResponse.json({
+                success: false,
+                message: eligibility.message,
+                verificationStatus: eligibility.status,
+                checklist: eligibility.checklist,
+            }, { status: 403 });
         }
 
         const body = await req.json();

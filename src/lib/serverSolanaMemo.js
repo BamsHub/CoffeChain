@@ -13,6 +13,12 @@ import {
     SOLANA_NETWORK,
     getExplorerTxUrl,
 } from '@/lib/contractConfig';
+import {
+    DEFAULT_MICRO_LAMPORTS_PER_CU,
+    MAX_MEMO_COMPUTE_UNITS,
+    buildSolanaFeeBreakdown,
+    chooseComputeUnitLimit,
+} from '@/lib/solanaFee';
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
@@ -243,16 +249,29 @@ export async function sendServerMemoTx(memoData) {
     });
 
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-    const tx = new Transaction();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = signer.publicKey;
-    tx.lastValidBlockHeight = lastValidBlockHeight;
-    tx.add(
-        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
-        memoInstruction,
-    );
-    tx.sign(signer);
+    const buildTransaction = computeUnitLimit => {
+        const transaction = new Transaction();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = signer.publicKey;
+        transaction.lastValidBlockHeight = lastValidBlockHeight;
+        transaction.add(
+            ComputeBudgetProgram.setComputeUnitPrice({
+                microLamports: DEFAULT_MICRO_LAMPORTS_PER_CU,
+            }),
+            ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnitLimit }),
+            memoInstruction,
+        );
+        transaction.sign(signer);
+        return transaction;
+    };
+
+    const simulationTx = buildTransaction(MAX_MEMO_COMPUTE_UNITS);
+    const simulation = await connection.simulateTransaction(simulationTx).catch(() => null);
+    const computeUnitsConsumed = simulation?.value?.err
+        ? null
+        : simulation?.value?.unitsConsumed ?? null;
+    const computeUnitLimit = chooseComputeUnitLimit(computeUnitsConsumed);
+    const tx = buildTransaction(computeUnitLimit);
 
     const estimatedFee = await connection
         .getFeeForMessage(tx.compileMessage(), 'confirmed')
@@ -266,6 +285,12 @@ export async function sendServerMemoTx(memoData) {
     const confirmation = await waitForConfirmation(connection, txSignature, lastValidBlockHeight);
     const confirmedTransaction = await getConfirmedTransaction(connection, txSignature);
     const networkFeeLamports = confirmedTransaction?.meta?.fee ?? estimatedFee.value ?? null;
+    const feeBreakdown = buildSolanaFeeBreakdown({
+        totalFeeLamports: networkFeeLamports,
+        computeUnitLimit,
+        microLamportsPerCu: DEFAULT_MICRO_LAMPORTS_PER_CU,
+        computeUnitsConsumed: confirmedTransaction?.meta?.computeUnitsConsumed ?? computeUnitsConsumed,
+    });
 
     return {
         txSignature,
@@ -275,5 +300,6 @@ export async function sendServerMemoTx(memoData) {
         confirmationStatus: confirmation.confirmationStatus,
         networkFeeLamports,
         networkFeeSol: networkFeeLamports == null ? null : networkFeeLamports / LAMPORTS_PER_SOL,
+        feeBreakdown,
     };
 }

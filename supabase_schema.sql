@@ -25,12 +25,26 @@ CREATE TABLE IF NOT EXISTS users (
   active BOOLEAN DEFAULT true,
   email_verified BOOLEAN DEFAULT true,
   email_verified_at TIMESTAMPTZ,
+  farmer_verification_status TEXT DEFAULT 'pending'
+    CHECK (farmer_verification_status IN ('pending', 'verified', 'rejected')),
+  farmer_verification_notes TEXT,
+  farmer_verified_by TEXT,
+  farmer_verified_by_name TEXT,
+  farmer_verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_login TIMESTAMPTZ
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified    BOOLEAN DEFAULT true;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verification_status TEXT DEFAULT 'pending';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verification_notes TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_by TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_by_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farmer_verified_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_users_farmer_verification_status
+  ON users(farmer_verification_status)
+  WHERE role = 'farmer';
 
 CREATE TABLE IF NOT EXISTS verification_tokens (
   id TEXT PRIMARY KEY,
